@@ -1,0 +1,78 @@
+%! Author = murfe
+%! Date = 07.06.2026
+
+% Preamble
+\documentclass[11pt]{article}
+
+% Packages
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman]{babel}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+\usepackage{graphicx}
+\usepackage{tikzpagenodes}
+
+
+
+\begin{document}
+
+    \begin{titlepage}
+
+
+% Hintergrund
+        \begin{tikzpicture}[remember picture,overlay]
+    \node[
+        anchor=center,
+        inner sep=0pt
+    ] at (current page.center)
+        {\includegraphics[
+        width=\paperwidth,
+        keepaspectratio
+    ]{images/background}};
+        \end{tikzpicture}
+
+% Logo links oben
+        \begin{tikzpicture}[remember picture,overlay]
+    \node[anchor=north west]
+    at ([xshift=25mm,yshift=-10mm]current page.north west)
+        {\includegraphics[width=9cm]{images/hsbrs_logo}};
+        \end{tikzpicture}
+
+        \centering
+
+        \vspace*{3.5cm}
+
+        {\Huge\bfseries Abschlussarbeit\par}
+
+        {\Large Studiengang Bachelor Informatik\par}
+        \vspace*{3cm}
+
+        {\LARGE\bfseries Entwurf und Evaluation eines
+        fehlertoleranten Job-Processing in Java\par}
+        \vspace*{3cm}
+
+        {\Large von\par}
+        \vspace*{0.5cm}
+
+        {\LARGE Max Urfei\par}
+
+
+
+
+        \begin{tikzpicture}[remember picture,overlay]
+  \node[
+      anchor=south,
+      align=left,
+      font=\large
+  ] at ([yshift=25mm]current page.south) {%
+      Erstprüfer:\quad Prof.\ Dr.\ Andreas Hackelöer\\[0.2em]
+      Zweitprüfer:\quad M.\ Sc.\ Moritz Balg\\[1.2em]
+      eingereicht am TT.MM.YYYY
+  };
+        \end{tikzpicture}
+
+
+    \end{titlepage}
+
+\end{document}
