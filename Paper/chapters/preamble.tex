@@ -9,9 +9,9 @@
 \usepackage{graphicx}
 \usepackage{tikzpagenodes}
 \usepackage[acronym, toc]{glossaries}
+\usepackage[backend=biber,style=authoryear]{biblatex}
 \usepackage[hidelinks,
-  pdftitle={Entwurf und Evaluation eines
-  fehlertoleranten Job-Processing in Java},
+  pdftitle={Entwurf und Evaluation eines fehlertoleranten Job-Processing in Java},
   pdfauthor={Max Urfei}
 ]{hyperref}
 \usepackage[nameinlink]{cleveref}
@@ -23,4 +23,4 @@
 \RedeclareSectionCommand[
   beforeskip=0pt
 ]{chapter}
-
+\addbibresource{bib/bibliography.bib}
