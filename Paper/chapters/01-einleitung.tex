@@ -1,22 +1,124 @@
 %! Author = murfe
-%! Date = 08.06.2026
+%! Date = 09.06.2026
 
 \chapter{Einleitung}\label{ch:einleitung}
-
-\gls{test}
-\gls*{test}
-
-
 \section{Motivation}\label{sec:motivation}
-
-Testzitat \parencite{kleppmann_designing_2017}
-\textcite{kleppmann_designing_2017}
+In modernen Softwaresystemen stellt die Verarbeitung von Hintergrundjobs einen
+zentralen Bestandteil vieler Backend-Architekturen dar \parencite[Kap. 10]{kleppmann_designing_2017}.
+Zahlreiche Geschäftsprozesse, darunter die Generierung von Reports, der Import großer
+Datenmengen, periodische Abrechnungsläufe oder das Versenden asynchroner
+Benachrichtigungen, erfordern eine Verarbeitung, die entkoppelt vom synchronen
+Request-Response-Zyklus stattfindet.
+Insbesondere in industrienahen und
+sicherheitskritischen Anwendungen, etwa im Bereich der luftfahrttechnischen
+Wartungsdokumentation, müssen solche Prozesse nicht nur funktional korrekt ablaufen,
+sondern darüber hinaus zuverlässig, nachvollziehbar und fehlertolerant sein.
 
 
 \section{Problemstellung}\label{sec:problemstellung}
+In der Praxis können bei der Verarbeitung von Hintergrundjobs jederzeit Teilausfälle
+auftreten.
+Prozesse können während der Verarbeitung unerwartet terminieren,
+Datenbankverbindungen können kurzzeitig unterbrochen werden oder identische
+Anfragen werden zum Beispiel infolge von clientseitigen Wiederholungsversuchen
+mehrfach an das System übermittelt oder Ergebnisse bzw. Antworten gehen verloren
+\parencite[Kap. 8]{kleppmann_designing_2017}.
+Ohne geeignete Mechanismen führen derartige Szenarien
+zu inkonsistenten Systemzuständen.
+Beispielsweise verbleiben Jobs im Status
+\glqq laufend\grqq, obwohl kein Worker sie mehr aktiv verarbeitet, Ergebnisse werden doppelt
+erzeugt oder Aufträge gehen vollständig verloren.\par
+Bestehende Frameworks und Bibliotheken, etwa Quartz Scheduler \parencite{terracotta_inc_hrsg_quartz_2026}
+oder Spring Batch \parencite{broadcom_inc_hrsg_spring_2026}, adressieren Teilaspekte
+der Hintergrundverarbeitung, setzen jedoch voraus, dass grundlegende
+Architekturentscheidungen bewusst und korrekt getroffen werden.
+So muss unter anderem entschieden werden, wie sichergestellt wird, dass ein Job nach einem
+Prozessabsturz nicht verloren geht, wie verhindert wird, dass zwei Worker denselben
+Job gleichzeitig verarbeiten, wie das System doppelte Aufträge erkennt und redundante
+Ergebnisse vermeidet und wie es sich bei kurzzeitigen Datenbankausfällen verhält.
+Keine der genannten Lösungen beantwortet diese Fragen vollständig.
+Sie erfordern vielmehr ein durchdachtes Zusammenspiel aus einem persistenten Statusmodell, klar
+definierten Transaktionsgrenzen, geeigneten Locking-Strategien, Mechanismen zur
+Vermeidung doppelter Ausführung sowie Retry- und Backoff-Policies.
+Die zentrale Herausforderung liegt darin, diese Mechanismen so zu entwerfen und zu kombinieren,
+dass das System definierte Zusicherungen unter allen relevanten Fehlerszenarien einhält.\par
+
+Die beschriebene Problematik ist von hoher praktischer und industrieller Relevanz.
+Nahezu jedes Backend-System, das über einfache \gls{crud}-Operationen hinausgeht,
+muss eine Form der zuverlässigen Hintergrundverarbeitung mittels Transaktionen
+implementieren \parencite[Kap. 4]{richardson_microservices_2018}.
+Fehler in diesem Bereich führen zu Datenverlust, inkonsistenten Geschäftszuständen
+sowie unnötigem manuellem Eingriff und können insbesondere in regulierten Domänen
+wie der Luftfahrt Compliance-Verstöße nach sich ziehen.
+Auch im Kontext von Cloud-nativen Architekturen ist dieses Thema relevant.
+Horizontale Skalierung, Container-Neustarts und kurzzeitige
+Netzwerkunterbrechungen können auftreten und müssen behandelt werden.
+Daher bilden die in dieser Arbeit behandelten Konzepte auch die Grundlage für den
+zuverlässigen Betrieb von Backend-Systemen in Cloud-Umgebungen.
+Trotz dieser Relevanz existiert wenig praxisorientierte und zugleich evaluierte Literatur,
+die den gesamten Entwurfsprozess eines solchen Systems, von der
+Anforderungsdefinition über die Architekturentscheidungen bis hin zum systematischen
+Fehlervalidierung, nachvollziehbar dokumentiert und empirisch überprüft.\par
+Daraus ergibt sich die dieser Arbeit zugrundeliegende Hauptforschungsfrage:\\
+Welche Architekturmechanismen und Entwurfsentscheidungen sind notwendig, um in
+einem Java/Spring-basierten Job-Processing-Backend definierte Konsistenzzusicherungen
+unter typischen Teilausfallszenarien nachweisbar einzuhalten?\\
+Zur Beantwortung dieser Frage werden folgende Teilfragen untersucht:
+\begin{enumerate}[label=TF\arabic*:, ref=TF\arabic*]
+    \item \label{item:tf1} Welche Zusicherungen muss das System gewährleisten, damit Jobs stets
+    korrekt und ohne Inkonsistenzen verarbeitet werden?
+    \item \label{item:tf2} Welchen Beitrag leisten Idempotenz, Retry-Strategien und Dead-letter-Handling
+    zur Robustheit unter definierten Fehlerszenarien?
+    \item \label{item:tf3} Wie müssen Transaktionen und Locking-Strategien genutzt werden, damit
+    bei paralleler Arbeit mehrerer Worker keine Doppelverarbeitung oder
+    inkonsistenten Zustände entstehen?
+    \item \label{item:tf4} Wie lässt sich sicherstellen, dass Jobs nach einem unerwarteten
+    Prozessabbruch korrekt wiederaufgenommen werden, ohne dass Aufträge
+    verloren gehen?
+\end{enumerate}
 
 
 \section{Zielsetzung}\label{sec:zielsetzung}
+Ziel dieser Arbeit ist der Entwurf, die prototypische Implementierung und die Evaluation
+eines fehlertoleranten Job-Processing-Backends auf Basis von Java und Spring.
+Dabei soll herausgearbeitet werden, welche Architekturmechanismen erforderlich sind,
+damit Hintergrundjobs auch bei Teilausfällen zuverlässig, korrekt und nachvollziehbar
+verarbeitet werden und definierte Konsistenzzusicherungen eingehalten werden.
 
+Konkret verfolgt die Arbeit folgende Teilziele:
+\begin{enumerate}[label=TZ\arabic*:, ref=TZ\arabic*]
+    \item \label{item:tz1} Definition von Zusicherungen: Es sollen präzise Korrektheitsbedingungen
+    formuliert werden, die das System zu jedem Zeitpunkt einhalten muss,
+    unabhängig davon, welche Fehler auftreten.
+    Dazu zählen unter anderem, dass kein Job doppelt erfolgreich abgeschlossen wird,
+    dass kein Job dauerhaft verloren geht und dass Statusübergänge ausschließlich
+    dem definierten Zustandsmodell folgen.
+    \item \label{item:tz2} Architekturentwurf: Es soll eine Architektur entworfen werden, die persistente
+    Job-States, Idempotenz, Retry-Strategien sowie ein nachvollziehbares
+    Statusmodell umfasst.
+    Architekturentscheidungen sollen explizit dokumentiert und begründet werden.
+    \item \label{item:tz3} Prototypische Implementierung: Die entworfene Architektur soll als
+    funktionsfähiger Prototyp umgesetzt werden, der die definierten Zusicherungen
+    unter realistischen Bedingungen einhält.
+    \item \label{item:tz4} Evaluation unter Fehlerbedingungen: Es soll nachgewiesen werden, dass das
+    System seine Zusicherungen auch bei gezielt herbeigeführten Teilausfällen nicht
+    verletzt.
+\end{enumerate}
+
+\section{Hypothesen}\label{sec:hypothesen}
+Auf Basis der Forschungsfrage und der Zielsetzung werden folgende Hypothesen formuliert,
+deren Überprüfung im Rahmen der Implementierung und insbesondere der Evaluation erfolgt.
+\begin{enumerate}[label=H\arabic*:, ref=H\arabic*]
+    \item \label{item:h1} Durch die Kombination eines persistenten Statusmodells mit transaktionsbasiertem
+    Locking und Idempotenz-Mechanismen lässt sich ein System entwerfen, das auch bei
+    unerwarteten Prozessabbrüchen keine Jobs verliert und keine doppelten Ergebnisse
+    erzeugt.
+    \item \label{item:h2} Retry-Strategien mit exponentiellem Backoff in Verbindung mit einer
+    Fehlerklassifikation (transient vs. permanent) erhöhen die Robustheit des Systems
+    gegenüber kurzzeitigen Infrastrukturausfällen, ohne dabei die definierten Zusicherungen
+    zu verletzen.
+    \item \label{item:h3} Die definierten Zusicherungen lassen sich durch automatisierte Tests mit gezielter
+    Fehlerinjektion reproduzierbar überprüfen und nachweisen.
+\end{enumerate}
 
 \section{Aufbau der Arbeit}\label{sec:aufbau}
