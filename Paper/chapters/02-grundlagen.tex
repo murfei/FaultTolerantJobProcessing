@@ -11,10 +11,27 @@
 
 \subsection{Synchrone vs. Asynchrone Verarbeitung}\label{subsec:synchroneVsAsynchron}
 
+"A consequence of queueing is also that consumers are generally \textit{asynchronous}: when a producer sends
+a message, it normally only waits for the broker to confirm that it has buffered the message and
+does not wait for the message to be processed by consumers. The delivery to consumers will happen at
+some undetermined future point in time—often within a fraction of a second, but sometimes
+significantly later if there is a queue backlog."\parencite[Kap.11 --> Message brokers]{kleppmann_designing_2017}
+
 \subsection{Background Job-Processing}\label{subsec:backgroundJobs}
+
+"In principle, a file or database is sufficient to connect producers and consumers: a producer writes
+every event that it generates to the datastore, and each consumer periodically polls the datastore
+to check for events that have appeared since it last ran. This is essentially what a batch process
+does when it processes a day’s worth of data at the end of every day." \parencite[Kap.11 --> Transmitting Event Streams]{kleppmann_designing_2017}
+
+"What happens if nodes crash or temporarily go offline—are any messages lost? As with databases,
+durability may require some combination of writing to disk and/or replication (see the sidebar
+\href{https://learning.oreilly.com/library/view/designing-data-intensive-applications/9781491903063/ch07.html#sidebar_transactions_durability}{“Replication and Durability”}), which has a cost. If you can afford to sometimes lose
+messages, you can probably get higher throughput and lower latency on the same hardware."\parencite[Kap.11 Messaging Systems]{kleppmann_designing_2017}
 
 
 \section{Konsistenz und konkurrierende Verarbeitung}\label{sec:konsistenz}
+\textcite[Kap. 7 --> Transactions]{kleppmann_designing_2017}
 
 \subsection{ACID}\label{subsec:acid}
 
@@ -25,14 +42,24 @@
 
 \section{Fehlertoleranz und Wiederherstellung}\label{sec:fehlertoleranz}
 
+\href{https://learning.oreilly.com/library/view/designing-data-intensive-applications/9781491903063/ch01.html#sec_introduction_reliability}{“Reliability”}
+
 \subsection{Retry-/Backoff-Strategien}\label{subsec:retry/backoff}
 
 \subsection{Fehlerklassifikationen}\label{subsec:fehlerklassifikationen}
 
 \subsection{Recovery}\label{subsec:recovery}
 
-\subsection{Idempotenz}\label{subsec:idempotenz}
+Dein „remote datastore“ ist praktisch deine PostgreSQL-Jobtabelle (persistenter Job-Store). Das entspricht dem Ansatz „State remote halten“, was Recovery vereinfacht, aber Laufzeit/Contention beeinflusst.
+ Dein Worker hat vermutlich lokalen, transienten Zustand während der Verarbeitung (in-memory). Der muss nach Crash nicht „rekonstruiert“ werden, sondern du brauchst Mechanismen wie Lease/Timeout + Retry, um Jobs wieder aufzunehmen.
+„Replay state from input“ entspricht bei dir am ehesten: Job erneut ausführen (at-least-once) – und genau deshalb brauchst du Idempotenz, weil „replay“ bei Side-Effects sonst doppelte Ergebnisse erzeugt.
+\parencite[Kap.11 Rebuilding a state failure]{kleppmann_designing_2017}
 
+\subsection{Idempotenz}\label{subsec:idempotenz}
+Wichtig für exactly-once Semantik
+\parencite[Kap.11 --> Atomic commit revisited & Idempotence]{kleppmann_designing_2017}
+\parencite[Kap.3.3.6]{richardson_microservices_2018}
+message Handler, um doppelte Nachrichten zu Eleminieren \parencite[Kap.3.3.6]{richardson_microservices_2018}
 
 \section{Zustandsmodellierung mittels State Machines}\label{sec:zustandsmodellierung}
 

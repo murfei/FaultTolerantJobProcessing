@@ -6,3 +6,16 @@
 \section{Gewonnene Erkenntnisse}\label{sec:erkenntnisse}
 
 \section{Einschränkungen und Grenzen der Arbeit}\label{sec:einschraenkungen}
+Keine Kontrolle ob Aufträge ankommen, es geht hier nur um das reine Verarbeiten der Jobs. "
+Consumers may crash at any time, so it could happen that a broker delivers a message to a consumer
+but the consumer never processes it, or only partially processes it before crashing. In order to
+ensure that the message is not lost, message brokers use \textit{acknowledgments}: a client must
+explicitly tell the broker when it has finished processing a message so that the broker can remove
+it from the queue." \parencite[Kap.11 --> Acknowledgments and redelivery bzw. Message brokers]{kleppmann_designing_2017}
+
+REST hat keinen Puffer und ist synchron --> Client und Server muss während der ganzen Kommunikation laufen, damit
+Kommunikation funktioniert. Weitere Nachteile in Referenc: \parencite[Kap.3.2.2]{richardson_microservices_2018}
+
+Kein Fokus auf Kommunikation im allgemeinen, weder wie oben genannt die Erstellung von Jobs, als auch die Benachrichtigung
+bei Fertigstellung. Dafür bräuchte es Transaktionales messaging bspw. mittels transactional outbox pattern \parencite[Kap.3.3.7]{richardson_microservices_2018} oder
+asynchrones Messaging \parencite[Kap.3.4.2]{richardson_microservices_2018}
