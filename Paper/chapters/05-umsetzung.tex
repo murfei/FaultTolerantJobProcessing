@@ -4,6 +4,13 @@
 \chapter{Umsetzung}\label{ch:umsetzung}
 
 \section{Architektur und Design}\label{sec:architektur}
+Einen Message Consumer Idempotent machen \parencite[Kap.6.1.6]{richardson_microservices_2018}
+Statusmodell: "Consumers may crash at any time, so it could happen that a broker delivers a message to a consumer
+but the consumer never processes it, or only partially processes it before crashing. In order to
+ensure that the message is not lost, message brokers use \textit{acknowledgments}: a client must
+explicitly tell the broker when it has finished processing a message so that the broker can remove
+it from the queue." \parencite[Kap.~11, Abschnitt\glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}
+
 
 \section{Implementierung}\label{sec:implementierung}
 
