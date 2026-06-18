@@ -5,7 +5,7 @@
 \textcolor{red}{Orientierung ca. 8-12 Seiten}
 %TODO: Einleitung
 %TODO: auf jeden Fall irgendwo at most once / at least once / effectively exactly once aufgreifen
-
+%TODO: einheitliche Markierung von Fachbegriffen (Erstnennung)
 \section{Grundlagen der Hintergrundverarbeitung}\label{sec:hintergrundverarbeitung}
 Hintergrundverarbeitung adressiert eine zentrale Herausforderung moderner Backend-Systeme: In verteilten Umgebungen sind Teilausfälle,
 Timeouts und kurzzeitige Unterbrechungen üblich, sodass nicht ohne entsprechende Mechanismen davon ausgegangen werden kann, dass eine angestoßene
@@ -34,76 +34,85 @@ Falls ein Konsument temporär nicht verfügbar ist oder während der Verarbeitun
 Infolgedessen kann die Zustellung zu einem späteren Zeitpunkt oder an einen anderen Konsumenten erneut versucht werden.
 Daher ist die Nutzung von Acknowledgements wichtig, damit der Broker erkennen kann, ob eine Nachricht als erfolgreich verarbeitet gilt oder erneut zugestellt werden muss
 \parencite[Kap.~11, Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
-Auf die Zustellungssemantik wird in Kapitel ... näher eingegangen.%TODO: Referenz auf Kapitel wo darauf näher eingangen wird
+Auf die Zustellungssemantik wird in \cref{subsec:idempotenz} näher eingegangen.%TODO: Referenz auf Kapitel richtigstellen
 Die synchrone Request-Response-Kommunikation bietet demgegenüber eine unmittelbare Rückmeldung über Erfolg oder Fehler einer Operation, setzt jedoch voraus, dass Client und Server 
 während der gesamten Interaktion verfügbar sind \parencite[Kap.~3.4]{richardson_microservices_2018}.
 
 Die asynchrone Verarbeitung bildet damit die Grundlage für die Hintergrundverarbeitung, indem die Entkopplung genutzt wird, um Aufgaben unabhängig vom ursprünglichen Aufruf 
 auszuführen und gleichzeitig die Robustheit und Skalierbarkeit des Systems zu erhöhen \parencite[Kap.~8, Abschnitt \glqq Why Use A Message Broker?\grqq]{newman_building_2026}.
 
+\subsection{Ausführungssemantiken}\label{subsec:semantiken}
+
+
 \subsection{Background Job-Processing}\label{subsec:backgroundJobs}
-Background Job-Processing bezeichnet die Ausführung von Aufgaben (Jobs), die als eigenständige Arbeitseinheiten modelliert und außerhalb des
-unmittelbaren Request-Response-Ablaufs verarbeitet werden.[Kleppmann 2017, Kap.8–9]
-Solche Jobs treten in Backend-Systemen typischerweise dann auf, wenn Verarbeitung zeitintensiv ist (z.B. Report-Generierung oder Datenimporte),
-wenn Abläufe entkoppelt werden sollen oder wenn eine robuste Abarbeitung trotz Teilausfällen erforderlich ist.[Kleppmann 2017, Kap.8,10]
-Charakteristisch ist, dass die Bearbeitung nicht an die Lebensdauer eines einzelnen Requests gebunden ist, sondern durch dedizierte Worker-Komponenten erfolgt,
-die Jobs abarbeiten.[Kleppmann 2017, Kap.8–9]
+Aufbauend auf den Mechanismen der asynchronen Verarbeitung (vgl. \cref{subsec:synchroneVsAsynchron}) konkretisiert das Background Job-Processing die strukturelle und verfahrenstechnische
+Umsetzung dieser Konzepte im Backend.
+Während die asynchrone Kommunikation primär den reinen Kontrollfluss entkoppelt, werden beim Job-Processing komplexe Berechnungen als isolierte, eigenständige Arbeitseinheiten
+(Jobs) modelliert.
 
+In der Softwarearchitektur existieren verschiedene etablierte Entwurfsmuster zur Umsetzung einer solchen Infrastruktur, wie beispielsweise das
+Queue-Based Load Leveling Pattern \parencite{microsoft_corporation_hrsg_queue-based_2026}.
+Dieses Muster besteht aus drei funktionalen Kernkomponenten:
+%TODO: Abbildung zu Architektur
+\begin{itemize}
+\item \textbf{Der Produzent:} Erzeugt einen Job und gibt diesen weiter an den Job-Store.
+Das kann zum einen direkt durch das \gls{ui} geschehen, oder die \gls{ui} ruft einen Endpoint auf, der den Job über eine synchrone Schnittstelle, wie z.B. \gls{rest}, entgegen nimmt.
+In letzterem Fall fungiert der Service hinter dem Endpoint als Produzent.
+Dessen Aufgabe besteht darin, den Auftrag zu validieren und an die Persistenzschicht zu übergeben, woraufhin der synchrone Request-Response-Zyklus für den Client sofort beendet wird.
+Jobs können aber nicht nur durch solche Event-driven Trigger ausgelöst werden, sondern auch durch Schedule-driven Trigger.
+Dabei erfolgt die Ausführung eines Jobs periodisch oder zu vordefinierten Zeitpunkten, z.B. über durch einen Cron-Trigger
+\parencite{microsoft_corporation_hrsg_best_2026}.
 
-\subsubsection*{Architekturmodell und zentrale Komponenten}
-Ein verbreitetes Architekturmodell für Background Job-Processing ist die Trennung in (1) eine Komponente, die Jobs erzeugt bzw. einplant (z.B. eine API oder ein Scheduler),
-(2) einen persistenten Job-Store und (3) Worker, die Jobs aus dem Store beziehen und ausführen.[Kleppmann 2017, Kap.8–9]
-Die Persistenz des Job-Store ist hierbei wesentlich, da in verteilten Systemen jederzeit Teilausfälle auftreten können: Prozesse können unerwartet terminieren,
-Maschinen können ausfallen oder temporäre Infrastrukturprobleme können den Zugriff auf Ressourcen verhindern.[Kleppmann 2017, Kap.8]
-Ein rein flüchtiges In-Memory-Queueing wäre in solchen Situationen nicht ausreichend, weil Jobs verloren gehen oder ihr Bearbeitungszustand nicht mehr rekonstruierbar wäre.[Kleppmann 2017, Kap.8]
-Aus der Notwendigkeit von Persistenz ergibt sich zudem, dass Job-Processing-Systeme üblicherweise ein explizites Zustandsmodell benötigen (z.B. „queued“, „running“, „succeeded“, „failed“),
-um den Fortschritt und den aktuellen Bearbeitungsstand zu repräsentieren.[Kleppmann 2017, Kap.9]
-Ein solches Statusmodell ist nicht nur für die Laufzeitsteuerung wichtig, sondern bildet auch die Grundlage für Korrektheitsargumente und spätere Nachweise, da sich viele
-gewünschte Zusicherungen als Eigenschaften zulässiger Statusübergänge formulieren lassen.[Kleppmann 2017, Kap.9]
+\item \textbf{Der Job-Store:} Speichert die Jobs für den Zeitraum zwischen Erstellung und endgültiger Beendigung zwischen.
+Für die Umsetzung existieren verschiedene Varianten, beispielsweise als Message Queue oder relationale Datenbank.
+Diese Realisierungsmöglichkeiten bieten jeweils spezifische Vor- und Nachteile und die Nutzung.
+Die Auswahl des passenden Ansatzes sollte daher durch die Qualitätsanforderungen an das System, wie z.B. Durchsatz oder
+Akzeptanz einzelner verlorener Jobs, begründet werden \parencite[Kap.~11]{kleppmann_designing_2017}.
 
+\item \textbf{Der Worker:} Autonome Komponente, die als Konsument fungiert.
+Sobald der Worker über freie Systemressourcen verfügt, kann er einen wartenden Job aus dem Job-Store beanspruchen und führt diesen aus \parencite{microsoft_corporation_hrsg_queue-based_2026}.
+\end{itemize}
 
-\subsubsection*{Parallelität, Koordination und Mehrfachverarbeitung}
-Um Durchsatz und Latenz zu verbessern, werden Jobs häufig parallel durch mehrere Worker-Instanzen verarbeitet.[Kleppmann 2017, Kap.9]
-Diese Parallelität führt jedoch zu Koordinationsanforderungen: Insbesondere muss verhindert werden, dass mehrere Worker denselben Job gleichzeitig bearbeiten oder
-widersprüchliche Statusänderungen vornehmen.[Kleppmann 2017, Kap.9] Daneben muss das System nach einem Prozessabbruch unterscheiden können, ob ein Job tatsächlich
-noch „in Bearbeitung“ ist oder ob er lediglich in einem Zwischenzustand verblieben ist, weil der Worker während der Bearbeitung ausgefallen ist.[Kleppmann 2017, Kap.8–9]
-Job-Processing-Systeme adressieren diese Anforderungen typischerweise durch Mechanismen, die sicherstellen, dass jeweils genau ein Worker das Recht zur Bearbeitung eines Jobs
-erhält (z.B. durch Sperr- oder Claiming-Strategien) und dass dieses Bearbeitungsrecht im Fehlerfall wieder freigegeben werden kann.[Kleppmann 2017, Kap.9]
-Die konkrete Ausprägung hängt stark vom gewählten Job-Store ab, etwa ob eine Datenbank als persistenter Store verwendet wird oder ob ein dediziertes Queueing-System
-eingesetzt wird.[Kleppmann 2017, Kap.8–9]
+Durch eine solche Architektur können Background Jobs als \glqq fire and forget\grqq-Operationen \parencite{microsoft_corporation_hrsg_best_2026} implementiert werden.
+Sie laufen asynchron in einem vom Client isolierten Prozess, sodass deren Verarbeitungszeit keinerlei unmittelbare Auswirkung auf die Reaktionszeit oder
+Verfügbarkeit der primären Benutzeroberfläche hat \parencite{microsoft_corporation_hrsg_best_2026}.
 
-\subsubsection*{Fehlerbehandlung und Wiederaufnahme}
-Ein weiterer Grundpfeiler von Background Job-Processing ist die systematische Behandlung von Fehlern und die Fähigkeit zur Wiederaufnahme.[Kleppmann 2017, Kap.8]
-Teilausfälle können dazu führen, dass ein Job nicht vollständig verarbeitet wird oder dass unklar ist, ob ein Verarbeitungsschritt
-bereits erfolgreich abgeschlossen wurde.[Kleppmann 2017, Kap.8]
-In der Praxis wird deshalb häufig mit Wiederholungsmechanismen gearbeitet, insbesondere um transiente Fehler (z.B. kurzzeitige Nichterreichbarkeit
-einer Datenbank oder eines externen Dienstes) zu überbrücken.[Nygard 2018, Kap.5]
-Dabei sind Retry-Strategien mit Backoff wichtig, um durch zeitlich gestaffelte Wiederholungen eine Überlastung des Systems zu vermeiden und die Stabilität zu erhöhen.[Nygard 2018, Kap.5]
-Ergänzend ist eine Fehlerklassifikation relevant, da sie bestimmt, ob ein erneuter Versuch sinnvoll ist oder ob ein Job kontrolliert in einen
-definierten Fehlerzustand überführt werden sollte.[Nygard 2018, Kap.5]
-Wiederaufnahme bedeutet in diesem Kontext, dass Jobs nach einem Ausfall erneut verarbeitbar werden, ohne dass sie dauerhaft „stecken bleiben“.[Kleppmann 2017, Kap.8–9]
-Dazu müssen Systeme Zustandsinformationen so führen, dass sie nach einem Crash konsistent weiterarbeiten können, etwa indem Zwischenzustände erkannt
-und Jobs erneut eingeplant werden.[Kleppmann 2017, Kap.8–9]
-Gleichzeitig darf die Wiederaufnahme nicht zu inkonsistenten Ergebnissen führen, wenn eine Verarbeitung bereits teilweise erfolgt ist.[Kleppmann 2017, Kap.8]
-Damit sind Job-Processing-Systeme typischerweise darauf angewiesen, dass Statusänderungen und fachliche Änderungen über klar definierte Transaktionsgrenzen und konsistente
-Zustandsübergänge abgesichert werden.[Kleppmann 2017, Kap.8]
+Aus der zeitlichen Entkopplung und der Notwendigkeit, ein System fehlertolerant gegenüber Prozessabstürzen zu gestalten, ergibt sich die Anforderung einer persistenten Zustandshaltung.
+Wie \textcite[Kap.~11, Abschnitt\glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017} darlegt, erfordern zustandsbehaftete Verarbeitungsprozesse nach einem
+Ausfall eine deterministische Strategie zur Wiederherstellung des Systems.
+Eine architektonische Option besteht darin, den aktuellen Zustand in einem externen Datenspeicher (\textit{Remote Datastore}) zu verwalten.
+Details dazu werden in \cref{sec:zustandsmodellierung} behandelt.
 
+Bei der Skalierung des Systems durch den Einsatz mehrerer parallel agierender Worker-Instanzen entsteht die Herausforderung, dass
+die zeitgleiche Beanspruchung offener Jobs durch unterschiedliche Instanzen ohne adäquate Synchronisationsmechanismen
+Race Conditions erzeugen kann \parencite[Kap.~7 Abschnitt \glqq Isolation\grqq]{kleppmann_designing_2017}.
+Je nach gewähltem Ansatz erfolgt die Zuweisung dieser Aufgaben entweder über ein Push-Modell, bei dem eine zentrale Orchestrierungsschicht die Jobs aktiv an freie Instanzen verteilt,
+oder über ein Pull-Modell, bei dem die Worker eigenständig und autonom neue Aufgaben aus dem Datenspeicher anfordern \parencite[Kap.~11 Abschnitt \glqq Transmitting Event Streams\grqq]{kleppmann_designing_2017}.
+Insbesondere bei einem solchen Pull-Ansatz, bei dem die Worker sich selbst um die Aufgabenbeschaffung kümmern, muss explizit verhindert werden, dass mehrere Worker denselben Job simultan beanspruchen,
+sofern das nicht explizit erwünscht ist \parencite[Kap.~11 Abschnitt \glqq Multiple consumers\grqq]{kleppmann_designing_2017}.
+Andernfalls besteht das Risiko, dass die beteiligten Prozesse sich gegenseitig überschreibende oder widersprüchliche Statusänderungen im Speicher vornehmen
+\parencite[Kap.~7 Abschnitt \glqq Weak Isolatiom Levels\grqq]{kleppmann_designing_2017}.
+Ziel ist daher eine strikte At-Most-Once- beziehungsweise Exactly-Once-Verarbeitungsausführung.
+Dafür sind Isolations- und Sperrverfahren auf Datenbankebene erforderlich, deren konkrete Umsetzung in \cref{subsec:locking} detailliert dargelegt werden.
 
-Da zwischen dem Absenden und der tatsächlichen Verarbeitung Zeit vergeht und Teilausfälle auftreten können, müssen Systeme definieren,
-wie sie mit Duplikaten, Verzögerungen und Wiederholungen umgehen.[Kleppmann 2017, Kap.8,11] Diese Aspekte sind eng mit der Frage verbunden, wie zuverlässig
-ein Auftrag verarbeitet wird und welche Konsistenzzusicherungen dabei gelten.
-Daher sind Mechanismen erforderlich um Eindeutigkeit, Status, Wiederaufnahme und Fehlerbehandlung kontrolliert umzusetzen.[Kleppmann 2017, Kap.8–9]
+Daneben muss das System unterscheiden können, ob ein Job tatsächlich noch aktiv bearbeitet wird oder ob er lediglich in einem Zwischenzustand verblieben ist,
+weil der Worker während der Ausführung unvorhergesehen terminiert ist.
+Ein weiterer Grundpfeiler des Background Job-Processing ist daher die systematische Fehlerbehandlung und Wiederaufnahme
+\parencite[Kap.~11 Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
+Da Teilausfälle dazu führen können, dass unklar ist, ob ein Verarbeitungsschritt bereits erfolgreich abgeschlossen wurde, wird mit Wiederholungsmechanismen gearbeitet.
+Hierbei ist eine exakte Fehlerklassifikation relevant, um transiente Fehler (z. B. kurzzeitige Nichterreichbarkeit eines externen Dienstes) über zeitlich gestaffelte
+Retry-Strategien mit Backoff zu überbrücken und eine Systemüberlastung zu vermeiden, während permanente Fehler direkt zu einem kontrollierten
+Abbruch führen \parencite[Kap.~3]{newman_building_2026}.
 
-"In principle, a file or database is sufficient to connect producers and consumers: a producer writes
-every event that it generates to the datastore, and each consumer periodically polls the datastore
-to check for events that have appeared since it last ran. This is essentially what a batch process
-does when it processes a day’s worth of data at the end of every day." \parencite[Kap.11 --> Transmitting Event Streams]{kleppmann_designing_2017}
-
-"What happens if nodes crash or temporarily go offline—are any messages lost? As with databases,
-durability may require some combination of writing to disk and/or replication (see the sidebar
-\href{https://learning.oreilly.com/library/view/designing-data-intensive-applications/9781491903063/ch07.html#sidebar_transactions_durability}{“Replication and Durability”}), which has a cost. If you can afford to sometimes lose
-messages, you can probably get higher throughput and lower latency on the same hardware."\parencite[Kap.11 Messaging Systems]{kleppmann_designing_2017}
-
+Die Wiederaufnahme darf jedoch nicht zu inkonsistenten Ergebnissen führen, wenn eine Verarbeitung bereits teilweise erfolgt ist und somit Duplikate
+oder Wiederholungen auftreten\parencite[Kap.~3 Abschnitt \glqq Idempotency\grqq]{newman_building_2026}.
+Statusänderungen und fachliche Datenänderungen müssen folglich über klar definierte Transaktionsgrenzen abgesichert werden, um eine konsistente
+Weiterbearbeitung nach einem Crash zu gewährleisten \parencite[Kap.~7]{kleppmann_designing_2017}.
+%
+%Um ein solches System robust zu betreiben, fordert die Architekturtheorie schließlich eine durchgängige Beobachtbarkeit (Observability) des Job-Lebenszyklus,
+%da Fehler außerhalb des synchronen Benutzerkontextes andernfalls unbemerkt bleiben. Zu den kritischen Metriken gehören hierbei die lückenlose Verfolgung der Zustandsübergänge,
+%die Zuordnung über eindeutige Korrelations-IDs (Correlation Identifiers) über Systemgrenzen hinweg sowie die Überwachung der reinen Wartezeit eines Jobs innerhalb
+%der Warteschlange (Queue Wait Time), da diese maßgeblich die Gesamtverzögerung und Systemeffizienz determiniert \parencite{microsoft_corporation_hrsg_best_2026}.
 
 \section{Konsistenz und konkurrierende Verarbeitung}\label{sec:konsistenz}
 \textcite[Kap. 7 --> Transactions]{kleppmann_designing_2017}
@@ -121,6 +130,7 @@ Optimistisches Locking \parencite[Kap.6.2]{richardson_microservices_2018}
 \href{https://learning.oreilly.com/library/view/designing-data-intensive-applications/9781491903063/ch01.html#sec_introduction_reliability}{“Reliability”}
 
 \subsection{Retry-/Backoff-Strategien}\label{subsec:retry/backoff}
+\parencite[Kap.~3]{newman_building_2026}
 
 \subsection{Fehlerklassifikationen}\label{subsec:fehlerklassifikationen}
 
@@ -137,6 +147,7 @@ Wichtig für exactly-once Semantik \parencite[Kap.~8, Abschnitt\glqq Types Of De
 \parencite[Kap.3.3.6]{richardson_microservices_2018}
 Message Broker, um doppelte Nachrichten zu Eleminieren \parencite[Kap.3.3.6]{richardson_microservices_2018}
 Einen Message Consumer Idempotent machen \parencite[Kap.6.1.6]{richardson_microservices_2018}
+\href{https://learn.microsoft.com/en-us/azure/architecture/reference-architectures/containers/aks-mission-critical/mission-critical-data-platform#idempotent-message-processing}{}
 
 \section{Zustandsmodellierung mittels State Machines}\label{sec:zustandsmodellierung}
 
@@ -154,3 +165,14 @@ Architekturentscheidungen zur Persistenz, zur Nebenläufigkeitskontrolle sowie z
 Die konkrete Wahl und Kombination dieser Mechanismen hängt von den gewünschten Zusicherungen und den betrachteten Fehlerszenarien ab.[Kleppmann 2017]
 
 
+hier noch Message Queues ansprechen und warum diese die behandelte Problematik nicht vollständig lösen.
+
+
+Eventuate Framework (Chris Richardson) als industriellen Referenzpunkt integrieren.
+ - Konzeptionelle Parallele: Nutzt das Transactional Outbox Pattern zur atomaren Kopplung
+   von Fachdaten und Nachricht/Job in einer gemeinsamen ACID-Transaktion (PostgreSQL).
+ - Technischer Unterschied: Eventuate nutzt primär Change Data Capture (CDC / Log Tailer),
+   um Events an einen externen Broker (z. B. Kafka) zu pushen.
+ - Abgrenzung meiner Arbeit: Ich evaluiere das schlankere, rein datenbankgestützte
+   Pull-Modell via SQL-Polling und `SKIP LOCKED`, um die Betriebskomplexität
+   eines separaten Brokers einzusparen.

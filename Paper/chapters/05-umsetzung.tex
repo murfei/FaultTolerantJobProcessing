@@ -11,6 +11,31 @@ ensure that the message is not lost, message brokers use \textit{acknowledgments
 explicitly tell the broker when it has finished processing a message so that the broker can remove
 it from the queue." \parencite[Kap.~11, Abschnitt\glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}
 
+„Obwohl das Queue-Based Load Leveling Pattern in der Praxis häufig mit dedizierten Message Brokern implementiert wird, stellt die
+Verwendung einer relationalen Datenbank wie PostgreSQL als Job-Store für das vorliegende System eine architektonisch bewusste Entscheidung dar.
+Durch die Nutzung von PostgreSQL-spezifischen Mechanismen wie SKIP LOCKED in Kombination mit vollen ACID-Transaktionsgarantien lässt sich die von Microsoft (2023) g
+eforderte Lastverteilung realisieren, ohne die für die Fehlertoleranz kritische atomare Verknüpfung von Job-Status und Fachdaten aufzugeben.“
+
+
+„Es ist anzumerken, dass eine verteilte Konsistenz zwischen einem dedizierten Message Broker und einem relationalen Datenspeicher theoretisch auch über ein Two-Phase-Commit-Protokoll
+(2PC) realisiert werden kann.
+In der verteilten Softwarearchitektur gilt 2PC jedoch aufgrund des hohen Koordinations- und Netzwerk-Overheads sowie des inhärent blockierenden Verhaltens
+bei Koordinator-Ausfällen als performanzkritisch und komplex (vgl. Kleppmann 2017, Kap. 9)\textsuperscript{}.
+Die Entscheidung für eine rein datenbankgestützte Architektur auf Basis von PostgreSQL wurde daher bewusst getroffen, um die operationelle Komplexität zu minimieren und
+eine atomare Verknüpfung von Job-Status und Fachdaten innerhalb einer einzigen, lokalen ACID-Transaktion ohne verteiltes Konsensprotokoll zu garantieren\textsuperscript{}\textsuperscript{}
+
+
+Obwohl das kontinuierliche Abfragen eines solchen externen Datenspeichers im Vergleich zu rein lokalen Hauptspeicher-Lösungen Latenzen erzeugt,
+existiert in der verteilten Architektur kein universeller Idealzustand.
+Die Wahl des Zustandsspeichers ist stets ein bewusster Trade-off zwischen maximalem Nachrichtendurchsatz und strikten Garantien zur Fehlerbehebung
+\parencite[Kap.~11, Abschnitt \glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
+
+Das Führen eines expliziten Zustandsmodells (z. B. \textit{queued}, \textit{running}) in einer persistenten Datenbank ermöglicht es einer neuen oder neu gestarteten Worker-Instanz,
+den letzten konsistenten Zustand nach einem Teilausfall direkt auszulesen und die Verarbeitung ohne Datenverlust wiederaufzunehmen.
+
+
+Um eine Ressourcenerschöpfung durch langlaufende Datenbank-Transaktionen zu verhindern, wird die physische Datenbanksperre auf der Datenbankebene zeitlich von der eigentlichen Job-Ausführung entkoppelt. Ein Worker nutzt einen exklusiven Sperrmechanismus (wie FOR UPDATE SKIP LOCKED) lediglich für die Millisekunden der atomaren Zustandsänderung eines Jobs von \textit{queued} auf \textit{running}. Sofort nach dem Schreiben des neuen Status wird diese isolierte Datenbank-Transaktion geschlossen und die Zeilensperre freigegeben. Die eigentliche, zeitintensive Fachlogik wird anschließend außerhalb einer offenen Transaktion verarbeitet, während das persistente Zustandsmodell im Datenspeicher parallele Zugriffe anderer Worker verhindert (vgl. Kleppmann 2017, Kap. 11).
+
 
 \section{Implementierung}\label{sec:implementierung}
 
