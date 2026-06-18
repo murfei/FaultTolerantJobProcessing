@@ -4,10 +4,10 @@
 \chapter{Grundlagen}\label{ch:grundlagen}
 \textcolor{red}{Orientierung ca. 8-12 Seiten}
 %TODO: Einleitung
-%TODO: auf jeden Fall irgendwo at most once / at least once / effectively exactly once aufgreifen
 %TODO: einheitliche Markierung von Fachbegriffen (Erstnennung)
 \section{Grundlagen der Hintergrundverarbeitung}\label{sec:hintergrundverarbeitung}
-Hintergrundverarbeitung adressiert eine zentrale Herausforderung moderner Backend-Systeme: In verteilten Umgebungen sind Teilausfälle,
+Hintergrundverarbeitung dient dazu, zeitintensive oder ressourcenintensive Aufgaben vom synchronen Request-Response-Zyklus zu entkoppeln.
+Gleichzeitig entstehen daraus jedoch auch einige Herausforderungen: In verteilten Umgebungen sind Teilausfälle,
 Timeouts und kurzzeitige Unterbrechungen üblich, sodass nicht ohne entsprechende Mechanismen davon ausgegangen werden kann, dass eine angestoßene
 Verarbeitung vollständig und genau einmal ausgeführt wird.
 Insbesondere kann bei Kommunikationsabbrüchen oder Wiederholungsversuchen unklar bleiben, ob eine Operation bereits verarbeitet wurde oder ob sie
@@ -25,16 +25,13 @@ Um Nachrichtenverluste zu reduzieren und Lastspitzen auszugleichen, verwenden as
 %TODO: ggfs. Abbildung zu funktionsweise eines Message Brokers
 Durch das sogenannte \glqq queueing\grqq \parencite[Kap.~11, Abschnitt \glqq Message brokers\grqq]{kleppmann_designing_2017}, bei dem erhaltene Anfragen zur späteren Ausführung
 in den Puffer geschrieben werden, wird unter anderem die Asynchronität erreicht.
-Ein Produzent sendet eine Nachricht an einen Message Broker und wartet in der Regel nur auf das Acknowledgment, dass die Nachricht zwischengespeichert wurde,
-nicht jedoch auf die Verarbeitung oder das Ergebnis \parencite[Kap.~11, Abschnitt \glqq Messaging Systems\grqq]{kleppmann_designing_2017}.
+Ein Produzent sendet eine Nachricht an einen Zwischenspeicher, beispielsweise einen Message Broker, und wartet in der Regel nur auf das Acknowledgment, dass die Nachricht
+zwischengespeichert wurde, nicht jedoch auf die Verarbeitung oder das Ergebnis \parencite[Kap.~11, Abschnitt \glqq Messaging Systems\grqq]{kleppmann_designing_2017}.
 Die so erreichte Entkopplung hat gleichzeitig den Vorteil, dass die Verarbeitung der Anfrage unabhängig von der Verbindung zwischen Produzent und Konsument wird.
 Im Gegensatz dazu kann bei synchronen Systemen bei Verbindungsabbrüchen oder Timeouts unklar bleiben, ob eine Anfrage den Server erreicht hat oder bereits verarbeitet wurde.
 Genau dieses Problem adressieren Message Broker:
-Falls ein Konsument temporär nicht verfügbar ist oder während der Verarbeitung ausfällt, bleibt das Acknowledgment aus, sodass unklar ist, ob die Nachricht erfolgreich verarbeitet wurde.
-Infolgedessen kann die Zustellung zu einem späteren Zeitpunkt oder an einen anderen Konsumenten erneut versucht werden.
-Daher ist die Nutzung von Acknowledgements wichtig, damit der Broker erkennen kann, ob eine Nachricht als erfolgreich verarbeitet gilt oder erneut zugestellt werden muss
-\parencite[Kap.~11, Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
-Auf die Zustellungssemantik wird in \cref{subsec:idempotenz} näher eingegangen.%TODO: Referenz auf Kapitel richtigstellen
+Falls ein Konsument temporär nicht verfügbar ist oder während der Verarbeitung ausfällt, können Message Broker trotzdem für die At-Least-Once-Semantik (vlg. \cref{subsec:semantiken})
+sorgen \parencite[Kap.~11, Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
 Die synchrone Request-Response-Kommunikation bietet demgegenüber eine unmittelbare Rückmeldung über Erfolg oder Fehler einer Operation, setzt jedoch voraus, dass Client und Server 
 während der gesamten Interaktion verfügbar sind \parencite[Kap.~3.4]{richardson_microservices_2018}.
 
@@ -42,13 +39,41 @@ Die asynchrone Verarbeitung bildet damit die Grundlage für die Hintergrundverar
 auszuführen und gleichzeitig die Robustheit und Skalierbarkeit des Systems zu erhöhen \parencite[Kap.~8, Abschnitt \glqq Why Use A Message Broker?\grqq]{newman_building_2026}.
 
 \subsection{Ausführungssemantiken}\label{subsec:semantiken}
+In verteilten Systemen führen potenziellen Prozessabstürze und Teilausfälle dazu, dass Aufträge verloren gehen oder der Verarbeitungszustand einer Aufgabe
+unklar sein kann.
+Um zu beschreiben, was Systeme aufgrund ihres Entwurfs und ihrer Mechanismen zur Fehlertoleranz bezüglich Auslieferung beziehungsweise Ausführung garantieren,
+werden grundsätzlich drei fundamentale Ausführungssemantiken unterschieden, die \textcite[Kap.~8 Abschnitt \glqq Types of Delivery Guarantees\grqq]{newman_building_2026}
+vor dem Hintergrund der Auslieferung wie folgt definiert.
+Im Kontext von Job-Processing sind diese Semantiken zur Nachrichtenzustellung analog auf die Ausführung der Jobs anwendbar.
 
+\subsection*{At-Least-Once}
+Ein Konsument erhält die Nachricht mindestens einmal.
+Bei der Auslieferung bestätigt der Konsument über ein Acknowledge das Ankommen der Nachricht.
+Sofern das Acknowledge beim Absender eingeht, kann dieser die Nachricht löschen, bleibt diese Bestätigung innerhalb eines Zeitfensters jedoch aus,
+z.B. weil die Nachricht oder das Acknowledge verloren geht, wird die Nachricht erneut zugestellt.
+Dieser Fall wird Redelivery genannt.
+Dieses Verfahren verhindert Datenverlust, birgt jedoch das Risiko von Duplikaten, für den Fall, dass die Nachricht ankommt, aber das Acknowledge verloren geht und es infolgedessen
+zur Redelivery kommt.
+Einschränkend sei hier gesagt, dass die Zustellung nicht garantiert werden kann, wenn der Konsument bei keinem Zustellversuch verfügbar ist.
+
+\subsection*{At-Most-Once}
+Ein Konsument erhält die Nachricht maximal einmal.
+Der Produzent schickt die Nachricht ab und erwartet keine Empfangsbestätigung.
+Eine erneute Zustellung findet unter keinen Umständen statt.
+Dadurch werden Duplikate strikt ausgeschlossen, jedoch muss ein potenzieller Datenverlust zugunsten besserer Latenzen hingenommen werden.
+
+\subsection*{Exactly-Once}
+Diese Semantik garantiert, dass eine Nachricht genau einmal beim Konsumenten ankommt.
+In der Praxis ist das nur schwer zu realisieren, da beispielsweise nicht klar sein kann, ob ein Acknowledgement nur noch nicht angekommen, oder schon verloren gegangen ist.
+Viele Umsetzungen beruhen daher darauf, dass entsprechende Mechanismen sowohl beim Produzent, als auch Konsument implementiert werden.
+Eine Variante zur Umsetzung ist die Approximation über eine Kombination von At-Least-Once beim Produzent und Idempotenz beim Konsument.
+Die Garantie bezieht sich somit nicht auf die physische Zustellung einer Nachricht, sondern auf die Wirkung ihrer Verarbeitung.
+Eine Nachricht kann mehrfach zugestellt werden, solange ihre Verarbeitung nur einmal wirksam wird.
 
 \subsection{Background Job-Processing}\label{subsec:backgroundJobs}
-Aufbauend auf den Mechanismen der asynchronen Verarbeitung (vgl. \cref{subsec:synchroneVsAsynchron}) konkretisiert das Background Job-Processing die strukturelle und verfahrenstechnische
-Umsetzung dieser Konzepte im Backend.
-Während die asynchrone Kommunikation primär den reinen Kontrollfluss entkoppelt, werden beim Job-Processing komplexe Berechnungen als isolierte, eigenständige Arbeitseinheiten
-(Jobs) modelliert.
+Aufbauend auf den Konzepten der asynchronen Verarbeitung (vgl. \cref{subsec:synchroneVsAsynchron}) bezeichnet das Background Job-Processing die Ausführung
+von Aufgaben außerhalb des Request-Response-Zyklus.
+Hierbei werden fachliche Operationen als eigenständige Arbeitseinheiten (Jobs) modelliert und zeitlich entkoppelt verarbeitet.
 
 In der Softwarearchitektur existieren verschiedene etablierte Entwurfsmuster zur Umsetzung einer solchen Infrastruktur, wie beispielsweise das
 Queue-Based Load Leveling Pattern \parencite{microsoft_corporation_hrsg_queue-based_2026}.
@@ -76,38 +101,26 @@ Sobald der Worker über freie Systemressourcen verfügt, kann er einen wartenden
 Durch eine solche Architektur können Background Jobs als \glqq fire and forget\grqq-Operationen \parencite{microsoft_corporation_hrsg_best_2026} implementiert werden.
 Sie laufen asynchron in einem vom Client isolierten Prozess, sodass deren Verarbeitungszeit keinerlei unmittelbare Auswirkung auf die Reaktionszeit oder
 Verfügbarkeit der primären Benutzeroberfläche hat \parencite{microsoft_corporation_hrsg_best_2026}.
+Außerdem ermöglicht dieses Konzept das Abfangen von Lastspitzen und flexiblere Skalierung \parencite{microsoft_corporation_hrsg_queue-based_2026}.
 
-Aus der zeitlichen Entkopplung und der Notwendigkeit, ein System fehlertolerant gegenüber Prozessabstürzen zu gestalten, ergibt sich die Anforderung einer persistenten Zustandshaltung.
-Wie \textcite[Kap.~11, Abschnitt\glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017} darlegt, erfordern zustandsbehaftete Verarbeitungsprozesse nach einem
-Ausfall eine deterministische Strategie zur Wiederherstellung des Systems.
-Eine architektonische Option besteht darin, den aktuellen Zustand in einem externen Datenspeicher (\textit{Remote Datastore}) zu verwalten.
-Details dazu werden in \cref{sec:zustandsmodellierung} behandelt.
+Da die Verarbeitung zeitlich entkoppelt erfolgt, müssen Informationen über offene und bereits bearbeitete Jobs über den Lebenszyklus einzelner Prozesse hinweg erhalten bleiben.
+Hierfür ist eine persistente Speicherung des Verarbeitungszustands erforderlich, da das System nach einem Ausfall in der Lage sein muss, den zuletzt
+bekannten Zustand zu rekonstruieren und die Verarbeitung fortzusetzen \parencite[Kap.~11, Abschnitt\glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
+Grundlagen zur Zustandshaltung werden in \cref{sec:zustandsmodellierung} betrachtet.
 
-Bei der Skalierung des Systems durch den Einsatz mehrerer parallel agierender Worker-Instanzen entsteht die Herausforderung, dass
-die zeitgleiche Beanspruchung offener Jobs durch unterschiedliche Instanzen ohne adäquate Synchronisationsmechanismen
-Race Conditions erzeugen kann \parencite[Kap.~7 Abschnitt \glqq Isolation\grqq]{kleppmann_designing_2017}.
-Je nach gewähltem Ansatz erfolgt die Zuweisung dieser Aufgaben entweder über ein Push-Modell, bei dem eine zentrale Orchestrierungsschicht die Jobs aktiv an freie Instanzen verteilt,
-oder über ein Pull-Modell, bei dem die Worker eigenständig und autonom neue Aufgaben aus dem Datenspeicher anfordern \parencite[Kap.~11 Abschnitt \glqq Transmitting Event Streams\grqq]{kleppmann_designing_2017}.
-Insbesondere bei einem solchen Pull-Ansatz, bei dem die Worker sich selbst um die Aufgabenbeschaffung kümmern, muss explizit verhindert werden, dass mehrere Worker denselben Job simultan beanspruchen,
-sofern das nicht explizit erwünscht ist \parencite[Kap.~11 Abschnitt \glqq Multiple consumers\grqq]{kleppmann_designing_2017}.
-Andernfalls besteht das Risiko, dass die beteiligten Prozesse sich gegenseitig überschreibende oder widersprüchliche Statusänderungen im Speicher vornehmen
-\parencite[Kap.~7 Abschnitt \glqq Weak Isolatiom Levels\grqq]{kleppmann_designing_2017}.
-Ziel ist daher eine strikte At-Most-Once- beziehungsweise Exactly-Once-Verarbeitungsausführung.
-Dafür sind Isolations- und Sperrverfahren auf Datenbankebene erforderlich, deren konkrete Umsetzung in \cref{subsec:locking} detailliert dargelegt werden.
+Werden mehrere Worker parallel betrieben, entsteht die Herausforderung der konkurrierenden Verarbeitung.
+Ohne geeignete Koordinationsmechanismen könnten mehrere Instanzen denselben Job gleichzeitig beanspruchen oder widersprüchliche Statusänderungen durchführen.
+Die hierfür relevanten Konzepte werden in \cref{sec:konsistenz} behandelt.
 
-Daneben muss das System unterscheiden können, ob ein Job tatsächlich noch aktiv bearbeitet wird oder ob er lediglich in einem Zwischenzustand verblieben ist,
-weil der Worker während der Ausführung unvorhergesehen terminiert ist.
-Ein weiterer Grundpfeiler des Background Job-Processing ist daher die systematische Fehlerbehandlung und Wiederaufnahme
-\parencite[Kap.~11 Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
-Da Teilausfälle dazu führen können, dass unklar ist, ob ein Verarbeitungsschritt bereits erfolgreich abgeschlossen wurde, wird mit Wiederholungsmechanismen gearbeitet.
-Hierbei ist eine exakte Fehlerklassifikation relevant, um transiente Fehler (z. B. kurzzeitige Nichterreichbarkeit eines externen Dienstes) über zeitlich gestaffelte
-Retry-Strategien mit Backoff zu überbrücken und eine Systemüberlastung zu vermeiden, während permanente Fehler direkt zu einem kontrollierten
-Abbruch führen \parencite[Kap.~3]{newman_building_2026}.
+Darüber hinaus müssen Background-Processing-Systeme mit Teilausfällen umgehen können.
+Prozesse können während der Ausführung terminieren, externe Systeme zeitweise nicht erreichbar sein oder Kommunikationsfehler auftreten.
+Das System muss daher entscheiden können, ob eine Verarbeitung erneut durchgeführt, fortgesetzt oder endgültig beendet werden soll \parencite{microsoft_corporation_hrsg_best_2026}.
+Konzepte zur Fehlerbehandlung und Wiederherstellung werden in \cref{sec:fehlertoleranz} vorgestellt.
 
-Die Wiederaufnahme darf jedoch nicht zu inkonsistenten Ergebnissen führen, wenn eine Verarbeitung bereits teilweise erfolgt ist und somit Duplikate
-oder Wiederholungen auftreten\parencite[Kap.~3 Abschnitt \glqq Idempotency\grqq]{newman_building_2026}.
-Statusänderungen und fachliche Datenänderungen müssen folglich über klar definierte Transaktionsgrenzen abgesichert werden, um eine konsistente
-Weiterbearbeitung nach einem Crash zu gewährleisten \parencite[Kap.~7]{kleppmann_designing_2017}.
+Ebenfalls kritisch ist die Frage, wie sichergestellt werden kann, dass Wiederholungen oder Mehrfachausführungen nicht zu inkonsistenten Ergebnissen führen.
+Da der tatsächliche Verarbeitungszustand nach einem Fehler nicht immer eindeutig bestimmbar ist, müssen Systeme geeignete Konsistenzmechanismen bereitstellen.
+Hierzu zählen insbesondere Transaktionskonzepte und Verfahren zur kontrollierten Wiederaufnahme von Verarbeitungen, die in \cref{sec:fehlertoleranz} behandelt werden.
+
 %
 %Um ein solches System robust zu betreiben, fordert die Architekturtheorie schließlich eine durchgängige Beobachtbarkeit (Observability) des Job-Lebenszyklus,
 %da Fehler außerhalb des synchronen Benutzerkontextes andernfalls unbemerkt bleiben. Zu den kritischen Metriken gehören hierbei die lückenlose Verfolgung der Zustandsübergänge,
@@ -116,6 +129,17 @@ Weiterbearbeitung nach einem Crash zu gewährleisten \parencite[Kap.~7]{kleppman
 
 \section{Konsistenz und konkurrierende Verarbeitung}\label{sec:konsistenz}
 \textcite[Kap. 7 --> Transactions]{kleppmann_designing_2017}
+Bei der Skalierung des Systems durch den Einsatz mehrerer parallel agierender Worker-Instanzen entsteht die Herausforderung, dass
+die zeitgleiche Beanspruchung offener Jobs durch unterschiedliche Instanzen ohne adäquate Synchronisationsmechanismen
+Race Conditions erzeugen kann \parencite[Kap.~7 Abschnitt \glqq Isolation\grqq]{kleppmann_designing_2017}.
+Je nach gewähltem Ansatz erfolgt die Zuweisung dieser Aufgaben entweder über ein Push-Modell, bei dem eine zentrale Orchestrierungsschicht die Jobs aktiv an freie Instanzen verteilt,
+oder über ein Pull-Modell, bei dem die Worker eigenständig und autonom neue Aufgaben aus dem Datenspeicher anfordern
+\parencite[Kap.~11 Abschnitt \glqq Transmitting Event Streams\grqq]{kleppmann_designing_2017}.
+Insbesondere bei einem solchen Pull-Ansatz, bei dem die Worker sich selbst um die Aufgabenbeschaffung kümmern, muss explizit verhindert werden,
+dass mehrere Worker denselben Job simultan beanspruchen, sofern das nicht explizit erwünscht ist \parencite[Kap.~11 Abschnitt \glqq Multiple consumers\grqq]{kleppmann_designing_2017}.
+Andernfalls besteht das Risiko, dass die beteiligten Prozesse sich gegenseitig überschreibende oder widersprüchliche Statusänderungen im Speicher vornehmen
+\parencite[Kap.~7 Abschnitt \glqq Weak Isolation Levels\grqq]{kleppmann_designing_2017}.
+Dafür sind Isolations- und Sperrverfahren auf Datenbankebene erforderlich, deren konkrete Umsetzung in \cref{subsec:locking} detailliert dargelegt werden.
 
 \subsection{ACID}\label{subsec:acid}
 
@@ -126,11 +150,25 @@ Optimistisches Locking \parencite[Kap.6.2]{richardson_microservices_2018}
 
 
 \section{Fehlertoleranz und Wiederherstellung}\label{sec:fehlertoleranz}
+Die Wiederaufnahme darf jedoch nicht zu inkonsistenten Ergebnissen führen, wenn eine Verarbeitung bereits teilweise erfolgt ist und somit Duplikate
+oder Wiederholungen auftreten\parencite[Kap.~3 Abschnitt \glqq Idempotency\grqq]{newman_building_2026}.
+Statusänderungen und fachliche Datenänderungen müssen folglich über klar definierte Transaktionsgrenzen abgesichert werden, um eine konsistente
+Weiterbearbeitung nach einem Crash zu gewährleisten \parencite[Kap.~7]{kleppmann_designing_2017}.
 
 \href{https://learning.oreilly.com/library/view/designing-data-intensive-applications/9781491903063/ch01.html#sec_introduction_reliability}{“Reliability”}
 
 \subsection{Retry-/Backoff-Strategien}\label{subsec:retry/backoff}
 \parencite[Kap.~3]{newman_building_2026}
+Daneben muss das System unterscheiden können, ob ein Job tatsächlich noch aktiv bearbeitet wird oder ob er lediglich in einem Zwischenzustand verblieben ist,
+weil der Worker während der Ausführung unvorhergesehen terminiert ist.%TODO: ggfs. aktivitätsdiagramm zu retry & backoff s. 6.Semester ->Bachelorarbeit -> retry und backoff aktivitaetsdiagramm
+Ein weiterer Grundpfeiler des Background Job-Processing ist daher die systematische Fehlerbehandlung und Wiederaufnahme
+\parencite[Kap.~11 Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
+Da Teilausfälle dazu führen können, dass unklar ist, ob ein Verarbeitungsschritt bereits erfolgreich abgeschlossen wurde, wird mit Wiederholungsmechanismen gearbeitet.
+Hierbei ist eine exakte Fehlerklassifikation relevant, um transiente Fehler (z. B. kurzzeitige Nichterreichbarkeit eines externen Dienstes) über zeitlich gestaffelte
+Retry-Strategien mit Backoff zu überbrücken und eine Systemüberlastung zu vermeiden, während permanente Fehler direkt zu einem kontrollierten
+Abbruch führen \parencite[Kap.~3]{newman_building_2026}.
+
+\parencite[Abschnitt \glqq Reliability consideration\grqq -->letzter Punkt]{microsoft_corporation_hrsg_best_2026}
 
 \subsection{Fehlerklassifikationen}\label{subsec:fehlerklassifikationen}
 
@@ -150,6 +188,7 @@ Einen Message Consumer Idempotent machen \parencite[Kap.6.1.6]{richardson_micros
 \href{https://learn.microsoft.com/en-us/azure/architecture/reference-architectures/containers/aks-mission-critical/mission-critical-data-platform#idempotent-message-processing}{}
 
 \section{Zustandsmodellierung mittels State Machines}\label{sec:zustandsmodellierung}
+Eine architektonische Option besteht darin, den aktuellen Zustand in einem externen Datenspeicher (\textit{Remote Datastore}) zu verwalten.
 
 
 \section{Stand der Technik}\label{sec:forschungsstand}
