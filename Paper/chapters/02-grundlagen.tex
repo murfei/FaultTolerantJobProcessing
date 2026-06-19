@@ -103,6 +103,12 @@ Sie laufen asynchron in einem vom Client isolierten Prozess, sodass deren Verarb
 Verfügbarkeit der primären Benutzeroberfläche hat \parencite{microsoft_corporation_hrsg_best_2026}.
 Außerdem ermöglicht dieses Konzept das Abfangen von Lastspitzen und flexiblere Skalierung \parencite{microsoft_corporation_hrsg_queue-based_2026}.
 
+Die Zuweisung von Jobs an Worker kann grundsätzlich über unterschiedliche Modelle erfolgen.
+Beim Push-Modell weist eine zentrale Komponente Aufgaben aktiv freien Worker-Instanzen zu.
+Beim Pull-Modell fragen Worker eigenständig neue Aufgaben aus dem Job-Store ab.
+Beide Ansätze unterscheiden sich hinsichtlich Komplexität, Skalierbarkeit und Koordinationsaufwand
+\parencite[Kap.~11 Abschnitt \glqq Transmitting Event Streams\grqq]{kleppmann_designing_2017}.
+
 Da die Verarbeitung zeitlich entkoppelt erfolgt, müssen Informationen über offene und bereits bearbeitete Jobs über den Lebenszyklus einzelner Prozesse hinweg erhalten bleiben.
 Hierfür ist eine persistente Speicherung des Verarbeitungszustands erforderlich, da das System nach einem Ausfall in der Lage sein muss, den zuletzt
 bekannten Zustand zu rekonstruieren und die Verarbeitung fortzusetzen \parencite[Kap.~11, Abschnitt\glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
@@ -128,26 +134,28 @@ Hierzu zählen insbesondere Transaktionskonzepte und Verfahren zur kontrollierte
 %der Warteschlange (Queue Wait Time), da diese maßgeblich die Gesamtverzögerung und Systemeffizienz determiniert \parencite{microsoft_corporation_hrsg_best_2026}.
 
 \section{Konsistenz und konkurrierende Verarbeitung}\label{sec:konsistenz}
-\textcite[Kap. 7 --> Transactions]{kleppmann_designing_2017}
-Bei der Skalierung des Systems durch den Einsatz mehrerer parallel agierender Worker-Instanzen entsteht die Herausforderung, dass
-die zeitgleiche Beanspruchung offener Jobs durch unterschiedliche Instanzen ohne adäquate Synchronisationsmechanismen
-Race Conditions erzeugen kann \parencite[Kap.~7 Abschnitt \glqq Isolation\grqq]{kleppmann_designing_2017}.
-Je nach gewähltem Ansatz erfolgt die Zuweisung dieser Aufgaben entweder über ein Push-Modell, bei dem eine zentrale Orchestrierungsschicht die Jobs aktiv an freie Instanzen verteilt,
-oder über ein Pull-Modell, bei dem die Worker eigenständig und autonom neue Aufgaben aus dem Datenspeicher anfordern
-\parencite[Kap.~11 Abschnitt \glqq Transmitting Event Streams\grqq]{kleppmann_designing_2017}.
-Insbesondere bei einem solchen Pull-Ansatz, bei dem die Worker sich selbst um die Aufgabenbeschaffung kümmern, muss explizit verhindert werden,
-dass mehrere Worker denselben Job simultan beanspruchen, sofern das nicht explizit erwünscht ist \parencite[Kap.~11 Abschnitt \glqq Multiple consumers\grqq]{kleppmann_designing_2017}.
-Andernfalls besteht das Risiko, dass die beteiligten Prozesse sich gegenseitig überschreibende oder widersprüchliche Statusänderungen im Speicher vornehmen
-\parencite[Kap.~7 Abschnitt \glqq Weak Isolation Levels\grqq]{kleppmann_designing_2017}.
-Dafür sind Isolations- und Sperrverfahren auf Datenbankebene erforderlich, deren konkrete Umsetzung in \cref{subsec:locking} detailliert dargelegt werden.
+Bei der Verarbeitung von Daten durch mehrere parallel arbeitende Prozesse entsteht die Herausforderung, dass konkurrierende Zugriffe auf gemeinsame Ressourcen
+zu inkonsistenten Zuständen führen können.
+Ohne geeignete Mechanismen können Änderungen verloren gehen, widersprüchliche Zustände entstehen oder mehrere Prozesse dieselben Daten gleichzeitig verändern
+\parencite[Kap.~13.1.2]{saake_datenbanken_2018}.
+
+Im Kontext von Background Job-Processing tritt dieses Problem insbesondere dann auf, wenn mehrere Worker-Instanzen parallel auf denselben Jobbestand zugreifen.
+Versuchen sie ohne geeignete Synchronisationsmechanismen denselben Job zu beanspruchen oder konkurrierende Statusänderungen durchzuführen, können Race Conditions entstehen
+\parencite[Kap.~7 Abschnitt \glqq Isolation\grqq]{kleppmann_designing_2017}.
+Insbesondere bei Pull-basierten Architekturen, bei denen die Jobverteilung nicht durch eine Orchestrierungskomponente realisiert wird, muss eine solche ungewollte
+Doppelbeanspruchung explizit verhindert werden \parencite[Kap.~7 Abschnitt \glqq Isolation\grqq]{kleppmann_designing_2017}.
+Die Gewährleistung konsistenter Zustände stellt daher eine zentrale Anforderung an Systeme mit paralleler Verarbeitung dar.
+Die hierfür etablierten Konzepte und Mechanismen werden in den folgenden Abschnitten vorgestellt.
+
+\textcite[Kap. 7 --> Transactions]{kleppmann_designing_2017} %TODO
 
 \subsection{ACID}\label{subsec:acid}
 
-\subsection{Locking}\label{subsec:locking}
-Optimistisches Locking \parencite[Kap.6.2]{richardson_microservices_2018}
-
 \subsection{Transaktionsgrenzen}\label{subsec:transaktionsgrenzen}
 
+
+\subsection{Locking}\label{subsec:locking}
+Optimistisches Locking \parencite[Kap.6.2]{richardson_microservices_2018}
 
 \section{Fehlertoleranz und Wiederherstellung}\label{sec:fehlertoleranz}
 Die Wiederaufnahme darf jedoch nicht zu inkonsistenten Ergebnissen führen, wenn eine Verarbeitung bereits teilweise erfolgt ist und somit Duplikate
