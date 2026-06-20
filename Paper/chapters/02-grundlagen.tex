@@ -147,11 +147,38 @@ Doppelbeanspruchung explizit verhindert werden \parencite[Kap.~7 Abschnitt \glqq
 Die Gewährleistung konsistenter Zustände stellt daher eine zentrale Anforderung an Systeme mit paralleler Verarbeitung dar.
 Die hierfür etablierten Konzepte und Mechanismen werden in den folgenden Abschnitten vorgestellt.
 
-\textcite[Kap. 7 --> Transactions]{kleppmann_designing_2017} %TODO
-
 \subsection{ACID}\label{subsec:acid}
+Zur Vereinfachung der Gewährleistung konsistenter Zustände bei parallelen Zugriffen existiert das Konzept der Transaktionen.
+Diese fassen mehrere Operationen zu einer logischen Einheit zusammen, deren Ausführung nach außen als zusammenhängender Vorgang erscheint \parencite[Kap.~7]{kleppmann_designing_2017}.
+Im Kontext persistenter Datenhaltung werden von Transaktionen typischerweise die vier zentralen Eigenschaften \gls{acid} gefordert \parencite[Kap.~13.1.1]{saake_datenbanken_2018}:
+
+\begin{description}
+    \item[Atomicity]
+    Die Atomarität stellt sicher, dass eine Transaktion entweder vollständig oder gar nicht ausgeführt wird. 
+    Tritt während der Ausführung ein Fehler auf, werden sämtliche bis dahin vorgenommenen Änderungen verworfen, sodass keine partiellen Zwischenzustände bestehen bleiben.
+
+    \item[Consistency]
+    Die Konsistenz beschreibt die Eigenschaft, dass eine erfolgreich abgeschlossene Transaktion die Daten von einem gültigen Zustand in einen anderen gültigen Zustand überführt.
+    Dabei müssen definierte Integritätsbedingungen erhalten bleiben.
+    \textcite[Kap.~7 Abschnitt \glqq Consistency\grqq]{kleppmann_designing_2017} weist darauf hin, dass die Einhaltung solcher fachlichen Invarianten in der Verantwortung der Anwendung liegt
+    und nicht durch das Datenbanksystem garantiert werden kann.
+
+    \item[Isolation]
+    Die Isolation gewährleistet, dass parallel ausgeführte Transaktionen sich nicht gegenseitig beeinflussen.
+    Aus Sicht einer Transaktion soll die Ausführung so erscheinen, als würde sie allein auf dem Datenbestand arbeiten.
+    Dadurch können Race Conditions und andere Nebenläufigkeitsprobleme vermieden werden.
+
+    \item[Durability]
+    Die Dauerhaftigkeit garantiert, dass die Ergebnisse einer erfolgreich abgeschlossenen Transaktion auch nach Systemabstürzen oder anderen Fehlern dauerhaft erhalten bleiben.
+\end{description}
+
+Im Kontext von Background Job-Processing sind insbesondere die Eigenschaften der Atomarität und Isolation von Bedeutung.
+Während die Atomarität verhindert, dass Statusänderungen eines Jobs nur teilweise durchgeführt werden, bildet die Isolation die Grundlage für die koordinierte Verarbeitung gemeinsamer Datenbestände
+durch mehrere parallel arbeitende Worker-Instanzen.
+Die relevanten Konzepte zum Erreichen dieser Eigenschaften werden in den folgenden Abschnitten näher betrachtet.
 
 \subsection{Transaktionsgrenzen}\label{subsec:transaktionsgrenzen}
+\textcite[Kap. 7 --> Transactions]{kleppmann_designing_2017} %TODO
 
 
 \subsection{Locking}\label{subsec:locking}
