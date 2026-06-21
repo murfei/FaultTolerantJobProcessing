@@ -178,11 +178,46 @@ durch mehrere parallel arbeitende Worker-Instanzen.
 Die relevanten Konzepte zum Erreichen dieser Eigenschaften werden in den folgenden Abschnitten näher betrachtet.
 
 \subsection{Transaktionsgrenzen}\label{subsec:transaktionsgrenzen}
-\textcite[Kap. 7 --> Transactions]{kleppmann_designing_2017} %TODO
+Während \gls{acid} die theoretischen Garantien einer Transaktion definiert, bestimmt die Festlegung von Transaktionsgrenzen, welche konkreten
+Datenbankoperationen des softwareseitigen Kontrollflusses zu einer unteilbaren, logischen Einheit zusammengefasst werden.
+Die Festlegung dieser Grenzen steuert, wann eine Datenbanksitzung eine Transaktion initiiert und zu welchem Zeitpunkt die Änderungen final festgeschrieben
+(Commit) oder im Fehlerfall vollständig verworfen (Rollback) werden \parencite[S.250]{kudras_taschenbuch_2015}.
 
+Die Wahl geeigneter Transaktionsgrenzen wird zusätzlich dadurch erschwert, dass fachliche und technische Transaktionen nicht zwangsläufig identisch sind.
+Eine fachliche Transaktion beschreibt eine zusammenhängende Geschäftsoperation, deren Ergebnis aus Sicht der Anwendung als Einheit betrachtet wird.
+Eine technische Transaktion hingegen bezeichnet die konkrete Transaktion auf der Datenbankebene, welche die \gls{acid}-Eigenschaften für die von ihr gekapselten Datenbankoperationen bereitstellt.
+Während eine fachliche Operation mehrere technische Transaktionen umfassen kann, können innerhalb einer technischen Transaktion auch nur Teilaspekte einer fachlichen Operation verarbeitet werden.
+Werden die Grenzen falsch gesetz, können verschiedene Parallelitätsanomalien auftreten \parencite[Kap.~13.1.2]{saake_datenbanken_2018}.         %TODO: Muss ich Parallelitätsanomalien hier noch nennen und erklären?
+Ein verbreiteter Ansatz zur Vermeidung dieser Anomalien ist die Verwendung von Sperren, auf die in \cref{subsec:locking} näher eingegangen wird.
+Wichtig ist an dieser Stelle, dass die gewählte Transaktionsgrenze direkten Einfluss auf die Dauer von Sperren und die Interaktion mit parallel ausgeführten Transaktionen hat.
+
+Eine Möglichkeit besteht darin, jede Datenbankoperation in einer eigenen Transaktion auszuführen.
+Dadurch werden Sperren nur für sehr kurze Zeit gehalten, was die Parallelität und den Durchsatz des Systems erhöht.
+Allerdings können zusammengehörige Änderungen nicht mehr atomar ausgeführt werden.
+Tritt zwischen mehreren aufeinanderfolgenden Operationen ein Fehler auf, können bereits festgeschriebene Änderungen nicht mehr gemeinsam zurückgesetzt werden.
+Die betroffenen Daten können dadurch in einen fachlich falschen Zustand überführt werden.
+
+Als naiver Gegenentwurf können die Transaktionsgrenzen entsprechend der fachlichen Transaktion gesetzt werden.
+Diese Strategie kann jedoch zu langlaufenden Transaktionen führen, welche die Leistungsfähigkeit des Datenspeichers beeinträchtigt.
+Zum einen halten Transaktionen im Beispiel des 2-Phasen-Sperrprotokolls sämtliche während ihrer Laufzeit akquirierten Sperren bis zum endgültigen Commit oder Rollback aufrecht
+\parencite[Kap.~7 Abschnitt \glqq Two-Phase Locking (2PL)\grqq]{kleppmann_designing_2017}.
+Dadurch steigt die Wahrscheinlichkeit, dass konkurrierende Transaktionen aufeinander warten müssen.
+Zum anderen können langlaufende Transaktionen die Bereinigung alter Datenversionen verzögern, da diese weiterhin für aktive Transaktionen sichtbar bleiben müssen
+\parencite[Kap.~24.1.2]{the_postgresql_global_development_group_hrsg_postgresql_2026}.
+Dies erhöht den Ressourcenbedarf des Datenbanksystems und kann dessen Leistungsfähigkeit beeinträchtigen.
+
+Im Software-Entwurf erfordert das Setzen der Transaktionsgrenzen daher eine kontinuierliche Abwägung zwischen der Systemperformance und dem Schutz vor Datenanomalien.
+Weit gefasste Transaktionsgrenzen reduziert das Risiko der Entstehung von Inkonsistenzen, blockieren jedoch Systemressourcen und Datensätze.
+Eng gefasste Grenzen erhöhen den Durchsatz, können jedoch das Risiko konkurrierender Zugriffe und daraus resultierender Race Conditions erhöhen.
 
 \subsection{Locking}\label{subsec:locking}
 Optimistisches Locking \parencite[Kap.6.2]{richardson_microservices_2018}
+Die konkrete Wirkung von Sperrmechanismen hängt zusätzlich von der gewählten Isolationsstufe des Datenbanksystems ab.
+Diese bestimmt, welche Änderungen parallel ausgeführter Transaktionen sichtbar sind und welche Anomalien auftreten können.
+Höhere Isolationsstufen bieten stärkere Konsistenzgarantien, gehen jedoch häufig mit einer geringeren Parallelität einher \parencite[Kap.~13.1.2]{saake_datenbanken_2018}.
+
+
+%TODO: Neues Kapitel zu 2-Phasen Sperrprotokoll? \parencite[13.1.2]{saake_datenbanken_2018}
 
 \section{Fehlertoleranz und Wiederherstellung}\label{sec:fehlertoleranz}
 Die Wiederaufnahme darf jedoch nicht zu inkonsistenten Ergebnissen führen, wenn eine Verarbeitung bereits teilweise erfolgt ist und somit Duplikate

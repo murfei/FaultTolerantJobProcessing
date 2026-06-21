@@ -35,8 +35,38 @@ Die Wahl des Zustandsspeichers ist stets ein bewusster Trade-off zwischen maxima
 Das Führen eines expliziten Zustandsmodells (z. B. \textit{queued}, \textit{running}) in einer persistenten Datenbank ermöglicht es einer neuen oder neu gestarteten Worker-Instanz,
 den letzten konsistenten Zustand nach einem Teilausfall direkt auszulesen und die Verarbeitung ohne Datenverlust wiederaufzunehmen.
 
-
 Um eine Ressourcenerschöpfung durch langlaufende Datenbank-Transaktionen zu verhindern, wird die physische Datenbanksperre auf der Datenbankebene zeitlich von der eigentlichen Job-Ausführung entkoppelt. Ein Worker nutzt einen exklusiven Sperrmechanismus (wie FOR UPDATE SKIP LOCKED) lediglich für die Millisekunden der atomaren Zustandsänderung eines Jobs von \textit{queued} auf \textit{running}. Sofort nach dem Schreiben des neuen Status wird diese isolierte Datenbank-Transaktion geschlossen und die Zeilensperre freigegeben. Die eigentliche, zeitintensive Fachlogik wird anschließend außerhalb einer offenen Transaktion verarbeitet, während das persistente Zustandsmodell im Datenspeicher parallele Zugriffe anderer Worker verhindert (vgl. Kleppmann 2017, Kap. 11).
+
+Ein naiver Ansatz zur Absicherung eines Hintergrundjobs bestünde darin, die Transaktionsgrenze über den gesamten Lebenszyklus der Job-Ausführung zu spannen.
+Dies bedeutet, dass eine Transaktion geöffnet wird, sobald ein Worker eine Aufgabe akquiriert, und erst schließt, wenn die vollständige Fachlogik abgearbeitet wurde.
+In produktiven Systemen führt dieses Vorgehen jedoch zu dem Phänomen der langlaufenden Transaktionen (Long-Running Transactions), welche die Resilienz des Gesamtsystems massiv gefährden.
+Da Hintergrundprozesse definitionsgemäß zeitintensive oder ressourcenintensive Berechnungen sowie E/A-Operationen kapseln \parencite[vgl.][Kap.~10]{kleppmann_designing_2017},
+würde eine offene Transaktion über diesen gesamten Zeitraum hinweg die zugewiesene Datenbankverbindung blockieren.
+Da relationale Datenbanksysteme wie PostgreSQL Verbindungen über einen limitierten Pool (\textit{Connection Pool}) verwalten, führt eine langanhaltende Belegung durch wenige Worker-Instanzen
+unweigerlich zur Erschöpfung dieser Ressource (\textit{Connection Starvation}).
+Infolgedessen können synchrone Endpunkte, die für schnelle Client-Anfragen ebenfalls Verbindungen aus diesem Pool benötigen, keine Datenbankinteraktionen mehr durchführen, was zu weitreichenden
+Timeouts und einem Systemausfall führt \parencite[vgl.][Kap.~7]{kleppmann_designing_2017}.
+
+Die Transaktionsgrenzen müssen so eng wie möglich gefasst werden, was zu einem dreiphasigen Kontrollfluss im Worker führt:
+
+\begin{enumerate}
+    \item \textbf{Phase 1 (Gekapselte Statussynchronisation):} Der Worker öffnet eine dedizierte, extrem kurzlaufende Transaktion.
+    Innerhalb dieser Grenze wird ein freier Job gesucht, über Sperrverfahren geschützt und dessen Status im Job-Store atomar von queued auf running aktualisiert.
+    Unmittelbar nach dem Schreiben des Status wird die Transaktion committet und die Verbindung an den Pool zurückgegeben.
+    \item \textbf{Phase 2 (Transaktionsfreie Fachlogik):} Die eigentliche Verarbeitung des Jobs (z.~B. das Generieren eines Reports oder der Aufruf einer externen HTTP-Schnittstelle)
+    erfolgt vollständig außerhalb einer offenen Datenbanktransaktion.
+    Das persistente Zustandsmodell im Speicher verhindert in dieser Phase, dass parallele Worker Zugriff auf denselben Job erhalten \parencite[vgl.][Kap.~11]{kleppmann_designing_2017}.
+    \item \textbf{Phase 3 (Gekapselte Abschlussquittierung):} Nach erfolgreicher Beendigung oder nach einem kontrollierten Abbruch der Fachlogik öffnet der Worker eine zweite, separate Kurzzeittransaktion,
+    um den finalen Endzustand (z.~B. success oder failed) in den Job-Store zu schreiben und sofort zu committen.
+\end{enumerate}
+
+erläutern, wieso pessimistisches Locking anstatt von optimistischen verfahren --> Für die atomare Reservierung von Jobs ist ein pessimistisches Verfahren vorteilhaft, da konkurrierende
+Zugriffe bereits zum Zeitpunkt der Jobauswahl verhindert werden können.
+Dadurch lässt sich sicherstellen, dass ein Job nur von einer Worker-Instanz gleichzeitig verarbeitet wird. "
+It performs badly if there is high contention (many transactions trying to access the same objects),
+as this leads to a high proportion of transactions needing to abort. If the system is already close
+to its maximum throughput, the additional transaction load from retried transactions can make
+performance worse." \parencite[Kap.~7 Abschnitt \glqq Pessimistic versus optimistic concurrency control\grqq]{kleppmann_designing_2017}
 
 
 \section{Implementierung}\label{sec:implementierung}
