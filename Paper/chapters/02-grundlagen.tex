@@ -245,15 +245,37 @@ Sie eignen sich daher insbesondere für Systeme, in denen konkurrierende Änderu
 Welche Synchronisationsstrategie geeignet ist, hängt von den Anforderungen des jeweiligen Systems und der Häufigkeit erwarteter Konflikte ab.
 Während pessimistische Verfahren Konflikte präventiv verhindern, akzeptieren optimistische Verfahren mögliche Konflikte und behandeln diese nachträglich.
 
-\section{Fehlertoleranz und Wiederherstellung}\label{sec:fehlertoleranz}
-Die Wiederaufnahme darf jedoch nicht zu inkonsistenten Ergebnissen führen, wenn eine Verarbeitung bereits teilweise erfolgt ist und somit Duplikate
-oder Wiederholungen auftreten\parencite[Kap.~3 Abschnitt \glqq Idempotency\grqq]{newman_building_2026}.
-Statusänderungen und fachliche Datenänderungen müssen folglich über klar definierte Transaktionsgrenzen abgesichert werden, um eine konsistente
-Weiterbearbeitung nach einem Crash zu gewährleisten \parencite[Kap.~7]{kleppmann_designing_2017}.
+\section{Fehlertoleranz und Wiederherstellung}\label{sec:fehlertoleranz} %TODO: Titel ggfs. anpassen
+Verteilte Softwaresysteme sind zwangsläufig mit einer Vielzahl potenzieller Fehlerquellen konfrontiert.
+Prozesse können unerwartet terminieren, Netzwerkverbindungen unterbrochen werden oder externe Dienste zeitweise nicht erreichbar sein
+\parencite[Kap.~1 Abschnitt \glqq The Three Golden Rules Of Distributed Systems\grqq]{newman_building_2026}.
+Insbesondere bei der asynchronen Hintergrundverarbeitung kann bereits ein einzelner Teilausfall dazu führen, dass unklar bleibt, ob ein Verarbeitungsschritt
+erfolgreich abgeschlossen wurde oder erneut ausgeführt werden muss.
+Da sich solche Fehler in komplexen Systemlandschaften nicht vollständig vermeiden lassen, muss ihre Existenz als grundlegende Systemeigenschaft
+betrachtet werden \parencite[Kap.~1 Abschnitt \glqq Failure Is Inevitable\grqq]{newman_building_2026}.
 
-\href{https://learning.oreilly.com/library/view/designing-data-intensive-applications/9781491903063/ch01.html#sec_introduction_reliability}{“Reliability”}
+Die Zuverlässigkeit eines Systems ergibt sich daher nicht primär daraus, Fehler vollständig zu verhindern, sondern daraus, wie gut mit ihrem Auftreten umgegangen wird.
+Fehlertoleranz bezeichnet in diesem Zusammenhang die Fähigkeit eines Systems, seine wesentlichen Funktionen trotz auftretender Störungen weiterhin bereitzustellen.
+Darüber hinaus muss ein System in der Lage sein, nach einem Fehler einen konsistenten Zustand wiederherzustellen und die Verarbeitung kontrolliert fortzusetzen,
+beziehungsweise neuzustarten \parencite[Kap.~1 \glqq What Is Resilience?\grqq]{newman_building_2026}.
+Ziel ist es, Datenverlust, inkonsistente Zustände oder dauerhafte Unterbrechungen der Verarbeitung zu vermeiden.
+
+\subsection{Fehlerklassifikationen}\label{subsec:fehlerklassifikationen}
+- unterschied zwischen hardware fehlern und software fehler
+
+Nicht jeder Fehler kann jedoch mit vertretbarem Aufwand behandelt werden.
+Während kurzzeitige Infrastrukturprobleme, Prozessabstürze oder Kommunikationsfehler häufig durch geeignete Architekturmechanismen abgefangen werden können,
+liegen andere Ereignisse, etwa großflächige Naturkatastrophen oder der vollständige Ausfall eines Rechenzentrums, außerhalb des typischen
+Fehlerannahmemodells vieler Anwendungen.
+Der Entwurf fehlertoleranter Systeme erfordert daher eine bewusste Entscheidung darüber, welche Fehlerarten berücksichtigt werden und welche Risiken
+akzeptiert werden müssen \parencite[Kap.~1 Abschnitt \glqq Reliability\grqq]{kleppmann_designing_2017}.
+Für Background-Job-Processing-Systeme ergeben sich daraus insbesondere Anforderungen an die Klassifikation von Fehlern,
+die kontrollierte Wiederholung fehlgeschlagener Operationen, den Umgang mit Mehrfachausführungen sowie die Wiederaufnahme unterbrochener Verarbeitungen.
+Die folgenden Abschnitte stellen die hierfür relevanten Konzepte und Mechanismen vor.
 
 \subsection{Retry-/Backoff-Strategien}\label{subsec:retry/backoff}
+Wenn der fehler whs nur temporär ist, kann es sinn machen die fehler verursachende Aktion zu wiederholen.
+Wichtig dafür ist eine Klassifikation der Fehler.
 \parencite[Kap.~3]{newman_building_2026}
 Daneben muss das System unterscheiden können, ob ein Job tatsächlich noch aktiv bearbeitet wird oder ob er lediglich in einem Zwischenzustand verblieben ist,
 weil der Worker während der Ausführung unvorhergesehen terminiert ist.%TODO: ggfs. aktivitätsdiagramm zu retry & backoff s. 6.Semester ->Bachelorarbeit -> retry und backoff aktivitaetsdiagramm
@@ -265,15 +287,11 @@ Retry-Strategien mit Backoff zu überbrücken und eine Systemüberlastung zu ver
 Abbruch führen \parencite[Kap.~3]{newman_building_2026}.
 
 \parencite[Abschnitt \glqq Reliability consideration\grqq -->letzter Punkt]{microsoft_corporation_hrsg_best_2026}
+Retries sollten ausschließlich für Fehler durchgeführt werden, deren Ursache außerhalb der eigentlichen Geschäftslogik liegt und deren Fortbestand nicht dauerhaft erwartet wird.
+Hierzu zählen insbesondere Kommunikations-, Verfügbarkeits- und Nebenläufigkeitsprobleme.
+Fehler, die auf fehlerhaften Eingabedaten, Verletzungen fachlicher Regeln oder Programmierfehlern beruhen, sollten dagegen unmittelbar als endgültig
+fehlgeschlagen behandelt werden.
 
-\subsection{Fehlerklassifikationen}\label{subsec:fehlerklassifikationen}
-
-\subsection{Recovery}\label{subsec:recovery}
-
-Dein „remote datastore“ ist praktisch deine PostgreSQL-Jobtabelle (persistenter Job-Store). Das entspricht dem Ansatz „State remote halten“, was Recovery vereinfacht, aber Laufzeit/Contention beeinflusst.
- Dein Worker hat vermutlich lokalen, transienten Zustand während der Verarbeitung (in-memory). Der muss nach Crash nicht „rekonstruiert“ werden, sondern du brauchst Mechanismen wie Lease/Timeout + Retry, um Jobs wieder aufzunehmen.
-„Replay state from input“ entspricht bei dir am ehesten: Job erneut ausführen (at-least-once) – und genau deshalb brauchst du Idempotenz, weil „replay“ bei Side-Effects sonst doppelte Ergebnisse erzeugt.
-\parencite[Kap.11 Rebuilding a state failure]{kleppmann_designing_2017}
 
 \subsection{Idempotenz}\label{subsec:idempotenz}
 Wichtig für exactly-once Semantik \parencite[Kap.~8, Abschnitt\glqq Types Of Delivery Guarantees\grqq]{newman_building_2026}
@@ -282,6 +300,18 @@ Wichtig für exactly-once Semantik \parencite[Kap.~8, Abschnitt\glqq Types Of De
 Message Broker, um doppelte Nachrichten zu Eleminieren \parencite[Kap.3.3.6]{richardson_microservices_2018}
 Einen Message Consumer Idempotent machen \parencite[Kap.6.1.6]{richardson_microservices_2018}
 \href{https://learn.microsoft.com/en-us/azure/architecture/reference-architectures/containers/aks-mission-critical/mission-critical-data-platform#idempotent-message-processing}{}
+Die Wiederaufnahme darf jedoch nicht zu inkonsistenten Ergebnissen führen, wenn eine Verarbeitung bereits teilweise erfolgt ist und somit Duplikate
+oder Wiederholungen auftreten\parencite[Kap.~3 Abschnitt \glqq Idempotency\grqq]{newman_building_2026}.
+Statusänderungen und fachliche Datenänderungen müssen folglich über klar definierte Transaktionsgrenzen abgesichert werden, um eine konsistente
+Weiterbearbeitung nach einem Crash zu gewährleisten \parencite[Kap.~7]{kleppmann_designing_2017}.
+
+\subsection{Recovery}\label{subsec:recovery}
+
+Dein „remote datastore“ ist praktisch deine PostgreSQL-Jobtabelle (persistenter Job-Store). Das entspricht dem Ansatz „State remote halten“, was Recovery vereinfacht, aber Laufzeit/Contention beeinflusst.
+Dein Worker hat vermutlich lokalen, transienten Zustand während der Verarbeitung (in-memory). Der muss nach Crash nicht „rekonstruiert“ werden, sondern du brauchst Mechanismen wie Lease/Timeout + Retry, um Jobs wieder aufzunehmen.
+„Replay state from input“ entspricht bei dir am ehesten: Job erneut ausführen (at-least-once) – und genau deshalb brauchst du Idempotenz, weil „replay“ bei Side-Effects sonst doppelte Ergebnisse erzeugt.
+\parencite[Kap.11 Rebuilding a state failure]{kleppmann_designing_2017}
+
 
 \section{Zustandsmodellierung mittels State Machines}\label{sec:zustandsmodellierung}
 Eine architektonische Option besteht darin, den aktuellen Zustand in einem externen Datenspeicher (\textit{Remote Datastore}) zu verwalten.
