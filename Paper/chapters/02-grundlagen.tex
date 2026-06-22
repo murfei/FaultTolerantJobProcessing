@@ -188,7 +188,7 @@ Eine fachliche Transaktion beschreibt eine zusammenhängende Geschäftsoperation
 Eine technische Transaktion hingegen bezeichnet die konkrete Transaktion auf der Datenbankebene, welche die \gls{acid}-Eigenschaften für die von ihr gekapselten Datenbankoperationen bereitstellt.
 Während eine fachliche Operation mehrere technische Transaktionen umfassen kann, können innerhalb einer technischen Transaktion auch nur Teilaspekte einer fachlichen Operation verarbeitet werden.
 Werden die Grenzen falsch gesetz, können verschiedene Parallelitätsanomalien auftreten \parencite[Kap.~13.1.2]{saake_datenbanken_2018}.         %TODO: Muss ich Parallelitätsanomalien hier noch nennen und erklären?
-Ein verbreiteter Ansatz zur Vermeidung dieser Anomalien ist die Verwendung von Sperren, auf die in \cref{subsec:locking} näher eingegangen wird.
+Ein verbreiteter Ansatz zur Vermeidung dieser Anomalien ist die Verwendung von Sperren, auf die in \cref{subsec:synchronisation} näher eingegangen wird.
 Wichtig ist an dieser Stelle, dass die gewählte Transaktionsgrenze direkten Einfluss auf die Dauer von Sperren und die Interaktion mit parallel ausgeführten Transaktionen hat.
 
 Eine Möglichkeit besteht darin, jede Datenbankoperation in einer eigenen Transaktion auszuführen.
@@ -210,14 +210,40 @@ Im Software-Entwurf erfordert das Setzen der Transaktionsgrenzen daher eine kont
 Weit gefasste Transaktionsgrenzen reduziert das Risiko der Entstehung von Inkonsistenzen, blockieren jedoch Systemressourcen und Datensätze.
 Eng gefasste Grenzen erhöhen den Durchsatz, können jedoch das Risiko konkurrierender Zugriffe und daraus resultierender Race Conditions erhöhen.
 
-\subsection{Locking}\label{subsec:locking}
-Optimistisches Locking \parencite[Kap.6.2]{richardson_microservices_2018}
-Die konkrete Wirkung von Sperrmechanismen hängt zusätzlich von der gewählten Isolationsstufe des Datenbanksystems ab.
-Diese bestimmt, welche Änderungen parallel ausgeführter Transaktionen sichtbar sind und welche Anomalien auftreten können.
-Höhere Isolationsstufen bieten stärkere Konsistenzgarantien, gehen jedoch häufig mit einer geringeren Parallelität einher \parencite[Kap.~13.1.2]{saake_datenbanken_2018}.
+\subsection{Synchronisationsverfahren}\label{subsec:synchronisation}
+Zur Umsetzung der Isolationseigenschaft von Transaktionen müssen konkurrierende Zugriffe auf gemeinsame Daten koordiniert werden.
+Zu diesem Zweck existieren verschiedene Synchronisationsverfahren, die mittels unterschiedlicher Strategien das Entstehen von Parallelitätsanomalien verhindern
+\parencite[253--259]{kudras_taschenbuch_2015}.
 
+Je nach Anwendungskontext kann es sein, dass nicht alle dieser Anomalien auftreten können, beispielsweise wenn nur Leseoperationen ausgeführt werden, oder dass deren Auftreten
+in Kauf genommen werden kann, um eine bessere Performance zu erhalten.
+Datenbanksysteme stellen zu diesem Zweck unterschiedliche Isolationsstufen bereit.
+Diese legen fest, in welchem Umfang parallele Transaktionen die Änderungen anderer Transaktionen beobachten können und bestimmen somit, welche Anomalien auftreten können.
+Dadurch müssen weniger Überprüfungen stattfinden und weniger Transaktionen müssen zurückgesetzt werden, was zu einer besseren Performance führt.
+Höhere Isolationsstufen bieten stärkere Konsistenzgarantien, können jedoch die Parallelität des Systems verringern
+\parencite[Kap.~13.1.3]{saake_datenbanken_2018}.
 
-%TODO: Neues Kapitel zu 2-Phasen Sperrprotokoll? \parencite[13.1.2]{saake_datenbanken_2018}
+Eine verbreitete Strategie zur Durchsetzung der Isolation ist die pessimistische Synchronisation.
+Sie basiert auf der Annahme, dass konkurrierende Zugriffe auftreten können und verhindert diese bereits im Vorfeld durch Sperrmechanismen.
+Bevor eine Transaktion einen Datensatz verändert, wird dieser für andere konkurrierende Transaktionen gesperrt.
+Der Vorteil pessimistischer Verfahren besteht darin, dass Konflikte bereits vor ihrer Entstehung verhindert werden.
+Dadurch eignen sie sich insbesondere für Szenarien mit häufigen konkurrierenden Zugriffen.
+Nachteilig wirken sich jedoch zusätzliche Wartezeiten aus, da Transaktionen auf die Freigabe benötigter Sperren warten müssen.
+Bei hoher Auslastung kann dies die Parallelität und den Gesamtdurchsatz eines Systems reduzieren.
+Außerdem entsteht die Gefahr von Deadlocks \parencite[253--257]{kudras_taschenbuch_2015}.
+
+Alternative Ansätze sind nicht sperrende Verfahren, beispielsweise die optimistische Synchronisation oder das Zeitstempelverfahren.
+Anstatt Daten vor der Bearbeitung zu sperren, werden bei der optimistischen Synchronisation Transaktionen zunächst ausgeführt und erst beim Schreiben geprüft, ob ein Konflikt entstanden ist.
+Ist es zwischen zwei oder mehreren Transaktionen zum Konflikt gekommen, müssen einzelne Transaktionen zurückgesetzt und wiederholt werden.
+Bei dem Zeitstempelverfahren werden Zeitstempel für jede Transaktionen, sowie der Zeitpunkt des letzten Lese- und Schreibzugriffs für jedes Datenbankobjekt verwaltet.
+Anhand dieser Zeitstempel kann geprüft werden, ob zwei Transaktionen in Konflikt zueinander stehen und ob eine der Transaktionen zurückgesetzt werden muss.
+Nicht sperrende Verfahren vermeiden die durch Sperren verursachten Wartezeiten und ermöglichen dadurch eine hohe Parallelität.
+Treten jedoch Konflikte auf, müssen betroffene Operationen wiederholt werden.
+Sie eignen sich daher insbesondere für Systeme, in denen konkurrierende Änderungen selten vorkommen
+\parencite[257--259]{kudras_taschenbuch_2015}.
+
+Welche Synchronisationsstrategie geeignet ist, hängt von den Anforderungen des jeweiligen Systems und der Häufigkeit erwarteter Konflikte ab.
+Während pessimistische Verfahren Konflikte präventiv verhindern, akzeptieren optimistische Verfahren mögliche Konflikte und behandeln diese nachträglich.
 
 \section{Fehlertoleranz und Wiederherstellung}\label{sec:fehlertoleranz}
 Die Wiederaufnahme darf jedoch nicht zu inkonsistenten Ergebnissen führen, wenn eine Verarbeitung bereits teilweise erfolgt ist und somit Duplikate
