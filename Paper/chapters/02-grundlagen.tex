@@ -249,7 +249,7 @@ Während pessimistische Verfahren Konflikte präventiv verhindern, akzeptieren o
 Verteilte Softwaresysteme sind zwangsläufig mit einer Vielzahl potenzieller Fehlerquellen konfrontiert.
 Prozesse können unerwartet terminieren, Netzwerkverbindungen unterbrochen werden oder externe Dienste zeitweise nicht erreichbar sein
 \parencite[Kap.~1 Abschnitt \glqq The Three Golden Rules Of Distributed Systems\grqq]{newman_building_2026}.
-Insbesondere bei der asynchronen Hintergrundverarbeitung kann bereits ein einzelner Teilausfall dazu führen, dass unklar bleibt, ob ein Verarbeitungsschritt
+Beispielsweise kann es bei einzelnen Teilausfällen dazu kommen, dass unklar bleibt, ob ein Verarbeitungsschritt
 erfolgreich abgeschlossen wurde oder erneut ausgeführt werden muss.
 Da sich solche Fehler in komplexen Systemlandschaften nicht vollständig vermeiden lassen, muss ihre Existenz als grundlegende Systemeigenschaft
 betrachtet werden \parencite[Kap.~1 Abschnitt \glqq Failure Is Inevitable\grqq]{newman_building_2026}.
@@ -258,22 +258,55 @@ Die Zuverlässigkeit eines Systems ergibt sich daher nicht primär daraus, Fehle
 Fehlertoleranz bezeichnet in diesem Zusammenhang die Fähigkeit eines Systems, seine wesentlichen Funktionen trotz auftretender Störungen weiterhin bereitzustellen.
 Darüber hinaus muss ein System in der Lage sein, nach einem Fehler einen konsistenten Zustand wiederherzustellen und die Verarbeitung kontrolliert fortzusetzen,
 beziehungsweise neuzustarten \parencite[Kap.~1 \glqq What Is Resilience?\grqq]{newman_building_2026}.
-Ziel ist es, Datenverlust, inkonsistente Zustände oder dauerhafte Unterbrechungen der Verarbeitung zu vermeiden.
-
-\subsection{Fehlerklassifikationen}\label{subsec:fehlerklassifikationen}
-- unterschied zwischen hardware fehlern und software fehler
-
-Nicht jeder Fehler kann jedoch mit vertretbarem Aufwand behandelt werden.
-Während kurzzeitige Infrastrukturprobleme, Prozessabstürze oder Kommunikationsfehler häufig durch geeignete Architekturmechanismen abgefangen werden können,
-liegen andere Ereignisse, etwa großflächige Naturkatastrophen oder der vollständige Ausfall eines Rechenzentrums, außerhalb des typischen
-Fehlerannahmemodells vieler Anwendungen.
-Der Entwurf fehlertoleranter Systeme erfordert daher eine bewusste Entscheidung darüber, welche Fehlerarten berücksichtigt werden und welche Risiken
-akzeptiert werden müssen \parencite[Kap.~1 Abschnitt \glqq Reliability\grqq]{kleppmann_designing_2017}.
-Für Background-Job-Processing-Systeme ergeben sich daraus insbesondere Anforderungen an die Klassifikation von Fehlern,
-die kontrollierte Wiederholung fehlgeschlagener Operationen, den Umgang mit Mehrfachausführungen sowie die Wiederaufnahme unterbrochener Verarbeitungen.
 Die folgenden Abschnitte stellen die hierfür relevanten Konzepte und Mechanismen vor.
 
+\subsection{Fehlerklassifikation}\label{subsec:fehlerklassifikation}
+Da Fehler in verteilten Systemen unvermeidbar sind, stellt sich nicht die Frage, ob sie auftreten, sondern wie mit ihnen umgegangen werden soll.
+Die Wirksamkeit von Fehlertoleranzmechanismen hängt dabei wesentlich davon ab, die Ursache und Eigenschaften eines Fehlers korrekt einzuordnen.
+Nicht jeder Fehler kann durch dieselben Maßnahmen behandelt werden.
+Während einige Fehler durch eine erneute Ausführung einer Operation behoben werden können, sind andere dauerhaft und erfordern eine
+Anpassung der Eingabedaten oder eine manuelle Intervention.
+Die Klassifikation von Fehlern bildet daher die Grundlage für Entscheidungen über Retry-Strategien, Fehlerbehandlung und
+Wiederherstellungsmechanismen \parencite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026}.
+
+Darüber hinaus können nicht alle denkbaren Fehler mit vertretbarem Aufwand behandelt werden.
+Während kurzzeitige Infrastrukturprobleme, Prozessabstürze oder Kommunikationsfehler häufig durch geeignete Architekturmechanismen abgefangen werden können,
+liegen andere Ereignisse, etwa großflächige Naturkatastrophen oder der vollständige Ausfall eines Rechenzentrums, außerhalb des typischen Fehlerannahmemodells
+vieler Anwendungen.
+Der Entwurf fehlertoleranter Systeme erfordert daher eine bewusste Entscheidung darüber, welche Fehlerarten berücksichtigt werden und welche Risiken
+akzeptiert werden müssen \parencite[Kap.~1 Abschnitt \glqq Reliability\grqq]{kleppmann_designing_2017}.
+
+Eine grundlegende Einteilung erfolgt in transiente und permanente Fehler.
+Transiente Fehler treten zeitlich begrenzt auf und verschwinden nach kurzer Zeit wieder.
+Ursachen liegen häufig in der technischen Infrastruktur eines Systems, beispielsweise in vorübergehenden Netzwerkstörungen, kurzzeitigen
+Überlastungen von Diensten, nicht erreichbaren Datenbanken oder dem Neustart einzelner Systemkomponenten.
+In solchen Fällen kann eine erneute Ausführung einer Operation erfolgreich sein, obwohl der erste Versuch fehlgeschlagen ist.
+Aus diesem Grund eignen sich transiente Fehler besonders für den Einsatz von Retry-Mechanismen auf die näher in \cref{subsec:retry/backoff}
+eingegangen wird \parencite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026}.
+
+Permanente Fehler hingegen bestehen unabhängig von der Anzahl der Wiederholungsversuche fort.
+Ihre Ursache liegt häufig in der Anwendung selbst oder in den zu verarbeitenden Daten.
+Beispiele hierfür sind ungültige Eingabedaten oder fehlende Berechtigungen.
+\textcite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026} verdeutlicht dies anhand von HTTP-Fehlercodes wie 404 Not Found oder 403 Forbidden.
+Da sich die zugrunde liegende Ursache durch eine Wiederholung der Anfrage nicht verändert, führen Retries in diesen Fällen lediglich zu zusätzlicher Systemlast,
+ohne die Erfolgswahrscheinlichkeit zu erhöhen.
+
+Die Abgrenzung zwischen beiden Fehlerarten ist insbesondere für die automatisierte Fehlerbehandlung relevant.
+Während transiente Fehler häufig eine erneute Ausführung rechtfertigen, sollten permanente Fehler möglichst früh erkannt und gesondert behandelt werden.
+
+Eine besondere Rolle spielen zudem Timeout-Fehler.
+In verteilten Systemen werden Timeouts verwendet, um potenzielle Ausfälle zu erkennen.
+Dabei kann jedoch nicht eindeutig unterschieden werden, ob tatsächlich ein Fehler vorliegt oder lediglich eine ungewöhnlich langsame Antwort empfangen wurde.
+Ein Timeout signalisiert lediglich, dass eine erwartete Antwort nicht innerhalb eines definierten Zeitfensters eingetroffen ist und lässt somit keine Aussage
+über eine Ursache zu \parencite[Kap.~17.2 Abschnitt \glqq Failure in the Cloud\grqq]{bass_software_2022}.
+
+Diese Fehlerarten sind für das Background-Job-Processing-Systeme von besonderer Bedeutung, da sie die Grundlage für die im folgenden Abschnitt vorgestellten
+Retry- und Backoff-Strategien bilden.
+
 \subsection{Retry-/Backoff-Strategien}\label{subsec:retry/backoff}
+\parencite[Kap.~3 Abschnitt \glqq How Many Retries Are Appropriate?\grqq]{newman_building_2026}
+\parencite[Kap.~3 Abschnitt \glqq Delays Between Retries\grqq]{newman_building_2026}
+
 Wenn der fehler whs nur temporär ist, kann es sinn machen die fehler verursachende Aktion zu wiederholen.
 Wichtig dafür ist eine Klassifikation der Fehler.
 \parencite[Kap.~3]{newman_building_2026}
@@ -292,11 +325,16 @@ Hierzu zählen insbesondere Kommunikations-, Verfügbarkeits- und Nebenläufigke
 Fehler, die auf fehlerhaften Eingabedaten, Verletzungen fachlicher Regeln oder Programmierfehlern beruhen, sollten dagegen unmittelbar als endgültig
 fehlgeschlagen behandelt werden.
 
+circuite breaker pattern
+
 
 \subsection{Idempotenz}\label{subsec:idempotenz}
 Wichtig für exactly-once Semantik \parencite[Kap.~8, Abschnitt\glqq Types Of Delivery Guarantees\grqq]{newman_building_2026}
 \parencite[Kap.11 --> Atomic commit revisited \& Idempotence]{kleppmann_designing_2017}
 \parencite[Kap.3.3.6]{richardson_microservices_2018}
+\parencite[Kap.6.1.6]{richardson_microservices_2018}
+\parencite[Kap.~3 Abschnitt \glqq Idempotency\grqq]{newman_building_2026}
+\parencite[Kap.~10 Abschnitt \glqq Idempotent Receiver\grqq]{hohpe_enterprise_2005}
 Message Broker, um doppelte Nachrichten zu Eleminieren \parencite[Kap.3.3.6]{richardson_microservices_2018}
 Einen Message Consumer Idempotent machen \parencite[Kap.6.1.6]{richardson_microservices_2018}
 \href{https://learn.microsoft.com/en-us/azure/architecture/reference-architectures/containers/aks-mission-critical/mission-critical-data-platform#idempotent-message-processing}{}
@@ -311,11 +349,11 @@ Dein „remote datastore“ ist praktisch deine PostgreSQL-Jobtabelle (persisten
 Dein Worker hat vermutlich lokalen, transienten Zustand während der Verarbeitung (in-memory). Der muss nach Crash nicht „rekonstruiert“ werden, sondern du brauchst Mechanismen wie Lease/Timeout + Retry, um Jobs wieder aufzunehmen.
 „Replay state from input“ entspricht bei dir am ehesten: Job erneut ausführen (at-least-once) – und genau deshalb brauchst du Idempotenz, weil „replay“ bei Side-Effects sonst doppelte Ergebnisse erzeugt.
 \parencite[Kap.11 Rebuilding a state failure]{kleppmann_designing_2017}
-
+\parencite[Kap.~4 Abschnitt \glqq Recover frin Faults\grqq]{bass_software_2022}
 
 \section{Zustandsmodellierung mittels State Machines}\label{sec:zustandsmodellierung}
 Eine architektonische Option besteht darin, den aktuellen Zustand in einem externen Datenspeicher (\textit{Remote Datastore}) zu verwalten.
-
+\parencite[Kap.~7 Abschnitt \glqq Stateful vs Stateless Processing\grqq]{newman_building_2026}
 
 \section{Stand der Technik}\label{sec:forschungsstand}
 
