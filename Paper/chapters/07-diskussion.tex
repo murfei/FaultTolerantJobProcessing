@@ -33,4 +33,7 @@ Keine Fehlertoleranz in Bezug auf Datenbeständigkeit (z.B. Festplatte des Job-S
 Es gibt keine Möglichkeit absolute Garantien zu geben, nur viele Möglichkeiten der Risikoreduktion \parencite[Kap.~7 Abschnitt \glqq The Meaning of ACID\grqq --> Ende]{kleppmann_designing_2017}
 
 um performance zu verbessern könnte man verschiedene checkpoints in die verarbeitung einbringen, sodass bei einem Abbrechen einer Task nicht die gesamte Task neu gestartet wird
-sondern ab einem bestimmten punkt wieder angefangen wird
+sondern ab einem bestimmten punkt wieder angefangen wird \parencite[Abschnitt \glqq Reliability considerations\grqq]{microsoft_corporation_hrsg_best_2026}.
+
+vorsicht bei dingen bei denen kein rollback gemacht werden kann: versendet ein worker eine email, stürzt ab und die operation wird wiederholt wird potenziell noch eine
+email versendet. das muss gesondert abgefangen werden

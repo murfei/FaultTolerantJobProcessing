@@ -15,3 +15,17 @@ akzeptiert werden müssen.\grqq \cref{subsec:fehlerklassifikationen}
 \section{Qualitätsanforderungen}\label{sec:qualitAnf}
 
 \section{Zusicherungen}\label{sec:zusicherungen}
+Z.B.:
+Für die Evaluation werden folgende Zusicherungen definiert, die das System zu jedem Zeitpunkt einhalten muss:
+Z1: Kein Job erreicht mehr als einmal den Status SUCCEEDED.
+Z2: Zu einem gegebenen Auftrag (Idempotency-Key) wird höchstens ein Report erzeugt.
+Z3: Statusübergänge folgen ausschließlich dem definierten Zustandsmodell. Ungültige Übergänge (z. B. direkt von QUEUED zu SUCCEEDED) sind ausgeschlossen.
+Z4: Kein Job verbleibt dauerhaft in einem Zwischenzustand. Jeder Job erreicht innerhalb einer definierten Frist einen Endzustand (SUCCEEDED oder FAILED).
+
+
+
+Begründen, warum ich mich für diese Frameworks entschieden habe, die vorkommen.
+--> Jede (auch implizite) Entscheidung begründen
+Alles Begründen!!! Wieso ist das überhaupt relevant? Welches Problem löse ich, wieso habe ich das so gemacht?
+Wieso genau diese Fehlerszenarien? Begründen wieso nicht andere oder mehr?
+Gibt es formale Modelle die die Zusicherungen zu jedem Zeitpunkt checken?

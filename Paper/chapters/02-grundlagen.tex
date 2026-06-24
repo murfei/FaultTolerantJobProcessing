@@ -2,7 +2,6 @@
 %! Date = 08.06.2026
 
 \chapter{Grundlagen}\label{ch:grundlagen}
-\textcolor{red}{Orientierung ca. 8-12 Seiten}
 %TODO: Einleitung
 %TODO: einheitliche Markierung von Fachbegriffen (Erstnennung)
 \section{Grundlagen der Hintergrundverarbeitung}\label{sec:hintergrundverarbeitung}
@@ -280,16 +279,16 @@ Eine grundlegende Einteilung erfolgt in transiente und permanente Fehler.
 Transiente Fehler treten zeitlich begrenzt auf und verschwinden nach kurzer Zeit wieder.
 Ursachen liegen häufig in der technischen Infrastruktur eines Systems, beispielsweise in vorübergehenden Netzwerkstörungen, kurzzeitigen
 Überlastungen von Diensten, nicht erreichbaren Datenbanken oder dem Neustart einzelner Systemkomponenten.
-In solchen Fällen kann eine erneute Ausführung einer Operation erfolgreich sein, obwohl der erste Versuch fehlgeschlagen ist.
-Aus diesem Grund eignen sich transiente Fehler besonders für den Einsatz von Retry-Mechanismen auf die näher in \cref{subsec:retry/backoff}
-eingegangen wird \parencite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026}.
+%In solchen Fällen kann eine erneute Ausführung einer Operation erfolgreich sein, obwohl der erste Versuch fehlgeschlagen ist.
+%Aus diesem Grund eignen sich transiente Fehler besonders für den Einsatz von Retry-Mechanismen auf die näher in \cref{subsec:retry/backoff}
+%eingegangen wird \parencite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026}.
 
 Permanente Fehler hingegen bestehen unabhängig von der Anzahl der Wiederholungsversuche fort.
 Ihre Ursache liegt häufig in der Anwendung selbst oder in den zu verarbeitenden Daten.
 Beispiele hierfür sind ungültige Eingabedaten oder fehlende Berechtigungen.
 \textcite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026} verdeutlicht dies anhand von HTTP-Fehlercodes wie 404 Not Found oder 403 Forbidden.
-Da sich die zugrunde liegende Ursache durch eine Wiederholung der Anfrage nicht verändert, führen Retries in diesen Fällen lediglich zu zusätzlicher Systemlast,
-ohne die Erfolgswahrscheinlichkeit zu erhöhen.
+%Da sich die zugrunde liegende Ursache durch eine Wiederholung der Anfrage nicht verändert, führen Retries in diesen Fällen lediglich zu zusätzlicher Systemlast,
+%ohne die Erfolgswahrscheinlichkeit zu erhöhen.
 
 Die Abgrenzung zwischen beiden Fehlerarten ist insbesondere für die automatisierte Fehlerbehandlung relevant.
 Während transiente Fehler häufig eine erneute Ausführung rechtfertigen, sollten permanente Fehler möglichst früh erkannt und gesondert behandelt werden.
@@ -300,33 +299,37 @@ Dabei kann jedoch nicht eindeutig unterschieden werden, ob tatsächlich ein Fehl
 Ein Timeout signalisiert lediglich, dass eine erwartete Antwort nicht innerhalb eines definierten Zeitfensters eingetroffen ist und lässt somit keine Aussage
 über eine Ursache zu \parencite[Kap.~17.2 Abschnitt \glqq Failure in the Cloud\grqq]{bass_software_2022}.
 
-Diese Fehlerarten sind für das Background-Job-Processing-Systeme von besonderer Bedeutung, da sie die Grundlage für die im folgenden Abschnitt vorgestellten
-Retry- und Backoff-Strategien bilden.
-
 \subsection{Retry-/Backoff-Strategien}\label{subsec:retry/backoff}
-\parencite[Kap.~3 Abschnitt \glqq How Many Retries Are Appropriate?\grqq]{newman_building_2026}
-\parencite[Kap.~3 Abschnitt \glqq Delays Between Retries\grqq]{newman_building_2026}
+Die in \cref{subsec:fehlerklassifikation} eingeführte Unterscheidung zwischen transienten und permanenten Fehlern bildet die Grundlage für den Einsatz
+von Wiederholungsmechanismen.
+Da transiente Fehler nur zeitweise die Verarbeitung behindern, kann in solchen Fällen eine erneute Ausführung einer fehlgeschlagenen Operation erfolgreich sein,
+obwohl der ursprüngliche Versuch fehlgeschlagen ist \parencite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026}.
+Retry-Strategien verfolgen damit also das Ziel, die Erfolgswahrscheinlichkeit einer Verarbeitung zu erhöhen, ohne dass ein manueller Eingriff erforderlich wird.
+Retries sollten ausschließlich für Fehler durchgeführt werden, deren Ursache außerhalb der eigentlichen Geschäftslogik liegt und deren Fortbestand
+nicht dauerhaft erwartet wird.
+Permanente Fehler sollten dagegen unmittelbar als endgültig fehlgeschlagen behandelt werden, da eine erneute Ausführung die Erfolgswahrscheinlichkeit
+nicht erhöht \parencite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026}
+\parencite[Abschnitt \glqq Reliability considerations\grqq]{microsoft_corporation_hrsg_best_2026}.
 
-Wenn der fehler whs nur temporär ist, kann es sinn machen die fehler verursachende Aktion zu wiederholen.
-Wichtig dafür ist eine Klassifikation der Fehler.
-\parencite[Kap.~3]{newman_building_2026}
-Daneben muss das System unterscheiden können, ob ein Job tatsächlich noch aktiv bearbeitet wird oder ob er lediglich in einem Zwischenzustand verblieben ist,
-weil der Worker während der Ausführung unvorhergesehen terminiert ist.%TODO: ggfs. aktivitätsdiagramm zu retry & backoff s. 6.Semester ->Bachelorarbeit -> retry und backoff aktivitaetsdiagramm
-Ein weiterer Grundpfeiler des Background Job-Processing ist daher die systematische Fehlerbehandlung und Wiederaufnahme
-\parencite[Kap.~11 Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
-Da Teilausfälle dazu führen können, dass unklar ist, ob ein Verarbeitungsschritt bereits erfolgreich abgeschlossen wurde, wird mit Wiederholungsmechanismen gearbeitet.
-Hierbei ist eine exakte Fehlerklassifikation relevant, um transiente Fehler (z. B. kurzzeitige Nichterreichbarkeit eines externen Dienstes) über zeitlich gestaffelte
-Retry-Strategien mit Backoff zu überbrücken und eine Systemüberlastung zu vermeiden, während permanente Fehler direkt zu einem kontrollierten
-Abbruch führen \parencite[Kap.~3]{newman_building_2026}.
+Da die Ursache eines transienten Fehlers potenziell auch für eine gewisse Zeit nach dem Auftreten des Fehlers weiterhin besteht, werden Wiederholungen üblicherweise
+nicht unmittelbar durchgeführt.
+Stattdessen wird zwischen den einzelnen Versuchen eine Wartezeit eingefügt.
+Dieses Vorgehen wird als Backoff bezeichnet und soll verhindern, dass wiederholte Fehlversuche zusätzliche Last auf bereits beeinträchtigte Systeme erzeugen.
+Bekommt eine Anfrage beispielsweise ein Timeout, weil der Server zu viele Anfragen erhält, würden direkte Retries den Server noch weiter mit Anfragen verstopfen.
+Eine einfache Variante besteht darin, zwischen allen Wiederholungsversuchen dieselbe Wartezeit zu verwenden.
+In verteilten Systemen wird jedoch häufig ein exponentieller Backoff eingesetzt, bei dem sich das Warteintervall nach jedem fehlgeschlagenen Versuch schrittweise erhöht.
+Dadurch erhält das betroffene System mehr Zeit, sich von einer temporären Störung zu erholen, da die Dichte der Wiederholungsversuche
+reduziert wird \parencite[Kap.~3 Abschnitt \glqq Delays Between Retries\grqq]{newman_building_2026}.
 
-\parencite[Abschnitt \glqq Reliability consideration\grqq -->letzter Punkt]{microsoft_corporation_hrsg_best_2026}
-Retries sollten ausschließlich für Fehler durchgeführt werden, deren Ursache außerhalb der eigentlichen Geschäftslogik liegt und deren Fortbestand nicht dauerhaft erwartet wird.
-Hierzu zählen insbesondere Kommunikations-, Verfügbarkeits- und Nebenläufigkeitsprobleme.
-Fehler, die auf fehlerhaften Eingabedaten, Verletzungen fachlicher Regeln oder Programmierfehlern beruhen, sollten dagegen unmittelbar als endgültig
-fehlgeschlagen behandelt werden.
+Neben der zeitlichen Staffelung von Wiederholungsversuchen muss auch deren Anzahl begrenzt werden.
+Andernfalls besteht die Gefahr, dass ein fehlerhafter Job unendlich oft ausgeführt wird und dadurch dauerhaft Ressourcen belegt.
+In der Praxis wird daher eine maximale Anzahl von Wiederholungsversuchen definiert.
+Wird diese überschritten, gilt die Verarbeitung als endgültig fehlgeschlagen und der Job wird in einen entsprechenden Fehlerzustand
+überführt \parencite[Kap.~3 Abschnitt \glqq How Many Retries Are Appropriate?\grqq]{newman_building_2026}.
 
-circuite breaker pattern
-
+Retry- und Backoff-Strategien bilden damit einen wesentlichen Baustein zur Behandlung transienter Fehler.
+Sie ermöglichen die automatische Wiederholung fehlgeschlagener Verarbeitungen, ohne abhängige Systeme durch unmittelbar aufeinanderfolgende Wiederholungsversuche
+zusätzlich zu belasten.
 
 \subsection{Idempotenz}\label{subsec:idempotenz}
 Wichtig für exactly-once Semantik \parencite[Kap.~8, Abschnitt\glqq Types Of Delivery Guarantees\grqq]{newman_building_2026}
@@ -354,6 +357,11 @@ Dein Worker hat vermutlich lokalen, transienten Zustand während der Verarbeitun
 \section{Zustandsmodellierung mittels State Machines}\label{sec:zustandsmodellierung}
 Eine architektonische Option besteht darin, den aktuellen Zustand in einem externen Datenspeicher (\textit{Remote Datastore}) zu verwalten.
 \parencite[Kap.~7 Abschnitt \glqq Stateful vs Stateless Processing\grqq]{newman_building_2026}
+
+Daneben muss das System unterscheiden können, ob ein Job tatsächlich noch aktiv bearbeitet wird oder ob er lediglich in einem Zwischenzustand verblieben ist,
+weil der Worker während der Ausführung unvorhergesehen terminiert ist.%TODO: ggfs. aktivitätsdiagramm zu retry & backoff s. 6.Semester ->Bachelorarbeit -> retry und backoff aktivitaetsdiagramm
+Ein weiterer Grundpfeiler des Background Job-Processing ist daher die systematische Fehlerbehandlung und Wiederaufnahme
+\parencite[Kap.~11 Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
 
 \section{Stand der Technik}\label{sec:forschungsstand}
 
