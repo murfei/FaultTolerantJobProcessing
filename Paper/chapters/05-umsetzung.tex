@@ -68,6 +68,11 @@ as this leads to a high proportion of transactions needing to abort. If the syst
 to its maximum throughput, the additional transaction load from retried transactions can make
 performance worse." \parencite[Kap.~7 Abschnitt \glqq Pessimistic versus optimistic concurrency control\grqq]{kleppmann_designing_2017}
 
+Idempotente verarbeitung:
+- nicht mehrere worker dürfen sich den gleichen job ziehen --> muss synchronisiert werden und ein statusmodell existieren, wobei die reservierung atomar passieren muss,
+--> relationale datenbank mit strikten acid-garantien/isolation levels
+- nach absturz eines workers muss eine erneute ausführung zum gleichen ergebnis kommen was die erste ausführung erhalten hätte --> dafür müssen die daten, auf denen die
+fachliche operation aufbaut unverändert vorliegen --> transaktionales modell, wenn prozess abstürzt dürfen keine halb aktualisierten daten zurück bleiben
 
 \section{Implementierung}\label{sec:implementierung}
 \parencite[Kap.~5 Abschnitt \glqq Command Message\grqq]{hohpe_enterprise_2005}

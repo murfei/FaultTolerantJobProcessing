@@ -22,15 +22,17 @@ Der Aufrufer initiiert die Arbeit, blockiert jedoch nicht und kann auch während
 
 Um Nachrichtenverluste zu reduzieren und Lastspitzen auszugleichen, verwenden asynchrone Systeme in der Praxis häufig einen Puffer.
 %TODO: ggfs. Abbildung zu funktionsweise eines Message Brokers
-Durch das sogenannte \glqq queueing\grqq \parencite[Kap.~11, Abschnitt \glqq Message brokers\grqq]{kleppmann_designing_2017}, bei dem erhaltene Anfragen zur späteren Ausführung
-in den Puffer geschrieben werden, wird unter anderem die Asynchronität erreicht.
-Ein Produzent sendet eine Nachricht an einen Zwischenspeicher, beispielsweise einen Message Broker, und wartet in der Regel nur auf das Acknowledgment, dass die Nachricht
-zwischengespeichert wurde, nicht jedoch auf die Verarbeitung oder das Ergebnis \parencite[Kap.~11, Abschnitt \glqq Messaging Systems\grqq]{kleppmann_designing_2017}.
+Durch das sogenannte \glqq queueing\grqq{} \parencite[Kap.~11, Abschnitt \glqq Message brokers\grqq]{kleppmann_designing_2017}, bei dem erhaltene Anfragen zur
+späteren Ausführung in den Puffer geschrieben werden, wird unter anderem die Asynchronität erreicht.
+Ein Produzent sendet eine Nachricht an einen Zwischenspeicher, beispielsweise einen Message Broker, und wartet in der Regel nur auf das Acknowledgment,
+dass die Nachricht zwischengespeichert wurde, nicht jedoch auf die Verarbeitung oder das Ergebnis
+\parencite[Kap.~11, Abschnitt \glqq Messaging Systems\grqq]{kleppmann_designing_2017}.
 Die so erreichte Entkopplung hat gleichzeitig den Vorteil, dass die Verarbeitung der Anfrage unabhängig von der Verbindung zwischen Produzent und Konsument wird.
-Im Gegensatz dazu kann bei synchronen Systemen bei Verbindungsabbrüchen oder Timeouts unklar bleiben, ob eine Anfrage den Server erreicht hat oder bereits verarbeitet wurde.
+Im Gegensatz dazu kann bei synchronen Systemen bei Verbindungsabbrüchen oder Timeouts unklar bleiben, ob eine Anfrage den Server erreicht hat oder bereits
+verarbeitet wurde.
 Genau dieses Problem adressieren Message Broker:
-Falls ein Konsument temporär nicht verfügbar ist oder während der Verarbeitung ausfällt, können Message Broker trotzdem für die At-Least-Once-Semantik (vlg. \cref{subsec:semantiken})
-sorgen \parencite[Kap.~11, Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
+Falls ein Konsument temporär nicht verfügbar ist oder während der Verarbeitung ausfällt, können Message Broker trotzdem für die At-Least-Once-Semantik
+(vlg. \cref{subsec:semantiken}) sorgen \parencite[Kap.~11, Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
 Die synchrone Request-Response-Kommunikation bietet demgegenüber eine unmittelbare Rückmeldung über Erfolg oder Fehler einer Operation, setzt jedoch voraus, dass Client und Server 
 während der gesamten Interaktion verfügbar sind \parencite[Kap.~3.4]{richardson_microservices_2018}.
 
@@ -278,7 +280,7 @@ akzeptiert werden müssen \parencite[Kap.~1 Abschnitt \glqq Reliability\grqq]{kl
 Eine grundlegende Einteilung erfolgt in transiente und permanente Fehler.
 Transiente Fehler treten zeitlich begrenzt auf und verschwinden nach kurzer Zeit wieder.
 Ursachen liegen häufig in der technischen Infrastruktur eines Systems, beispielsweise in vorübergehenden Netzwerkstörungen, kurzzeitigen
-Überlastungen von Diensten, nicht erreichbaren Datenbanken oder dem Neustart einzelner Systemkomponenten.
+Überlastungen von Diensten, nicht erreichbaren Datenbanken oder dem Neustart einzelner Systemkomponenten. %TODO: Referenz
 %In solchen Fällen kann eine erneute Ausführung einer Operation erfolgreich sein, obwohl der erste Versuch fehlgeschlagen ist.
 %Aus diesem Grund eignen sich transiente Fehler besonders für den Einsatz von Retry-Mechanismen auf die näher in \cref{subsec:retry/backoff}
 %eingegangen wird \parencite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026}.
@@ -287,8 +289,6 @@ Permanente Fehler hingegen bestehen unabhängig von der Anzahl der Wiederholungs
 Ihre Ursache liegt häufig in der Anwendung selbst oder in den zu verarbeitenden Daten.
 Beispiele hierfür sind ungültige Eingabedaten oder fehlende Berechtigungen.
 \textcite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026} verdeutlicht dies anhand von HTTP-Fehlercodes wie 404 Not Found oder 403 Forbidden.
-%Da sich die zugrunde liegende Ursache durch eine Wiederholung der Anfrage nicht verändert, führen Retries in diesen Fällen lediglich zu zusätzlicher Systemlast,
-%ohne die Erfolgswahrscheinlichkeit zu erhöhen.
 
 Die Abgrenzung zwischen beiden Fehlerarten ist insbesondere für die automatisierte Fehlerbehandlung relevant.
 Während transiente Fehler häufig eine erneute Ausführung rechtfertigen, sollten permanente Fehler möglichst früh erkannt und gesondert behandelt werden.
@@ -307,8 +307,8 @@ obwohl der ursprüngliche Versuch fehlgeschlagen ist \parencite[Kap.~3 Abschnitt
 Retry-Strategien verfolgen damit also das Ziel, die Erfolgswahrscheinlichkeit einer Verarbeitung zu erhöhen, ohne dass ein manueller Eingriff erforderlich wird.
 Retries sollten ausschließlich für Fehler durchgeführt werden, deren Ursache außerhalb der eigentlichen Geschäftslogik liegt und deren Fortbestand
 nicht dauerhaft erwartet wird.
-Permanente Fehler sollten dagegen unmittelbar als endgültig fehlgeschlagen behandelt werden, da eine erneute Ausführung die Erfolgswahrscheinlichkeit
-nicht erhöht \parencite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026}
+Permanente Fehler sollten dagegen unmittelbar als endgültig fehlgeschlagen behandelt werden, da eine erneute Ausführung die Erfolgswahrscheinlichkeit nicht erhöht.
+Ein typisches Szenario indem Retries sinnvoll sind, ist das verschicken von Nachrichten \parencite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026}
 \parencite[Abschnitt \glqq Reliability considerations\grqq]{microsoft_corporation_hrsg_best_2026}.
 
 Da die Ursache eines transienten Fehlers potenziell auch für eine gewisse Zeit nach dem Auftreten des Fehlers weiterhin besteht, werden Wiederholungen üblicherweise
@@ -331,28 +331,44 @@ Retry- und Backoff-Strategien bilden damit einen wesentlichen Baustein zur Behan
 Sie ermöglichen die automatische Wiederholung fehlgeschlagener Verarbeitungen, ohne abhängige Systeme durch unmittelbar aufeinanderfolgende Wiederholungsversuche
 zusätzlich zu belasten.
 
-\subsection{Idempotenz}\label{subsec:idempotenz}
-Wichtig für exactly-once Semantik \parencite[Kap.~8, Abschnitt\glqq Types Of Delivery Guarantees\grqq]{newman_building_2026}
-\parencite[Kap.11 --> Atomic commit revisited \& Idempotence]{kleppmann_designing_2017}
-\parencite[Kap.3.3.6]{richardson_microservices_2018}
-\parencite[Kap.6.1.6]{richardson_microservices_2018}
-\parencite[Kap.~3 Abschnitt \glqq Idempotency\grqq]{newman_building_2026}
-\parencite[Kap.~10 Abschnitt \glqq Idempotent Receiver\grqq]{hohpe_enterprise_2005}
-Message Broker, um doppelte Nachrichten zu Eleminieren \parencite[Kap.3.3.6]{richardson_microservices_2018}
-Einen Message Consumer Idempotent machen \parencite[Kap.6.1.6]{richardson_microservices_2018}
-\href{https://learn.microsoft.com/en-us/azure/architecture/reference-architectures/containers/aks-mission-critical/mission-critical-data-platform#idempotent-message-processing}{}
-Die Wiederaufnahme darf jedoch nicht zu inkonsistenten Ergebnissen führen, wenn eine Verarbeitung bereits teilweise erfolgt ist und somit Duplikate
-oder Wiederholungen auftreten\parencite[Kap.~3 Abschnitt \glqq Idempotency\grqq]{newman_building_2026}.
-Statusänderungen und fachliche Datenänderungen müssen folglich über klar definierte Transaktionsgrenzen abgesichert werden, um eine konsistente
-Weiterbearbeitung nach einem Crash zu gewährleisten \parencite[Kap.~7]{kleppmann_designing_2017}.
-
 \subsection{Recovery}\label{subsec:recovery}
+
+Trotz Retry-Strategien können Fehler auftreten, die nicht lediglich einzelne Operationen betreffen, sondern den Ausführungsprozess eines Jobs unterbrechen.
+Besonders kritisch sind Ausfälle von Worker-Prozessen während der Bearbeitung eines Jobs.
+In solchen Situationen muss das System erkennen können, dass die Verarbeitung nicht erfolgreich abgeschlossen wurde, und geeignete Maßnahmen zur Wiederaufnahme einleiten.
 
 Dein „remote datastore“ ist praktisch deine PostgreSQL-Jobtabelle (persistenter Job-Store). Das entspricht dem Ansatz „State remote halten“, was Recovery vereinfacht, aber Laufzeit/Contention beeinflusst.
 Dein Worker hat vermutlich lokalen, transienten Zustand während der Verarbeitung (in-memory). Der muss nach Crash nicht „rekonstruiert“ werden, sondern du brauchst Mechanismen wie Lease/Timeout + Retry, um Jobs wieder aufzunehmen.
 „Replay state from input“ entspricht bei dir am ehesten: Job erneut ausführen (at-least-once) – und genau deshalb brauchst du Idempotenz, weil „replay“ bei Side-Effects sonst doppelte Ergebnisse erzeugt.
 \parencite[Kap.11 Rebuilding a state failure]{kleppmann_designing_2017}
-\parencite[Kap.~4 Abschnitt \glqq Recover frin Faults\grqq]{bass_software_2022}
+
+\subsection{Idempotenz}\label{subsec:idempotenz}
+Die in den vorherigen Abschnitten beschriebenen Retry- und Wiederherstellungsmechanismen erhöhen die Zuverlässigkeit eines Systems, führen jedoch
+gleichzeitig dazu, dass einzelne Verarbeitungsschritte mehrfach ausgeführt werden können.
+Um trotz solcher Mehrfachausführungen konsistente Datenbestände sicherzustellen, wird das Konzept der Idempotenz eingesetzt.
+Eine Operation wird als idempotent bezeichnet, wenn ihre mehrmalige Ausführung denselben fachlichen Zustand erzeugt wie eine einmalige Ausführung
+\parencite[Kap.~3 Abschnitt \glqq Idempotency\grqq]{newman_building_2026}.
+Wiederholte Aufrufe verändern das Ergebnis somit nicht, wodurch Duplikate oder erneut ausgeführte Verarbeitungsschritte keine inkonsistenten Zustände verursachen.
+Wie in \cref{subsec:semantiken} dargelegt, stellt Idempotenz damit eine wesentliche Voraussetzung dar, um auf Basis einer At-Least-Once-Semantik eine
+Exactly-Once-Semantik zu erreichen.
+
+Idempotenz kann dabei auf unterschiedlichen Ebenen eines Systems umgesetzt werden.
+Im Bezug auf Job-Processing muss bereits die Aufnahme eines Jobs in den Job-Store idempotent gestaltet werden, um zu verhindern, dass derselbe Job mehrfach
+im System erfasst wird.
+Ein verbreiteter Ansatz zur idempotenten Annahme von Anfragen ist die Implementierung eines idempotenten Receivers
+\parencite[Kap.~10 Abschnitt \glqq Idempotent Receiver\grqq]{hohpe_enterprise_2005} unter Verwendung eindeutiger Identifikatoren, wie beispielsweise eines \gls{uuid}.
+Bei einer möglichen Variante wird jeder Anfrage vom Sender eine eindeutige Kennung zugefügt, die vom Empfänger zusammen mit der Anfrage persistent gespeichert wird.
+Geht dieselbe Anfrage erneut ein, kann das System anhand dieser \gls{uuid} erkennen, dass die Anfrage bereits
+verarbeitet wurde und eine redundante Speicherung verhindern \parencites[{Kap.~3 Abschnitt \glqq Client Request IDs\grqq}]{newman_building_2026}[Kap.~3.3.6]{richardson_microservices_2018}.
+
+Darüber hinaus muss auch die eigentliche Verarbeitung eines Jobs so gestaltet werden, dass wiederholte Ausführungen und Wiederaufnahmen keine
+inkonsistenten Ergebnisse erzeugen \parencite[Kap.~3 Abschnitt \glqq Idempotency\grqq]{newman_building_2026}.
+Statusänderungen und fachliche Datenänderungen müssen folglich über klar definierte Transaktionsgrenzen abgesichert werden, um eine konsistente
+Weiterbearbeitung nach einem Crash zu gewährleisten \parencite[Kap.~7]{kleppmann_designing_2017}.
+
+Idempotenz bildet somit die Grundlage dafür, dass Retry- und Recovery-Mechanismen eingesetzt werden können, ohne die Konsistenz der verarbeiteten Daten zu gefährden.
+Sie stellt einen zentralen Baustein fehlertoleranter Background-Job-Processing-Systeme dar und ermöglicht die korrekte Verarbeitung trotz unvermeidbarer
+Mehrfachausführungen und Duplikate.
 
 \section{Zustandsmodellierung mittels State Machines}\label{sec:zustandsmodellierung}
 Eine architektonische Option besteht darin, den aktuellen Zustand in einem externen Datenspeicher (\textit{Remote Datastore}) zu verwalten.
