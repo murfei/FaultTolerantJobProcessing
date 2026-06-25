@@ -332,15 +332,59 @@ Sie ermöglichen die automatische Wiederholung fehlgeschlagener Verarbeitungen, 
 zusätzlich zu belasten.
 
 \subsection{Recovery}\label{subsec:recovery}
+Neben transienten Fehlern, die häufig durch Retry-Mechanismen behandelt werden können, die durch Retries gelöst werden können, können auch Fehler auftreten,
+die den Ausführungsprozess einer Verarbeitung vollständig unterbrechen.
+Besondere Relevanz besitzen Ausfälle ausführenden Komponenten während einer laufenden Bearbeitung.
+In einem solchen Szenario kann kein lokaler Retry mehr initiiert werden, da die ausführende Komponente selbst nicht mehr verfügbar ist.
+Recovery bezeichnet in diesem Kontext die Fähigkeit eines Systems, eine derart unterbrochene Verarbeitung zu erkennen und geeignete Maßnahmen zur Wiederaufnahme einzuleiten
+\parencite[Kap.~4.2]{bass_software_2022}.
 
-Trotz Retry-Strategien können Fehler auftreten, die nicht lediglich einzelne Operationen betreffen, sondern den Ausführungsprozess eines Jobs unterbrechen.
-Besonders kritisch sind Ausfälle von Worker-Prozessen während der Bearbeitung eines Jobs.
-In solchen Situationen muss das System erkennen können, dass die Verarbeitung nicht erfolgreich abgeschlossen wurde, und geeignete Maßnahmen zur Wiederaufnahme einleiten.
+Die Notwendigkeit solcher Mechanismen ergibt sich aus den Eigenschaften verteilter Systeme.
+Da einzelne Komponenten unabhängig voneinander ausfallen können, während andere Teile des Systems weiterhin funktionieren, entstehen sogenannte Teilausfälle
+\parencite[Kap.~8 Abschnitt \glqq Faults and Partial Failures\grqq]{kleppmann_designing_2017}.
+Dadurch entsteht Unsicherheit über den tatsächlichen Verarbeitungszustand einer Aufgabe.
+Gegebenenfalls ist nicht eindeutig feststellbar, ob eine Verarbeitung bereits erfolgreich abgeschlossen wurde aber die Bestätigung darüber fehlt, kurz vor ihrem
+Abschluss steht oder aufgrund eines Fehlers vorzeitig abgebrochen wurde \parencite[Kap.~8]{kleppmann_designing_2017}.
 
-Dein „remote datastore“ ist praktisch deine PostgreSQL-Jobtabelle (persistenter Job-Store). Das entspricht dem Ansatz „State remote halten“, was Recovery vereinfacht, aber Laufzeit/Contention beeinflusst.
-Dein Worker hat vermutlich lokalen, transienten Zustand während der Verarbeitung (in-memory). Der muss nach Crash nicht „rekonstruiert“ werden, sondern du brauchst Mechanismen wie Lease/Timeout + Retry, um Jobs wieder aufzunehmen.
-„Replay state from input“ entspricht bei dir am ehesten: Job erneut ausführen (at-least-once) – und genau deshalb brauchst du Idempotenz, weil „replay“ bei Side-Effects sonst doppelte Ergebnisse erzeugt.
-\parencite[Kap.11 Rebuilding a state failure]{kleppmann_designing_2017}
+Zur Wiederherstellung nach einem Ausfall muss zwischen flüchtigem und persistentem Zustand unterschieden werden.
+Während lokal im Arbeitsspeicher gehaltene Informationen beim Absturz eines Prozesses verloren gehen, kann persistent gespeicherter Zustand auch nach einem Ausfall
+weiterhin genutzt werden \parencite[Kap.~11 Abschnitt \glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
+Die Verarbeitung auf Basis eines Zwischenzustands wieder aufzunehmen ist unter Umständen jedoch nicht trivial.
+Eine verbreitete Wiederherstellungsstrategie besteht daher darin, die für eine Verarbeitung relevanten Eingabedaten dauerhaft zu speichern und eine unterbrochene
+Verarbeitung bei Bedarf auf Basis dieser Ursprungsdaten erneut auszuführen.
+Dies ist häufig einfacher und robuster als der Versuch, den exakten Laufzeitzustand eines abgestürzten Prozesses zu rekonstruieren und die Verarbeitung dort fortzusetzen
+\parencite[Kap.~17.3]{bass_software_2022}.
+Eine erneute Ausführung setzt voraus, dass die zur Verarbeitung benötigten Informationen auch nach einem Ausfall weiterhin verfügbar sind.
+Darüber hinaus darf ein Ausfall nicht zu inkonsistenten Zuständen führen, die eine spätere Wiederaufnahme verhindern.
+Recovery-Mechanismen werden daher häufig mit Verfahren kombiniert, die eine konsistente Speicherung relevanter Zustandsinformationen gewährleisten
+\parencite[Kap.~4.2 Abschnitt \glqq Recover from Faults\grqq]{bass_software_2022}.
+
+Voraussetzung für eine Wiederaufnahme ist zunächst die Erkennung unterbrochener Verarbeitungen.
+Wird eine Verarbeitung nach ihrer Übernahme durch eine ausführende Komponente unterbrochen, kann ein Zustand entstehen, in dem die Aufgabe aus Sicht des Systems
+weiterhin als aktiv gilt, obwohl tatsächlich keine Bearbeitung mehr stattfindet.
+Zur Erkennung solcher Situationen werden häufig Heartbeat- oder Lease-/Timeout-Mechanismen eingesetzt
+\parencite[Kap.~17.2 Abschnitt \glqq Failure in the Cloud\grqq]{bass_software_2022}.
+Hierbei sendet die ausführende Komponente in regelmäßigen Abständen Signale, anhand derer ihre Aktivität überwacht werden kann.
+Bleiben diese Signale über einen definierten Zeitraum aus, wird ein Ausfall vermutet und die Verarbeitung als potenziell unterbrochen betrachtet
+\parencite[Kap.~4.2 Abschnitt \glqq Detect Faults\grqq]{bass_software_2022}.
+
+Nach der Erkennung eines Ausfalls muss die Verarbeitung erneut angestoßen werden.
+Hierfür wird die betroffene Aufgabe erneut zur Bearbeitung bereitgestellt, indem sie wieder freigegeben wird.
+Da eine Verarbeitung häufig erst nach einer expliziten Erfolgsquittierung als abgeschlossen gilt, führt das Ausbleiben einer solchen Quittung infolge eines Ausfalls dazu,
+dass die Aufgabe erneut verarbeitet wird \parencite{microsoft_corporation_hrsg_best_2026}.
+
+Für Recovery sind also zwei Schritte essenziell.
+Zunächst muss erkannt werden, dass eine Verarbeitung unterbrochen wurde.
+Anschließend muss die Verarbeitung neu angestoßen werden.
+Dafür existieren unterschiedliche Ansätze.
+Einerseits kann ein System Zwischenzustände persistent speichern und die Verarbeitung nach einem Ausfall auf Basis des zuletzt bekannten Zustands fortsetzen.
+Andererseits kann die Verarbeitung vollständig neu gestartet werden, sofern die dafür benötigten Eingabedaten weiterhin verfügbar sind.
+Welcher Ansatz gewählt wird, hängt unter anderem von der Komplexität der Verarbeitung sowie vom Aufwand einer vollständigen Neuausführung ab.
+
+Die in diesem Kapitel beschriebene Wiederaufnahme führt zwangsläufig dazu, dass einzelne Verarbeitungsschritte mehrfach ausgeführt werden können.
+Da dabei häufig nicht eindeutig festgestellt werden kann, ob eine vorherige Ausführung bereits teilweise oder vollständig erfolgreich war, müssen Systeme auf mögliche
+Mehrfachausführungen vorbereitet sein.
+Hieraus ergibt sich die Notwendigkeit idempotenter Verarbeitung, die im folgenden Abschnitt näher betrachtet wird.
 
 \subsection{Idempotenz}\label{subsec:idempotenz}
 Die in den vorherigen Abschnitten beschriebenen Retry- und Wiederherstellungsmechanismen erhöhen die Zuverlässigkeit eines Systems, führen jedoch

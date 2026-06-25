@@ -74,6 +74,13 @@ Idempotente verarbeitung:
 - nach absturz eines workers muss eine erneute ausführung zum gleichen ergebnis kommen was die erste ausführung erhalten hätte --> dafür müssen die daten, auf denen die
 fachliche operation aufbaut unverändert vorliegen --> transaktionales modell, wenn prozess abstürzt dürfen keine halb aktualisierten daten zurück bleiben
 
+Dein „remote datastore“ ist praktisch deine PostgreSQL-Jobtabelle (persistenter Job-Store).
+Das entspricht dem Ansatz „State remote halten“, was Recovery vereinfacht, aber Laufzeit/Contention beeinflusst.
+Dein Worker hat vermutlich lokalen, transienten Zustand während der Verarbeitung (in-memory).
+Der muss nach Crash nicht „rekonstruiert“ werden, sondern du brauchst Mechanismen wie Lease/Timeout + Retry, um Jobs wieder aufzunehmen.
+„Replay state from input“ entspricht bei dir am ehesten: Job erneut ausführen (at-least-once) – und genau deshalb brauchst du Idempotenz, weil „replay“ bei Side-Effects sonst doppelte Ergebnisse erzeugt.
+\parencite[Kap.11 Rebuilding a state failure]{kleppmann_designing_2017}
+
 \section{Implementierung}\label{sec:implementierung}
 \parencite[Kap.~5 Abschnitt \glqq Command Message\grqq]{hohpe_enterprise_2005}
 \parencite[Kap.~6.2]{richardson_microservices_2018}
