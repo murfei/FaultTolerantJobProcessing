@@ -81,6 +81,8 @@ Der muss nach Crash nicht „rekonstruiert“ werden, sondern du brauchst Mechan
 „Replay state from input“ entspricht bei dir am ehesten: Job erneut ausführen (at-least-once) – und genau deshalb brauchst du Idempotenz, weil „replay“ bei Side-Effects sonst doppelte Ergebnisse erzeugt.
 \parencite[Kap.11 Rebuilding a state failure]{kleppmann_designing_2017}
 
+\subsection{Zustandsmodell eines Jobs}\label{sec:zustandsmodellierung}
+
 \section{Implementierung}\label{sec:implementierung}
 \parencite[Kap.~5 Abschnitt \glqq Command Message\grqq]{hohpe_enterprise_2005}
 \parencite[Kap.~6.2]{richardson_microservices_2018}

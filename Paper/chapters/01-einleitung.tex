@@ -27,7 +27,13 @@ Ohne geeignete Mechanismen führen derartige Szenarien
 zu inkonsistenten Systemzuständen.
 Beispielsweise verbleiben Jobs im Status
 \glqq laufend\grqq, obwohl kein Worker sie mehr aktiv verarbeitet, Ergebnisse werden doppelt
-erzeugt oder Aufträge gehen vollständig verloren.\par
+erzeugt oder Aufträge gehen vollständig verloren.
+
+%Für Background-Job-Processing existieren zahlreiche Frameworks und Middleware-Lösungen.TODO
+%Diese basieren jedoch häufig auf dedizierten Message Brokern oder kapseln die zugrundeliegenden Mechanismen zur Fehlertoleranz, Recovery und
+%Nebenläufigkeitskontrolle weitgehend.
+%Eine systematische Betrachtung, unter welchen Voraussetzungen eine relationale Datenbank selbst die Rolle von Persistenzschicht,
+%Queue und Koordinationsmechanismus übernehmen kann, wird in der Literatur nur begrenzt behandelt.
 Bestehende Frameworks und Bibliotheken, etwa Quartz Scheduler \parencite{terracotta_inc_hrsg_quartz_2026}
 oder Spring Batch \parencite{broadcom_inc_hrsg_spring_2026}, adressieren Teilaspekte
 der Hintergrundverarbeitung, setzen jedoch voraus, dass grundlegende
@@ -41,7 +47,7 @@ Sie erfordern vielmehr ein durchdachtes Zusammenspiel aus einem persistenten Sta
 definierten Transaktionsgrenzen, geeigneten Locking-Strategien, Mechanismen zur
 Vermeidung doppelter Ausführung sowie Retry- und Backoff-Policies.
 Die zentrale Herausforderung liegt darin, diese Mechanismen so zu entwerfen und zu kombinieren,
-dass das System definierte Zusicherungen unter allen relevanten Fehlerszenarien einhält.\par
+dass das System definierte Zusicherungen unter allen relevanten Fehlerszenarien einhält.
 
 Die beschriebene Problematik ist von hoher praktischer und industrieller Relevanz.
 Nahezu jedes Backend-System, das über einfache \gls{crud}-Operationen hinausgeht,
@@ -58,7 +64,10 @@ zuverlässigen Betrieb von Backend-Systemen in Cloud-Umgebungen.
 Trotz dieser Relevanz existiert wenig praxisorientierte und zugleich evaluierte Literatur,
 die den gesamten Entwurfsprozess eines solchen Systems, von der
 Anforderungsdefinition über die Architekturentscheidungen bis hin zum systematischen
-Fehlervalidierung, nachvollziehbar dokumentiert und empirisch überprüft.\par
+Fehlervalidierung, nachvollziehbar dokumentiert und empirisch überprüft.
+%Die zugrundeliegenden Konzepte wie Fehlertoleranz, Recovery, Idempotenz und Nebenläufigkeitskontrolle werden in der Literatur umfassend behandelt.
+%Eine zusammenhängende Betrachtung ihrer Integration in eine konkrete datenbankbasierte Background-Job-Processing-Architektur findet sich jedoch nur begrenzt. TODO
+
 Daraus ergibt sich die dieser Arbeit zugrundeliegende Hauptforschungsfrage:\\
 Welche Architekturmechanismen und Entwurfsentscheidungen sind notwendig, um in
 einem Java/Spring-basierten Job-Processing-Backend definierte Konsistenzzusicherungen
@@ -80,7 +89,7 @@ Zur Beantwortung dieser Frage werden folgende Teilfragen untersucht:
 
 \section{Zielsetzung}\label{sec:zielsetzung}
 Ziel dieser Arbeit ist der Entwurf, die prototypische Implementierung und die Evaluation
-eines fehlertoleranten Job-Processing-Backends auf Basis von Java und Spring.
+eines fehlertoleranten Job-Processing-Backends auf Basis einer relationalen Datenbank in Kombination mit Java und Spring.
 Dabei soll herausgearbeitet werden, welche Architekturmechanismen erforderlich sind,
 damit Hintergrundjobs auch bei Teilausfällen zuverlässig, korrekt und nachvollziehbar
 verarbeitet werden und definierte Konsistenzzusicherungen eingehalten werden.

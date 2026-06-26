@@ -113,7 +113,6 @@ Beide Ansätze unterscheiden sich hinsichtlich Komplexität, Skalierbarkeit und 
 Da die Verarbeitung zeitlich entkoppelt erfolgt, müssen Informationen über offene und bereits bearbeitete Jobs über den Lebenszyklus einzelner Prozesse hinweg erhalten bleiben.
 Hierfür ist eine persistente Speicherung des Verarbeitungszustands erforderlich, da das System nach einem Ausfall in der Lage sein muss, den zuletzt
 bekannten Zustand zu rekonstruieren und die Verarbeitung fortzusetzen \parencite[Kap.~11, Abschnitt\glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
-Grundlagen zur Zustandshaltung werden in \cref{sec:zustandsmodellierung} betrachtet.
 
 Werden mehrere Worker parallel betrieben, entsteht die Herausforderung der konkurrierenden Verarbeitung.
 Ohne geeignete Koordinationsmechanismen könnten mehrere Instanzen denselben Job gleichzeitig beanspruchen oder widersprüchliche Statusänderungen durchführen.
@@ -127,12 +126,6 @@ Konzepte zur Fehlerbehandlung und Wiederherstellung werden in \cref{sec:fehlerto
 Ebenfalls kritisch ist die Frage, wie sichergestellt werden kann, dass Wiederholungen oder Mehrfachausführungen nicht zu inkonsistenten Ergebnissen führen.
 Da der tatsächliche Verarbeitungszustand nach einem Fehler nicht immer eindeutig bestimmbar ist, müssen Systeme geeignete Konsistenzmechanismen bereitstellen.
 Hierzu zählen insbesondere Transaktionskonzepte und Verfahren zur kontrollierten Wiederaufnahme von Verarbeitungen, die in \cref{sec:fehlertoleranz} behandelt werden.
-
-%
-%Um ein solches System robust zu betreiben, fordert die Architekturtheorie schließlich eine durchgängige Beobachtbarkeit (Observability) des Job-Lebenszyklus,
-%da Fehler außerhalb des synchronen Benutzerkontextes andernfalls unbemerkt bleiben. Zu den kritischen Metriken gehören hierbei die lückenlose Verfolgung der Zustandsübergänge,
-%die Zuordnung über eindeutige Korrelations-IDs (Correlation Identifiers) über Systemgrenzen hinweg sowie die Überwachung der reinen Wartezeit eines Jobs innerhalb
-%der Warteschlange (Queue Wait Time), da diese maßgeblich die Gesamtverzögerung und Systemeffizienz determiniert \parencite{microsoft_corporation_hrsg_best_2026}.
 
 \section{Konsistenz und konkurrierende Verarbeitung}\label{sec:konsistenz}
 Bei der Verarbeitung von Daten durch mehrere parallel arbeitende Prozesse entsteht die Herausforderung, dass konkurrierende Zugriffe auf gemeinsame Ressourcen
@@ -280,10 +273,8 @@ akzeptiert werden müssen \parencite[Kap.~1 Abschnitt \glqq Reliability\grqq]{kl
 Eine grundlegende Einteilung erfolgt in transiente und permanente Fehler.
 Transiente Fehler treten zeitlich begrenzt auf und verschwinden nach kurzer Zeit wieder.
 Ursachen liegen häufig in der technischen Infrastruktur eines Systems, beispielsweise in vorübergehenden Netzwerkstörungen, kurzzeitigen
-Überlastungen von Diensten, nicht erreichbaren Datenbanken oder dem Neustart einzelner Systemkomponenten. %TODO: Referenz
-%In solchen Fällen kann eine erneute Ausführung einer Operation erfolgreich sein, obwohl der erste Versuch fehlgeschlagen ist.
-%Aus diesem Grund eignen sich transiente Fehler besonders für den Einsatz von Retry-Mechanismen auf die näher in \cref{subsec:retry/backoff}
-%eingegangen wird \parencite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026}.
+Überlastungen von Diensten, nicht erreichbaren Datenbanken oder dem Neustart einzelner Systemkomponenten
+\parencite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026}.
 
 Permanente Fehler hingegen bestehen unabhängig von der Anzahl der Wiederholungsversuche fort.
 Ihre Ursache liegt häufig in der Anwendung selbst oder in den zu verarbeitenden Daten.
@@ -297,7 +288,7 @@ Eine besondere Rolle spielen zudem Timeout-Fehler.
 In verteilten Systemen werden Timeouts verwendet, um potenzielle Ausfälle zu erkennen.
 Dabei kann jedoch nicht eindeutig unterschieden werden, ob tatsächlich ein Fehler vorliegt oder lediglich eine ungewöhnlich langsame Antwort empfangen wurde.
 Ein Timeout signalisiert lediglich, dass eine erwartete Antwort nicht innerhalb eines definierten Zeitfensters eingetroffen ist und lässt somit keine Aussage
-über eine Ursache zu \parencite[Kap.~17.2 Abschnitt \glqq Failure in the Cloud\grqq]{bass_software_2022}.
+über eine Ursache zu \parencite[Kap.~17.2 Abschnitt \glqq Failure in the Cloud\grqq]{bass_software_2021}.
 
 \subsection{Retry-/Backoff-Strategien}\label{subsec:retry/backoff}
 Die in \cref{subsec:fehlerklassifikation} eingeführte Unterscheidung zwischen transienten und permanenten Fehlern bildet die Grundlage für den Einsatz
@@ -310,6 +301,7 @@ nicht dauerhaft erwartet wird.
 Permanente Fehler sollten dagegen unmittelbar als endgültig fehlgeschlagen behandelt werden, da eine erneute Ausführung die Erfolgswahrscheinlichkeit nicht erhöht.
 Ein typisches Szenario indem Retries sinnvoll sind, ist das verschicken von Nachrichten \parencite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026}
 \parencite[Abschnitt \glqq Reliability considerations\grqq]{microsoft_corporation_hrsg_best_2026}.
+%TODO: ggfs. aktivitätsdiagramm zu retry & backoff s. 6.Semester ->Bachelorarbeit -> retry und backoff aktivitaetsdiagramm
 
 Da die Ursache eines transienten Fehlers potenziell auch für eine gewisse Zeit nach dem Auftreten des Fehlers weiterhin besteht, werden Wiederholungen üblicherweise
 nicht unmittelbar durchgeführt.
@@ -337,7 +329,7 @@ die den Ausführungsprozess einer Verarbeitung vollständig unterbrechen.
 Besondere Relevanz besitzen Ausfälle ausführenden Komponenten während einer laufenden Bearbeitung.
 In einem solchen Szenario kann kein lokaler Retry mehr initiiert werden, da die ausführende Komponente selbst nicht mehr verfügbar ist.
 Recovery bezeichnet in diesem Kontext die Fähigkeit eines Systems, eine derart unterbrochene Verarbeitung zu erkennen und geeignete Maßnahmen zur Wiederaufnahme einzuleiten
-\parencite[Kap.~4.2]{bass_software_2022}.
+\parencite[Kap.~4.2]{bass_software_2021}.
 
 Die Notwendigkeit solcher Mechanismen ergibt sich aus den Eigenschaften verteilter Systeme.
 Da einzelne Komponenten unabhängig voneinander ausfallen können, während andere Teile des Systems weiterhin funktionieren, entstehen sogenannte Teilausfälle
@@ -353,20 +345,20 @@ Die Verarbeitung auf Basis eines Zwischenzustands wieder aufzunehmen ist unter U
 Eine verbreitete Wiederherstellungsstrategie besteht daher darin, die für eine Verarbeitung relevanten Eingabedaten dauerhaft zu speichern und eine unterbrochene
 Verarbeitung bei Bedarf auf Basis dieser Ursprungsdaten erneut auszuführen.
 Dies ist häufig einfacher und robuster als der Versuch, den exakten Laufzeitzustand eines abgestürzten Prozesses zu rekonstruieren und die Verarbeitung dort fortzusetzen
-\parencite[Kap.~17.3]{bass_software_2022}.
+\parencite[Kap.~17.3]{bass_software_2021}.
 Eine erneute Ausführung setzt voraus, dass die zur Verarbeitung benötigten Informationen auch nach einem Ausfall weiterhin verfügbar sind.
 Darüber hinaus darf ein Ausfall nicht zu inkonsistenten Zuständen führen, die eine spätere Wiederaufnahme verhindern.
 Recovery-Mechanismen werden daher häufig mit Verfahren kombiniert, die eine konsistente Speicherung relevanter Zustandsinformationen gewährleisten
-\parencite[Kap.~4.2 Abschnitt \glqq Recover from Faults\grqq]{bass_software_2022}.
+\parencite[Kap.~4.2 Abschnitt \glqq Recover from Faults\grqq]{bass_software_2021}.
 
 Voraussetzung für eine Wiederaufnahme ist zunächst die Erkennung unterbrochener Verarbeitungen.
 Wird eine Verarbeitung nach ihrer Übernahme durch eine ausführende Komponente unterbrochen, kann ein Zustand entstehen, in dem die Aufgabe aus Sicht des Systems
 weiterhin als aktiv gilt, obwohl tatsächlich keine Bearbeitung mehr stattfindet.
 Zur Erkennung solcher Situationen werden häufig Heartbeat- oder Lease-/Timeout-Mechanismen eingesetzt
-\parencite[Kap.~17.2 Abschnitt \glqq Failure in the Cloud\grqq]{bass_software_2022}.
+\parencite[Kap.~17.2 Abschnitt \glqq Failure in the Cloud\grqq]{bass_software_2021}.
 Hierbei sendet die ausführende Komponente in regelmäßigen Abständen Signale, anhand derer ihre Aktivität überwacht werden kann.
 Bleiben diese Signale über einen definierten Zeitraum aus, wird ein Ausfall vermutet und die Verarbeitung als potenziell unterbrochen betrachtet
-\parencite[Kap.~4.2 Abschnitt \glqq Detect Faults\grqq]{bass_software_2022}.
+\parencite[Kap.~4.2 Abschnitt \glqq Detect Faults\grqq]{bass_software_2021}.
 
 Nach der Erkennung eines Ausfalls muss die Verarbeitung erneut angestoßen werden.
 Hierfür wird die betroffene Aufgabe erneut zur Bearbeitung bereitgestellt, indem sie wieder freigegeben wird.
@@ -397,7 +389,7 @@ Wie in \cref{subsec:semantiken} dargelegt, stellt Idempotenz damit eine wesentli
 Exactly-Once-Semantik zu erreichen.
 
 Idempotenz kann dabei auf unterschiedlichen Ebenen eines Systems umgesetzt werden.
-Im Bezug auf Job-Processing muss bereits die Aufnahme eines Jobs in den Job-Store idempotent gestaltet werden, um zu verhindern, dass derselbe Job mehrfach
+In Bezug auf Job-Processing muss bereits die Aufnahme eines Jobs in den Job-Store idempotent gestaltet werden, um zu verhindern, dass derselbe Job mehrfach
 im System erfasst wird.
 Ein verbreiteter Ansatz zur idempotenten Annahme von Anfragen ist die Implementierung eines idempotenten Receivers
 \parencite[Kap.~10 Abschnitt \glqq Idempotent Receiver\grqq]{hohpe_enterprise_2005} unter Verwendung eindeutiger Identifikatoren, wie beispielsweise eines \gls{uuid}.
@@ -414,36 +406,58 @@ Idempotenz bildet somit die Grundlage dafür, dass Retry- und Recovery-Mechanism
 Sie stellt einen zentralen Baustein fehlertoleranter Background-Job-Processing-Systeme dar und ermöglicht die korrekte Verarbeitung trotz unvermeidbarer
 Mehrfachausführungen und Duplikate.
 
-\section{Zustandsmodellierung mittels State Machines}\label{sec:zustandsmodellierung}
-Eine architektonische Option besteht darin, den aktuellen Zustand in einem externen Datenspeicher (\textit{Remote Datastore}) zu verwalten.
-\parencite[Kap.~7 Abschnitt \glqq Stateful vs Stateless Processing\grqq]{newman_building_2026}
+\section{Stand der Forschung}\label{sec:forschungsstand}
+Die Verarbeitung von Hintergrundaufgaben ist ein etabliertes Problemfeld verteilter Systeme.
+Entsprechend existieren zahlreiche Frameworks und Architekturmuster, die eine asynchrone Hintergrundausführung von Aufgaben ermöglichen.
+Die Ansätze unterscheiden sich insbesondere hinsichtlich der verwendeten Infrastruktur, der Persistenzmechanismen sowie der Umsetzung von Fehlertoleranz und Wiederherstellung.
+Im Folgenden werden die für diese Arbeit relevanten Lösungsansätze vorgestellt und hinsichtlich ihrer Eigenschaften eingeordnet.
 
-Daneben muss das System unterscheiden können, ob ein Job tatsächlich noch aktiv bearbeitet wird oder ob er lediglich in einem Zwischenzustand verblieben ist,
-weil der Worker während der Ausführung unvorhergesehen terminiert ist.%TODO: ggfs. aktivitätsdiagramm zu retry & backoff s. 6.Semester ->Bachelorarbeit -> retry und backoff aktivitaetsdiagramm
-Ein weiterer Grundpfeiler des Background Job-Processing ist daher die systematische Fehlerbehandlung und Wiederaufnahme
-\parencite[Kap.~11 Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
+\subsection{Brokerbasierte Ansätze}\label{subsec:brokerbasierteAnsaetze}
+Eine weit verbreitete Klasse von Background Job-Processing-Systemen basiert auf dedizierten Message Brokern wie RabbitMQ \parencite{broadcom_inc_hrsg_rabbitmq_2026}
+oder Apache Kafka \parencite{apache_software_foundation_hrsg_apache_2026}.
+Hierbei werden Aufgaben in Form von Nachrichten an einen Broker übergeben, der die Entkopplung zwischen Produzenten und Konsumenten übernimmt.
+Worker beziehen die Nachrichten über den Broker und führen die zugehörige Verarbeitung aus.
+Der Broker läuft als eigenständige Middleware-Komponente entweder nativ oder virtuell als Server.
+Der Vorteil dieses Ansatzes liegt in der hohen Skalierbarkeit und der klaren Trennung zwischen Anwendungslogik und Nachrichteninfrastruktur.
+Darüber hinaus stellen moderne Broker Mechanismen zur Fehlertoleranz, Lastverteilung und Ausfallsicherheit bereit.
+Gleichzeitig entsteht durch brokerbasierte Architekturen zusätzliche betriebliche Komplexität, da neben der eigentlichen Anwendung weitere
+Infrastrukturkomponenten aufgesetzt, betrieben und überwacht werden müssen.
+Des Weiteren ergeben sich Herausforderungen bei der Konsistenz zwischen Anwendungsdatenbank und Message Broker.
+Problematisch ist beispielsweise die atomare Kopplung von Datenänderungen in der Datenbank und das Verschicken einer Nachricht.
+Da beide Systeme unabhängig voneinander arbeiten, müssen zusätzliche Mechanismen wie das Transactional Outbox Pattern eingesetzt werden, um Nachrichtenverlust oder
+Inkonsistenzen zu vermeiden \parencite[Kap.~3.3.7]{richardson_microservices_2018}.
 
-\section{Stand der Technik}\label{sec:forschungsstand}
+\subsection{Datenbankbasierte Ansätze}\label{subsec:datenbankbasierteAnsaetze}
+Neben brokerbasierten Lösungen existieren Frameworks, die eine relationale Datenbank als zentralen Job-Store verwenden.
+Zu bekannten Vertretern dieses Ansatzes zählen unter anderem JobRunr \parencite{rosoco_bv_hrsg_jobrunr_2026}, Hangfire \parencite{hangfire_ou_hrsg_hangfire_2026}
+oder Spring Batch \parencite{broadcom_inc_hrsg_spring_2026}.
+Anstatt Aufgaben an einen separaten Broker zu übertragen, werden diese als persistente Datensätze in einer Datenbank gespeichert und von Workern direkt ausgelesen.
 
-Für die praktische Umsetzung existieren unterschiedliche Frameworks, die einzelne Aspekte von Background Job-Processing adressieren.
-Quartz Scheduler bietet trigger- bzw. zeitgesteuertes Scheduling und unterstützt Persistenz sowie Clustering zur koordinierten Ausführung.[Terracotta Inc. 2026]
-Spring Batch stellt eine Infrastruktur für Batch-Verarbeitung bereit, insbesondere mit Job-/Step-Modell und Persistenz der Ausführungshistorie.[Broadcom Inc. 2026]
-JobRunr bietet datenbankgestütztes Background Job-Processing in Java mit integriertem Retry-Handling.[Rosoco BV 2026]
-Temporal stellt eine Workflow-Engine für langlebige, robuste Ausführung bereit, erfordert jedoch einen eigenständigen Serverbetrieb
-und damit zusätzliche Betriebskomplexität.[Temporal Technologies Inc. 2026]
-Diese Lösungen verdeutlichen, dass „Background Job-Processing“ in der Praxis nicht allein durch eine Bibliothek gelöst wird, sondern durch
-Architekturentscheidungen zur Persistenz, zur Nebenläufigkeitskontrolle sowie zur Fehlerbehandlung und Wiederaufnahme.[Kleppmann 2017]
-Die konkrete Wahl und Kombination dieser Mechanismen hängt von den gewünschten Zusicherungen und den betrachteten Fehlerszenarien ab.[Kleppmann 2017]
+Die Nutzung einer relationalen Datenbank ermöglicht den Gebrauch der \gls{acid}-Eigenschaften, um das Speichern neuer Jobs, Verwalten von Status- und fachlichen
+Datenänderungen konsistent innerhalb einer gemeinsamen Transaktion zu verarbeiten.
+In der Praxis verfolgen existierende Frameworks jedoch unterschiedliche Schwerpunkte und adressieren die Problemstellung jeweils aus einer anderen Perspektive.
+Hangfire garantiert nur eine At-Least-Once Ausführung und überlässt die Umsetzung von Idempotenz der Fachlogik.
+Während der Quartz Scheduler \parencite{terracotta_inc_hrsg_quartz_2026} primär auf zeitgesteuertes Scheduling und clusteringbasierte Koordination fokussiert,
+stellt Spring Batch eine spezialisierte Infrastruktur für die blockweise Massenverarbeitung bereit, die auf periodische oder zeitgesteuerte Durchläufe ausgelegt ist.
+Modernere Java-Bibliotheken wie JobRunr und Hangfire integrieren zwar direkt ein automatisiertes Retry-Handling, kapseln die zugrundeliegenden Mechanismen
+jedoch als Blackbox, wodurch eine feingranulare Kontrolle und die präzise Analyse des Systemverhaltens bei Infrastrukturausfällen erschwert werden.
+Robuste und langlebige Workflow-Ausführungen wie Temporal \parencite{temporal_technologies_inc_temporal_2026} lösen die Frage nach Fehlertoleranz wiederum über eine
+dedizierte Engine, erzwingen damit jedoch einen eigenständigen Serverbetrieb und eine damit einhergehende infrastrukturelle Komplexität.
+Die konkrete Umsetzung der Nebenläufigkeitskontrolle, Wiederherstellung und Fehlerbehandlung ist stark von den jeweiligen Frameworks abhängig.
+Die zugrundeliegenden Prinzipien bleiben somit hinter der Schnittstelle der Frameworks verborgen und lassen sich nicht ohne Weiteres abstrahieren oder auf
+eigene Systementwürfe übertragen.
 
+\subsection{Einordnung und Forschungslücke}\label{subsec:forschungsluecke}
+Die vorgestellten Ansätze zeigen, dass sowohl brokerbasierte als auch datenbankbasierte Architekturen zur Umsetzung von Background-Job-Processing-Systemen geeignet sind.
+Während bestehende Frameworks bereits umfangreiche Funktionalitäten für Scheduling, Retry-Mechanismen und Fehlertoleranz bereitstellen, liegt ihr Fokus primär
+auf der praktischen Nutzung, wodurch die zugrundeliegenden transaktionalen Mechanismen und deren Verhalten in kritischen Ausfallszenarien für den Entwickler
+oft intransparent bleiben.
+Insbesondere die Frage, unter welchen Voraussetzungen eine relationale Datenbank gleichzeitig als persistenter Job-Store und Koordinationsmechanismus
+eingesetzt werden kann, wird in der Literatur nur begrenzt behandelt.
+Konzepte wie Fehlertoleranz, Recovery, Idempotenz und Nebenläufigkeitskontrolle werden zwar häufig einzeln beschrieben, ihre Integration zu
+einer konsistenten Gesamtarchitektur bleibt jedoch oftmals implizit.
 
-hier noch Message Queues ansprechen und warum diese die behandelte Problematik nicht vollständig lösen.
-
-
-Eventuate Framework (Chris Richardson) als industriellen Referenzpunkt integrieren.
- - Konzeptionelle Parallele: Nutzt das Transactional Outbox Pattern zur atomaren Kopplung
-   von Fachdaten und Nachricht/Job in einer gemeinsamen ACID-Transaktion (PostgreSQL).
- - Technischer Unterschied: Eventuate nutzt primär Change Data Capture (CDC / Log Tailer),
-   um Events an einen externen Broker (z. B. Kafka) zu pushen.
- - Abgrenzung meiner Arbeit: Ich evaluiere das schlankere, rein datenbankgestützte
-   Pull-Modell via SQL-Polling und `SKIP LOCKED`, um die Betriebskomplexität
-   eines separaten Brokers einzusparen.
+Die vorliegende Arbeit grenzt sich von bestehenden Frameworks ab, rein datenbankgestütztes Pull-Modell entwirft und bezüglich der angestrebten
+Fehlertoleranz evaluiert.
+Durch den Einsatz von SQL-Polling in Kombination mit PostgreSQL-Funktionalität \texttt{FOR UPDATE SKIP LOCKED} und einem Statusmodell wird untersucht, wie die Koordination und
+Ausfallwiederherstellung direkt auf der Datenbankebene orchestriert werden kann, ohne einen separaten Message Broker einzusetzen.
