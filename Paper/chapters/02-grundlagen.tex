@@ -1,10 +1,17 @@
 %! Author = murfe
-%! Date = 08.06.2026
+%! Date = 26.06.2026
 
-\chapter{Grundlagen}\label{ch:grundlagen}
-%TODO: Einleitung
+\chapter{Grundlagen}
+\label{ch:grundlagen}
+Dieses Kapitel vermittelt die theoretischen Grundlagen, die für das Verständnis der im weiteren Verlauf entwickelten Architektur erforderlich sind.
+Zunächst werden die grundlegenden Konzepte der Hintergrundverarbeitung sowie die Anforderungen an zuverlässige Background-Job-Processing-Systeme erläutert.
+Darauf aufbauend werden die für diese Arbeit relevanten Mechanismen zur Gewährleistung von Konsistenz bei paralleler Verarbeitung sowie Konzepte zur Fehlertoleranz,
+Wiederherstellung und idempotenten Verarbeitung eingeführt.
+Die dargestellten Grundlagen bilden die Basis für den in \cref{sec:architektur} vorgestellten Architekturentwurf und dessen anschließende Implementierung und Evaluation.
+
 %TODO: einheitliche Markierung von Fachbegriffen (Erstnennung)
-\section{Grundlagen der Hintergrundverarbeitung}\label{sec:hintergrundverarbeitung}
+\section{Grundlagen der Hintergrundverarbeitung}
+\label{sec:hintergrundverarbeitung}
 Hintergrundverarbeitung dient dazu, zeitintensive oder ressourcenintensive Aufgaben vom synchronen Request-Response-Zyklus zu entkoppeln.
 Gleichzeitig entstehen daraus jedoch auch einige Herausforderungen: In verteilten Umgebungen sind Teilausfälle,
 Timeouts und kurzzeitige Unterbrechungen üblich, sodass nicht ohne entsprechende Mechanismen davon ausgegangen werden kann, dass eine angestoßene
@@ -14,7 +21,8 @@ erneut angestoßen werden muss \parencite[Kap.~8]{kleppmann_designing_2017}.
 Vor diesem Hintergrund werden in den folgenden Abschnitten grundlegende Konzepte vorgestellt, die eine Entkopplung der Verarbeitung ermöglichen und die Basis
 für robuste Hintergrundverarbeitung bilden.
 
-\subsection{Synchrone vs. Asynchrone Verarbeitung}\label{subsec:synchroneVsAsynchron}
+\subsection{Synchrone vs. Asynchrone Verarbeitung}
+\label{subsec:synchroneVsAsynchron}
 In Backend-Systemen lässt sich Kommunikation und Verarbeitung bezüglich der zeitlichen Kopplung zwischen synchronem und asynchronem Verhalten unterscheiden:
 Bei synchroner Verarbeitung nach dem Request-Response-Stil wartet der Aufrufer auf eine Antwort auf die Anfrage und blockiert gegebenenfalls bevor er fortfährt.
 Bei asynchroner Verarbeitung wird die Bearbeitung des Auftrags vom Zeitpunkt des Erhalts entkoppelt.
@@ -39,7 +47,8 @@ während der gesamten Interaktion verfügbar sind \parencite[Kap.~3.4]{richardso
 Die asynchrone Verarbeitung bildet damit die Grundlage für die Hintergrundverarbeitung, indem die Entkopplung genutzt wird, um Aufgaben unabhängig vom ursprünglichen Aufruf 
 auszuführen und gleichzeitig die Robustheit und Skalierbarkeit des Systems zu erhöhen \parencite[Kap.~8, Abschnitt \glqq Why Use A Message Broker?\grqq]{newman_building_2026}.
 
-\subsection{Ausführungssemantiken}\label{subsec:semantiken}
+\subsection{Ausführungssemantiken}
+\label{subsec:semantiken}
 In verteilten Systemen führen potenziellen Prozessabstürze und Teilausfälle dazu, dass Aufträge verloren gehen oder der Verarbeitungszustand einer Aufgabe
 unklar sein kann.
 Um zu beschreiben, was Systeme aufgrund ihres Entwurfs und ihrer Mechanismen zur Fehlertoleranz bezüglich Auslieferung beziehungsweise Ausführung garantieren,
@@ -71,7 +80,8 @@ Eine Variante zur Umsetzung ist die Approximation über eine Kombination von At-
 Die Garantie bezieht sich somit nicht auf die physische Zustellung einer Nachricht, sondern auf die Wirkung ihrer Verarbeitung.
 Eine Nachricht kann mehrfach zugestellt werden, solange ihre Verarbeitung nur einmal wirksam wird.
 
-\subsection{Background Job-Processing}\label{subsec:backgroundJobs}
+\subsection{Background Job-Processing}
+\label{subsec:backgroundJobs}
 Aufbauend auf den Konzepten der asynchronen Verarbeitung (vgl. \cref{subsec:synchroneVsAsynchron}) bezeichnet das Background Job-Processing die Ausführung
 von Aufgaben außerhalb des Request-Response-Zyklus.
 Hierbei werden fachliche Operationen als eigenständige Arbeitseinheiten (Jobs) modelliert und zeitlich entkoppelt verarbeitet.
@@ -127,7 +137,8 @@ Ebenfalls kritisch ist die Frage, wie sichergestellt werden kann, dass Wiederhol
 Da der tatsächliche Verarbeitungszustand nach einem Fehler nicht immer eindeutig bestimmbar ist, müssen Systeme geeignete Konsistenzmechanismen bereitstellen.
 Hierzu zählen insbesondere Transaktionskonzepte und Verfahren zur kontrollierten Wiederaufnahme von Verarbeitungen, die in \cref{sec:fehlertoleranz} behandelt werden.
 
-\section{Konsistenz und konkurrierende Verarbeitung}\label{sec:konsistenz}
+\section{Konsistenz und konkurrierende Verarbeitung}
+\label{sec:konsistenz}
 Bei der Verarbeitung von Daten durch mehrere parallel arbeitende Prozesse entsteht die Herausforderung, dass konkurrierende Zugriffe auf gemeinsame Ressourcen
 zu inkonsistenten Zuständen führen können.
 Ohne geeignete Mechanismen können Änderungen verloren gehen, widersprüchliche Zustände entstehen oder mehrere Prozesse dieselben Daten gleichzeitig verändern
@@ -141,7 +152,8 @@ Doppelbeanspruchung explizit verhindert werden \parencite[Kap.~7 Abschnitt \glqq
 Die Gewährleistung konsistenter Zustände stellt daher eine zentrale Anforderung an Systeme mit paralleler Verarbeitung dar.
 Die hierfür etablierten Konzepte und Mechanismen werden in den folgenden Abschnitten vorgestellt.
 
-\subsection{ACID}\label{subsec:acid}
+\subsection{ACID}
+\label{subsec:acid}
 Zur Vereinfachung der Gewährleistung konsistenter Zustände bei parallelen Zugriffen existiert das Konzept der Transaktionen.
 Diese fassen mehrere Operationen zu einer logischen Einheit zusammen, deren Ausführung nach außen als zusammenhängender Vorgang erscheint \parencite[Kap.~7]{kleppmann_designing_2017}.
 Im Kontext persistenter Datenhaltung werden von Transaktionen typischerweise die vier zentralen Eigenschaften \gls{acid} gefordert \parencite[Kap.~13.1.1]{saake_datenbanken_2018}:
@@ -171,7 +183,8 @@ Während die Atomarität verhindert, dass Statusänderungen eines Jobs nur teilw
 durch mehrere parallel arbeitende Worker-Instanzen.
 Die relevanten Konzepte zum Erreichen dieser Eigenschaften werden in den folgenden Abschnitten näher betrachtet.
 
-\subsection{Transaktionsgrenzen}\label{subsec:transaktionsgrenzen}
+\subsection{Transaktionsgrenzen}
+\label{subsec:transaktionsgrenzen}
 Während \gls{acid} die theoretischen Garantien einer Transaktion definiert, bestimmt die Festlegung von Transaktionsgrenzen, welche konkreten
 Datenbankoperationen des softwareseitigen Kontrollflusses zu einer unteilbaren, logischen Einheit zusammengefasst werden.
 Die Festlegung dieser Grenzen steuert, wann eine Datenbanksitzung eine Transaktion initiiert und zu welchem Zeitpunkt die Änderungen final festgeschrieben
@@ -204,7 +217,8 @@ Im Software-Entwurf erfordert das Setzen der Transaktionsgrenzen daher eine kont
 Weit gefasste Transaktionsgrenzen reduziert das Risiko der Entstehung von Inkonsistenzen, blockieren jedoch Systemressourcen und Datensätze.
 Eng gefasste Grenzen erhöhen den Durchsatz, können jedoch das Risiko konkurrierender Zugriffe und daraus resultierender Race Conditions erhöhen.
 
-\subsection{Synchronisationsverfahren}\label{subsec:synchronisation}
+\subsection{Synchronisationsverfahren}
+\label{subsec:synchronisation}
 Zur Umsetzung der Isolationseigenschaft von Transaktionen müssen konkurrierende Zugriffe auf gemeinsame Daten koordiniert werden.
 Zu diesem Zweck existieren verschiedene Synchronisationsverfahren, die mittels unterschiedlicher Strategien das Entstehen von Parallelitätsanomalien verhindern
 \parencite[253--259]{kudras_taschenbuch_2015}.
@@ -239,7 +253,8 @@ Sie eignen sich daher insbesondere für Systeme, in denen konkurrierende Änderu
 Welche Synchronisationsstrategie geeignet ist, hängt von den Anforderungen des jeweiligen Systems und der Häufigkeit erwarteter Konflikte ab.
 Während pessimistische Verfahren Konflikte präventiv verhindern, akzeptieren optimistische Verfahren mögliche Konflikte und behandeln diese nachträglich.
 
-\section{Fehlertoleranz und Wiederherstellung}\label{sec:fehlertoleranz} %TODO: Titel ggfs. anpassen
+\section{Fehlertoleranz und Wiederherstellung}
+\label{sec:fehlertoleranz}
 Verteilte Softwaresysteme sind zwangsläufig mit einer Vielzahl potenzieller Fehlerquellen konfrontiert.
 Prozesse können unerwartet terminieren, Netzwerkverbindungen unterbrochen werden oder externe Dienste zeitweise nicht erreichbar sein
 \parencite[Kap.~1 Abschnitt \glqq The Three Golden Rules Of Distributed Systems\grqq]{newman_building_2026}.
@@ -254,7 +269,8 @@ Darüber hinaus muss ein System in der Lage sein, nach einem Fehler einen konsis
 beziehungsweise neuzustarten \parencite[Kap.~1 \glqq What Is Resilience?\grqq]{newman_building_2026}.
 Die folgenden Abschnitte stellen die hierfür relevanten Konzepte und Mechanismen vor.
 
-\subsection{Fehlerklassifikation}\label{subsec:fehlerklassifikation}
+\subsection{Fehlerklassifikation}
+\label{subsec:fehlerklassifikation}
 Da Fehler in verteilten Systemen unvermeidbar sind, stellt sich nicht die Frage, ob sie auftreten, sondern wie mit ihnen umgegangen werden soll.
 Die Wirksamkeit von Fehlertoleranzmechanismen hängt dabei wesentlich davon ab, die Ursache und Eigenschaften eines Fehlers korrekt einzuordnen.
 Nicht jeder Fehler kann durch dieselben Maßnahmen behandelt werden.
@@ -290,7 +306,8 @@ Dabei kann jedoch nicht eindeutig unterschieden werden, ob tatsächlich ein Fehl
 Ein Timeout signalisiert lediglich, dass eine erwartete Antwort nicht innerhalb eines definierten Zeitfensters eingetroffen ist und lässt somit keine Aussage
 über eine Ursache zu \parencite[Kap.~17.2 Abschnitt \glqq Failure in the Cloud\grqq]{bass_software_2021}.
 
-\subsection{Retry-/Backoff-Strategien}\label{subsec:retry/backoff}
+\subsection{Retry-/Backoff-Strategien}
+\label{subsec:retry/backoff}
 Die in \cref{subsec:fehlerklassifikation} eingeführte Unterscheidung zwischen transienten und permanenten Fehlern bildet die Grundlage für den Einsatz
 von Wiederholungsmechanismen.
 Da transiente Fehler nur zeitweise die Verarbeitung behindern, kann in solchen Fällen eine erneute Ausführung einer fehlgeschlagenen Operation erfolgreich sein,
@@ -323,7 +340,8 @@ Retry- und Backoff-Strategien bilden damit einen wesentlichen Baustein zur Behan
 Sie ermöglichen die automatische Wiederholung fehlgeschlagener Verarbeitungen, ohne abhängige Systeme durch unmittelbar aufeinanderfolgende Wiederholungsversuche
 zusätzlich zu belasten.
 
-\subsection{Recovery}\label{subsec:recovery}
+\subsection{Recovery}
+\label{subsec:recovery}
 Neben transienten Fehlern, die häufig durch Retry-Mechanismen behandelt werden können, die durch Retries gelöst werden können, können auch Fehler auftreten,
 die den Ausführungsprozess einer Verarbeitung vollständig unterbrechen.
 Besondere Relevanz besitzen Ausfälle ausführenden Komponenten während einer laufenden Bearbeitung.
@@ -378,7 +396,8 @@ Da dabei häufig nicht eindeutig festgestellt werden kann, ob eine vorherige Aus
 Mehrfachausführungen vorbereitet sein.
 Hieraus ergibt sich die Notwendigkeit idempotenter Verarbeitung, die im folgenden Abschnitt näher betrachtet wird.
 
-\subsection{Idempotenz}\label{subsec:idempotenz}
+\subsection{Idempotenz}
+\label{subsec:idempotenz}
 Die in den vorherigen Abschnitten beschriebenen Retry- und Wiederherstellungsmechanismen erhöhen die Zuverlässigkeit eines Systems, führen jedoch
 gleichzeitig dazu, dass einzelne Verarbeitungsschritte mehrfach ausgeführt werden können.
 Um trotz solcher Mehrfachausführungen konsistente Datenbestände sicherzustellen, wird das Konzept der Idempotenz eingesetzt.
@@ -406,13 +425,15 @@ Idempotenz bildet somit die Grundlage dafür, dass Retry- und Recovery-Mechanism
 Sie stellt einen zentralen Baustein fehlertoleranter Background-Job-Processing-Systeme dar und ermöglicht die korrekte Verarbeitung trotz unvermeidbarer
 Mehrfachausführungen und Duplikate.
 
-\section{Stand der Forschung}\label{sec:forschungsstand}
+\section{Stand der Forschung}
+\label{sec:forschungsstand}
 Die Verarbeitung von Hintergrundaufgaben ist ein etabliertes Problemfeld verteilter Systeme.
 Entsprechend existieren zahlreiche Frameworks und Architekturmuster, die eine asynchrone Hintergrundausführung von Aufgaben ermöglichen.
 Die Ansätze unterscheiden sich insbesondere hinsichtlich der verwendeten Infrastruktur, der Persistenzmechanismen sowie der Umsetzung von Fehlertoleranz und Wiederherstellung.
 Im Folgenden werden die für diese Arbeit relevanten Lösungsansätze vorgestellt und hinsichtlich ihrer Eigenschaften eingeordnet.
 
-\subsection{Brokerbasierte Ansätze}\label{subsec:brokerbasierteAnsaetze}
+\subsection{Brokerbasierte Ansätze}
+\label{subsec:brokerbasierteAnsaetze}
 Eine weit verbreitete Klasse von Background Job-Processing-Systemen basiert auf dedizierten Message Brokern wie RabbitMQ \parencite{broadcom_inc_hrsg_rabbitmq_2026}
 oder Apache Kafka \parencite{apache_software_foundation_hrsg_apache_2026}.
 Hierbei werden Aufgaben in Form von Nachrichten an einen Broker übergeben, der die Entkopplung zwischen Produzenten und Konsumenten übernimmt.
@@ -427,7 +448,8 @@ Problematisch ist beispielsweise die atomare Kopplung von Datenänderungen in de
 Da beide Systeme unabhängig voneinander arbeiten, müssen zusätzliche Mechanismen wie das Transactional Outbox Pattern eingesetzt werden, um Nachrichtenverlust oder
 Inkonsistenzen zu vermeiden \parencite[Kap.~3.3.7]{richardson_microservices_2018}.
 
-\subsection{Datenbankbasierte Ansätze}\label{subsec:datenbankbasierteAnsaetze}
+\subsection{Datenbankbasierte Ansätze}
+\label{subsec:datenbankbasierteAnsaetze}
 Neben brokerbasierten Lösungen existieren Frameworks, die eine relationale Datenbank als zentralen Job-Store verwenden.
 Zu bekannten Vertretern dieses Ansatzes zählen unter anderem JobRunr \parencite{rosoco_bv_hrsg_jobrunr_2026}, Hangfire \parencite{hangfire_ou_hrsg_hangfire_2026}
 oder Spring Batch \parencite{broadcom_inc_hrsg_spring_2026}.
@@ -447,7 +469,8 @@ Die konkrete Umsetzung der Nebenläufigkeitskontrolle, Wiederherstellung und Feh
 Die zugrundeliegenden Prinzipien bleiben somit hinter der Schnittstelle der Frameworks verborgen und lassen sich nicht ohne Weiteres abstrahieren oder auf
 eigene Systementwürfe übertragen.
 
-\subsection{Einordnung und Forschungslücke}\label{subsec:forschungsluecke}
+\subsection{Einordnung und Forschungslücke}
+\label{subsec:forschungsluecke}
 Die vorgestellten Ansätze zeigen, dass sowohl brokerbasierte als auch datenbankbasierte Architekturen zur Umsetzung von Background-Job-Processing-Systemen geeignet sind.
 Während bestehende Frameworks bereits umfangreiche Funktionalitäten für Scheduling, Retry-Mechanismen und Fehlertoleranz bereitstellen, liegt ihr Fokus primär
 auf der praktischen Nutzung, wodurch die zugrundeliegenden transaktionalen Mechanismen und deren Verhalten in kritischen Ausfallszenarien für den Entwickler
