@@ -29,11 +29,17 @@ Bei asynchroner Verarbeitung wird die Bearbeitung des Auftrags vom Zeitpunkt des
 Der Aufrufer initiiert die Arbeit, blockiert jedoch nicht und kann auch während des Wartens auf eine Antwort weiter arbeiten \parencite[Kap.~3.1.1]{richardson_microservices_2018}.
 
 Um Nachrichtenverluste zu reduzieren und Lastspitzen auszugleichen, verwenden asynchrone Systeme in der Praxis häufig einen Puffer.
-%TODO: ggfs. Abbildung zu funktionsweise eines Message Brokers
 Durch das sogenannte \glqq queueing\grqq{} \parencite[Kap.~11, Abschnitt \glqq Message brokers\grqq]{kleppmann_designing_2017}, bei dem erhaltene Anfragen zur
 späteren Ausführung in den Puffer geschrieben werden, wird unter anderem die Asynchronität erreicht.
-Ein Produzent sendet eine Nachricht an einen Zwischenspeicher, beispielsweise einen Message Broker, und wartet in der Regel nur auf das Acknowledgment,
-dass die Nachricht zwischengespeichert wurde, nicht jedoch auf die Verarbeitung oder das Ergebnis
+Das grundlegende Prinzip ist in \cref{fig:queueing} schemenhaft dargestellt.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/queueing}
+    \caption{Queueing}
+    \label{fig:queueing}
+\end{figure}
+Ein Produzent sendet eine Nachricht an einen Zwischenspeicher, beispielsweise einen Message Broker oder eine Datenbank, und wartet in der Regel
+lediglich auf das Acknowledgment, dass die Nachricht zwischengespeichert wurde, nicht jedoch auf die Verarbeitung oder das Ergebnis
 \parencite[Kap.~11, Abschnitt \glqq Messaging Systems\grqq]{kleppmann_designing_2017}.
 Die so erreichte Entkopplung hat gleichzeitig den Vorteil, dass die Verarbeitung der Anfrage unabhängig von der Verbindung zwischen Produzent und Konsument wird.
 Im Gegensatz dazu kann bei synchronen Systemen bei Verbindungsabbrüchen oder Timeouts unklar bleiben, ob eine Anfrage den Server erreicht hat oder bereits
@@ -41,7 +47,10 @@ verarbeitet wurde.
 Genau dieses Problem adressieren Message Broker:
 Falls ein Konsument temporär nicht verfügbar ist oder während der Verarbeitung ausfällt, können Message Broker trotzdem für die At-Least-Once-Semantik
 (vlg. \cref{subsec:semantiken}) sorgen \parencite[Kap.~11, Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
-Die synchrone Request-Response-Kommunikation bietet demgegenüber eine unmittelbare Rückmeldung über Erfolg oder Fehler einer Operation, setzt jedoch voraus, dass Client und Server 
+Des Weiteren ermöglichen Queues die Abfederung von Lastspitzen, die durch schwankende Anfrageraten entstehen.
+Hierdurch müssen Verarbeitungskapazitäten nicht auf die maximal zu erwartende Last ausgelegt werden, sondern können sich an der durchschnittlichen Auslastung orientieren.
+Kurzzeitige Lastspitzen werden dabei durch die Zwischenspeicherung der Aufgaben in der Queue ausgeglichen \parencite{microsoft_corporation_hrsg_queue-based_2026}.
+Die synchrone Request-Response-Kommunikation bietet demgegenüber eine unmittelbare Rückmeldung über Erfolg oder Fehler einer Operation, setzt jedoch voraus, dass Client und Server
 während der gesamten Interaktion verfügbar sind \parencite[Kap.~3.4]{richardson_microservices_2018}.
 
 Die asynchrone Verarbeitung bildet damit die Grundlage für die Hintergrundverarbeitung, indem die Entkopplung genutzt wird, um Aufgaben unabhängig vom ursprünglichen Aufruf 

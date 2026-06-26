@@ -1,8 +1,10 @@
 %! Author = murfe
 %! Date = 09.06.2026
 %TODO: ggfs noch Abschnitte zu den Referenzen hinzufügen
-\chapter{Einleitung}\label{ch:einleitung}
-\section{Motivation}\label{sec:motivation}
+\chapter{Einleitung}{ch:einleitung}
+\label{ch:einleitung}
+\section{Motivation}
+\label{sec:motivation}
 In modernen Softwaresystemen stellt die Verarbeitung von Hintergrundjobs einen
 zentralen Bestandteil vieler Backend-Architekturen dar \parencite[Kap. 10]{kleppmann_designing_2017}.
 Zahlreiche Geschäftsprozesse, darunter die Generierung von Reports, der Import großer
@@ -15,7 +17,8 @@ Wartungsdokumentation, müssen solche Prozesse nicht nur funktional korrekt abla
 sondern darüber hinaus zuverlässig, nachvollziehbar und fehlertolerant sein.
 %TODO: ier auch noch \parencite[Kap.~1 Abschnitt \glqq How Important Is Reliability?\grqq]{kleppmann_designing_2017} mit einbinden
 
-\section{Problemstellung}\label{sec:problemstellung}
+\section{Problemstellung}
+\label{sec:problemstellung}
 In der Praxis können bei der Verarbeitung von Hintergrundjobs jederzeit Teilausfälle
 auftreten.
 Prozesse können während der Verarbeitung unerwartet terminieren,
@@ -87,7 +90,8 @@ Zur Beantwortung dieser Frage werden folgende Teilfragen untersucht:
 \end{enumerate}
 
 
-\section{Zielsetzung}\label{sec:zielsetzung}
+\section{Zielsetzung}
+\label{sec:zielsetzung}
 Ziel dieser Arbeit ist der Entwurf, die prototypische Implementierung und die Evaluation
 eines fehlertoleranten Job-Processing-Backends auf Basis einer relationalen Datenbank in Kombination mit Java und Spring.
 Dabei soll herausgearbeitet werden, welche Architekturmechanismen erforderlich sind,
@@ -114,7 +118,8 @@ Konkret verfolgt die Arbeit folgende Teilziele:
     verletzt.
 \end{enumerate}
 
-\section{Hypothesen}\label{sec:hypothesen}
+\section{Hypothesen}
+\label{sec:hypothesen}
 Auf Basis der Forschungsfrage und der Zielsetzung werden folgende Hypothesen formuliert,
 deren Überprüfung im Rahmen der Implementierung und insbesondere der Evaluation erfolgt.
 \begin{enumerate}[label=H\arabic*:, ref=H\arabic*]
@@ -130,4 +135,5 @@ deren Überprüfung im Rahmen der Implementierung und insbesondere der Evaluatio
     Fehlerinjektion reproduzierbar überprüfen und nachweisen.
 \end{enumerate}
 
-\section{Aufbau der Arbeit}\label{sec:aufbau}
+\section{Aufbau der Arbeit}
+\label{sec:aufbau}
