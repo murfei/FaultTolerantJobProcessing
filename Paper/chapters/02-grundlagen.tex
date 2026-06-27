@@ -21,16 +21,24 @@ erneut angestoßen werden muss \parencite[Kap.~8]{kleppmann_designing_2017}.
 Vor diesem Hintergrund werden in den folgenden Abschnitten grundlegende Konzepte vorgestellt, die eine Entkopplung der Verarbeitung ermöglichen und die Basis
 für robuste Hintergrundverarbeitung bilden.
 
-\subsection{Synchrone vs. Asynchrone Verarbeitung}
-\label{subsec:synchroneVsAsynchron}
-In Backend-Systemen lässt sich Kommunikation und Verarbeitung bezüglich der zeitlichen Kopplung zwischen synchronem und asynchronem Verhalten unterscheiden:
+\subsection{Asynchrone Verarbeitung und Queueing}
+\label{subsec:asynchroneVerarbeitung}
+In Backend-Systemen lässt sich Kommunikation und Verarbeitung bezüglich der zeitlichen Kopplung zwischen synchronem und asynchronem Verhalten unterscheiden.
+Der Unterschied der Funktionsweise wird in \cref{fig:syncVsAsync} deutlich.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/synchronVsAsynchron}
+    \caption{Vergleich synchroner und asynchroner Kommunikation}
+    \label{fig:syncVsAsync}
+\end{figure}
 Bei synchroner Verarbeitung nach dem Request-Response-Stil wartet der Aufrufer auf eine Antwort auf die Anfrage und blockiert gegebenenfalls bevor er fortfährt.
-Bei asynchroner Verarbeitung wird die Bearbeitung des Auftrags vom Zeitpunkt des Erhalts entkoppelt.
+Bei asynchroner Verarbeitung wird die Antwort auf den Auftrag vom Zeitpunkt des Erhalts entkoppelt.
 Der Aufrufer initiiert die Arbeit, blockiert jedoch nicht und kann auch während des Wartens auf eine Antwort weiter arbeiten \parencite[Kap.~3.1.1]{richardson_microservices_2018}.
 
-Um Nachrichtenverluste zu reduzieren und Lastspitzen auszugleichen, verwenden asynchrone Systeme in der Praxis häufig einen Puffer.
-Durch das sogenannte \glqq queueing\grqq{} \parencite[Kap.~11, Abschnitt \glqq Message brokers\grqq]{kleppmann_designing_2017}, bei dem erhaltene Anfragen zur
-späteren Ausführung in den Puffer geschrieben werden, wird unter anderem die Asynchronität erreicht.
+Zur praktischen Umsetzung asynchroner Verarbeitung werden häufig Puffer eingesetzt.
+Dieses Prinzip wird als Queueing bezeichnet.
+Dadurch können Nachrichtenverluste reduziert und Lastspitzen ausgeglichen werden, indem der Puffer erhaltene Anfragen zur späteren Ausführung zwischenspeichert
+\parencite[Kap.~11, Abschnitt \glqq Message brokers\grqq]{kleppmann_designing_2017}.
 Das grundlegende Prinzip ist in \cref{fig:queueing} schemenhaft dargestellt.
 \begin{figure}[h]
     \centering
@@ -38,26 +46,26 @@ Das grundlegende Prinzip ist in \cref{fig:queueing} schemenhaft dargestellt.
     \caption{Queueing}
     \label{fig:queueing}
 \end{figure}
-Ein Produzent sendet eine Nachricht an einen Zwischenspeicher, beispielsweise einen Message Broker oder eine Datenbank, und wartet in der Regel
-lediglich auf das Acknowledgment, dass die Nachricht zwischengespeichert wurde, nicht jedoch auf die Verarbeitung oder das Ergebnis
-\parencite[Kap.~11, Abschnitt \glqq Messaging Systems\grqq]{kleppmann_designing_2017}.
+Ein solcher Puffer kann verschiedene Ausprägungen annehmen, beispielsweise als In-Memory beim Empfänger, als Datenbank oder in Form eines Message Brokers.
+Ein Produzent sendet eine Nachricht an einen Zwischenspeicher und wartet in der Regel lediglich auf das Acknowledgment, dass die Nachricht zwischengespeichert wurde,
+nicht jedoch auf die Verarbeitung oder das Ergebnis \parencite[Kap.~11, Abschnitt \glqq Messaging Systems\grqq]{kleppmann_designing_2017}.
 Die so erreichte Entkopplung hat gleichzeitig den Vorteil, dass die Verarbeitung der Anfrage unabhängig von der Verbindung zwischen Produzent und Konsument wird.
 Im Gegensatz dazu kann bei synchronen Systemen bei Verbindungsabbrüchen oder Timeouts unklar bleiben, ob eine Anfrage den Server erreicht hat oder bereits
 verarbeitet wurde.
 Genau dieses Problem adressieren Message Broker:
 Falls ein Konsument temporär nicht verfügbar ist oder während der Verarbeitung ausfällt, können Message Broker trotzdem für die At-Least-Once-Semantik
 (vlg. \cref{subsec:semantiken}) sorgen \parencite[Kap.~11, Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
-Des Weiteren ermöglichen Queues die Abfederung von Lastspitzen, die durch schwankende Anfrageraten entstehen.
-Hierdurch müssen Verarbeitungskapazitäten nicht auf die maximal zu erwartende Last ausgelegt werden, sondern können sich an der durchschnittlichen Auslastung orientieren.
+Des Weiteren müssen Verarbeitungskapazitäten in Folge von Queueing nicht auf die maximal zu erwartende Last ausgelegt werden, sondern können sich an der
+durchschnittlichen Auslastung orientieren.
 Kurzzeitige Lastspitzen werden dabei durch die Zwischenspeicherung der Aufgaben in der Queue ausgeglichen \parencite{microsoft_corporation_hrsg_queue-based_2026}.
-Die synchrone Request-Response-Kommunikation bietet demgegenüber eine unmittelbare Rückmeldung über Erfolg oder Fehler einer Operation, setzt jedoch voraus, dass Client und Server
-während der gesamten Interaktion verfügbar sind \parencite[Kap.~3.4]{richardson_microservices_2018}.
+Die synchrone Request-Response-Kommunikation bietet demgegenüber den Vorteil einer unmittelbaren Rückmeldung über Erfolg oder Fehler einer Operation, setzt jedoch voraus,
+dass Client und Server während der gesamten Interaktion verfügbar sind \parencite[Kap.~3.4]{richardson_microservices_2018}.
 
 Die asynchrone Verarbeitung bildet damit die Grundlage für die Hintergrundverarbeitung, indem die Entkopplung genutzt wird, um Aufgaben unabhängig vom ursprünglichen Aufruf 
 auszuführen und gleichzeitig die Robustheit und Skalierbarkeit des Systems zu erhöhen \parencite[Kap.~8, Abschnitt \glqq Why Use A Message Broker?\grqq]{newman_building_2026}.
 
 \subsection{Ausführungssemantiken}
-\label{subsec:semantiken}
+\label{subsec:semantiken} %TODO: hier potentiell noch eine abbildung
 In verteilten Systemen führen potenziellen Prozessabstürze und Teilausfälle dazu, dass Aufträge verloren gehen oder der Verarbeitungszustand einer Aufgabe
 unklar sein kann.
 Um zu beschreiben, was Systeme aufgrund ihres Entwurfs und ihrer Mechanismen zur Fehlertoleranz bezüglich Auslieferung beziehungsweise Ausführung garantieren,
@@ -91,14 +99,13 @@ Eine Nachricht kann mehrfach zugestellt werden, solange ihre Verarbeitung nur ei
 
 \subsection{Background Job-Processing}
 \label{subsec:backgroundJobs}
-Aufbauend auf den Konzepten der asynchronen Verarbeitung (vgl. \cref{subsec:synchroneVsAsynchron}) bezeichnet das Background Job-Processing die Ausführung
+Aufbauend auf den Konzepten der asynchronen Verarbeitung (vgl. \cref{subsec:asynchroneVerarbeitung}) bezeichnet das Background Job-Processing die Ausführung
 von Aufgaben außerhalb des Request-Response-Zyklus.
 Hierbei werden fachliche Operationen als eigenständige Arbeitseinheiten (Jobs) modelliert und zeitlich entkoppelt verarbeitet.
 
 In der Softwarearchitektur existieren verschiedene etablierte Entwurfsmuster zur Umsetzung einer solchen Infrastruktur, wie beispielsweise das
 Queue-Based Load Leveling Pattern \parencite{microsoft_corporation_hrsg_queue-based_2026}.
-Dieses Muster besteht aus drei funktionalen Kernkomponenten:
-%TODO: Abbildung zu Architektur
+Dieses Muster besteht ähnlich des Konzpets aus \cref{fig:queueing} aus drei funktionalen Kernkomponenten:
 \begin{itemize}
 \item \textbf{Der Produzent:} Erzeugt einen Job und gibt diesen weiter an den Job-Store.
 Das kann zum einen direkt durch das \gls{ui} geschehen, oder die \gls{ui} ruft einen Endpoint auf, der den Job über eine synchrone Schnittstelle, wie z.B. \gls{rest}, entgegen nimmt.
@@ -118,7 +125,7 @@ Akzeptanz einzelner verlorener Jobs, begründet werden \parencite[Kap.~11]{klepp
 Sobald der Worker über freie Systemressourcen verfügt, kann er einen wartenden Job aus dem Job-Store beanspruchen und führt diesen aus \parencite{microsoft_corporation_hrsg_queue-based_2026}.
 \end{itemize}
 
-Durch eine solche Architektur können Background Jobs als \glqq fire and forget\grqq-Operationen \parencite{microsoft_corporation_hrsg_best_2026} implementiert werden.
+Durch eine solche Architektur können Background Jobs als \glqq{}fire and forget\grqq-Operationen \parencite{microsoft_corporation_hrsg_best_2026} implementiert werden.
 Sie laufen asynchron in einem vom Client isolierten Prozess, sodass deren Verarbeitungszeit keinerlei unmittelbare Auswirkung auf die Reaktionszeit oder
 Verfügbarkeit der primären Benutzeroberfläche hat \parencite{microsoft_corporation_hrsg_best_2026}.
 Außerdem ermöglicht dieses Konzept das Abfangen von Lastspitzen und flexiblere Skalierung \parencite{microsoft_corporation_hrsg_queue-based_2026}.
@@ -153,9 +160,8 @@ zu inkonsistenten Zuständen führen können.
 Ohne geeignete Mechanismen können Änderungen verloren gehen, widersprüchliche Zustände entstehen oder mehrere Prozesse dieselben Daten gleichzeitig verändern
 \parencite[Kap.~13.1.2]{saake_datenbanken_2018}.
 
-Im Kontext von Background Job-Processing tritt dieses Problem insbesondere dann auf, wenn mehrere Worker-Instanzen parallel auf denselben Jobbestand zugreifen.
-Versuchen sie ohne geeignete Synchronisationsmechanismen denselben Job zu beanspruchen oder konkurrierende Statusänderungen durchzuführen, können Race Conditions entstehen
-\parencite[Kap.~7 Abschnitt \glqq Isolation\grqq]{kleppmann_designing_2017}.
+Im Kontext von Background Job-Processing tritt dieses Problem besonders dann auf, wenn mehrere Worker-Instanzen parallel auf denselben Jobbestand zugreifen.
+Versuchen sie ohne geeignete Synchronisationsmechanismen denselben Job zu beanspruchen oder konkurrierende Statusänderungen durchzuführen, können Race Conditions entstehen.
 Insbesondere bei Pull-basierten Architekturen, bei denen die Jobverteilung nicht durch eine Orchestrierungskomponente realisiert wird, muss eine solche ungewollte
 Doppelbeanspruchung explizit verhindert werden \parencite[Kap.~7 Abschnitt \glqq Isolation\grqq]{kleppmann_designing_2017}.
 Die Gewährleistung konsistenter Zustände stellt daher eine zentrale Anforderung an Systeme mit paralleler Verarbeitung dar.
@@ -203,7 +209,7 @@ Die Wahl geeigneter Transaktionsgrenzen wird zusätzlich dadurch erschwert, dass
 Eine fachliche Transaktion beschreibt eine zusammenhängende Geschäftsoperation, deren Ergebnis aus Sicht der Anwendung als Einheit betrachtet wird.
 Eine technische Transaktion hingegen bezeichnet die konkrete Transaktion auf der Datenbankebene, welche die \gls{acid}-Eigenschaften für die von ihr gekapselten Datenbankoperationen bereitstellt.
 Während eine fachliche Operation mehrere technische Transaktionen umfassen kann, können innerhalb einer technischen Transaktion auch nur Teilaspekte einer fachlichen Operation verarbeitet werden.
-Werden die Grenzen falsch gesetz, können verschiedene Parallelitätsanomalien auftreten \parencite[Kap.~13.1.2]{saake_datenbanken_2018}.         %TODO: Muss ich Parallelitätsanomalien hier noch nennen und erklären?
+Werden die Grenzen falsch gesetz, können verschiedene Parallelitätsanomalien auftreten \parencite[Kap.~13.1.2]{saake_datenbanken_2018}.
 Ein verbreiteter Ansatz zur Vermeidung dieser Anomalien ist die Verwendung von Sperren, auf die in \cref{subsec:synchronisation} näher eingegangen wird.
 Wichtig ist an dieser Stelle, dass die gewählte Transaktionsgrenze direkten Einfluss auf die Dauer von Sperren und die Interaktion mit parallel ausgeführten Transaktionen hat.
 
@@ -226,10 +232,14 @@ Im Software-Entwurf erfordert das Setzen der Transaktionsgrenzen daher eine kont
 Weit gefasste Transaktionsgrenzen reduziert das Risiko der Entstehung von Inkonsistenzen, blockieren jedoch Systemressourcen und Datensätze.
 Eng gefasste Grenzen erhöhen den Durchsatz, können jedoch das Risiko konkurrierender Zugriffe und daraus resultierender Race Conditions erhöhen.
 
-\subsection{Synchronisationsverfahren}
+\subsection{Isolationsstufen und Synchronisationsverfahren}
 \label{subsec:synchronisation}
 Zur Umsetzung der Isolationseigenschaft von Transaktionen müssen konkurrierende Zugriffe auf gemeinsame Daten koordiniert werden.
-Zu diesem Zweck existieren verschiedene Synchronisationsverfahren, die mittels unterschiedlicher Strategien das Entstehen von Parallelitätsanomalien verhindern
+Zu diesem Zweck stellen Datenbanksysteme unterschiedliche Isolationsstufen bereit.
+Diese legen den formalen Rahmen fest, indem sie bestimmen, in welchem Umfang parallele Transaktionen die Änderungen anderer Transaktionen beobachten können und
+welche Parallelitätsanomalien im System toleriert werden.
+Während die Isolationsstufen somit die abstrakten Konsistenzgarantien definieren, kommen zu ihrer praktischen Durchsetzung im Datenbanksystem verschiedene Synchronisationsverfahren
+zum Einsatz, die mittels unterschiedlicher Strategien das Entstehen nicht zugelassener Anomalien verhindern
 \parencite[253--259]{kudras_taschenbuch_2015}.
 
 Je nach Anwendungskontext kann es sein, dass nicht alle dieser Anomalien auftreten können, beispielsweise wenn nur Leseoperationen ausgeführt werden, oder dass deren Auftreten
@@ -239,6 +249,8 @@ Diese legen fest, in welchem Umfang parallele Transaktionen die Änderungen ande
 Dadurch müssen weniger Überprüfungen stattfinden und weniger Transaktionen müssen zurückgesetzt werden, was zu einer besseren Performance führt.
 Höhere Isolationsstufen bieten stärkere Konsistenzgarantien, können jedoch die Parallelität des Systems verringern
 \parencite[Kap.~13.1.3]{saake_datenbanken_2018}.
+Um die durch die gewählte Isolationsstufe geforderten Garantien operativ zu erzwingen, greifen die zugrundeliegenden Synchronisationsverfahren auf
+entweder blockierende oder nicht-blockierende Strategien zurück.
 
 Eine verbreitete Strategie zur Durchsetzung der Isolation ist die pessimistische Synchronisation.
 Sie basiert auf der Annahme, dass konkurrierende Zugriffe auftreten können und verhindert diese bereits im Vorfeld durch Sperrmechanismen.
@@ -325,10 +337,10 @@ Retry-Strategien verfolgen damit also das Ziel, die Erfolgswahrscheinlichkeit ei
 Retries sollten ausschließlich für Fehler durchgeführt werden, deren Ursache außerhalb der eigentlichen Geschäftslogik liegt und deren Fortbestand
 nicht dauerhaft erwartet wird.
 Permanente Fehler sollten dagegen unmittelbar als endgültig fehlgeschlagen behandelt werden, da eine erneute Ausführung die Erfolgswahrscheinlichkeit nicht erhöht.
-Ein typisches Szenario indem Retries sinnvoll sind, ist das verschicken von Nachrichten \parencite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026}
+Ein typisches Szenario, in dem Retries sinnvoll sind, ist das Verschicken von Nachrichten \parencite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026}
 \parencite[Abschnitt \glqq Reliability considerations\grqq]{microsoft_corporation_hrsg_best_2026}.
-%TODO: ggfs. aktivitätsdiagramm zu retry & backoff s. 6.Semester ->Bachelorarbeit -> retry und backoff aktivitaetsdiagramm
 
+Ein mögliches Vorgehen bei einem temporären Fehler ist in \cref{fig:retry} dargestellt.
 Da die Ursache eines transienten Fehlers potenziell auch für eine gewisse Zeit nach dem Auftreten des Fehlers weiterhin besteht, werden Wiederholungen üblicherweise
 nicht unmittelbar durchgeführt.
 Stattdessen wird zwischen den einzelnen Versuchen eine Wartezeit eingefügt.
@@ -338,8 +350,13 @@ Eine einfache Variante besteht darin, zwischen allen Wiederholungsversuchen dies
 In verteilten Systemen wird jedoch häufig ein exponentieller Backoff eingesetzt, bei dem sich das Warteintervall nach jedem fehlgeschlagenen Versuch schrittweise erhöht.
 Dadurch erhält das betroffene System mehr Zeit, sich von einer temporären Störung zu erholen, da die Dichte der Wiederholungsversuche
 reduziert wird \parencite[Kap.~3 Abschnitt \glqq Delays Between Retries\grqq]{newman_building_2026}.
-
-Neben der zeitlichen Staffelung von Wiederholungsversuchen muss auch deren Anzahl begrenzt werden.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\textwidth]{images/retryBackoff} %TODO: Quali anpassen
+    \caption{Verhalten bei transienten Fehlern}
+    \label{fig:retry}
+\end{figure}
+\\Neben der zeitlichen Staffelung von Wiederholungsversuchen muss auch deren Anzahl begrenzt werden.
 Andernfalls besteht die Gefahr, dass ein fehlerhafter Job unendlich oft ausgeführt wird und dadurch dauerhaft Ressourcen belegt.
 In der Praxis wird daher eine maximale Anzahl von Wiederholungsversuchen definiert.
 Wird diese überschritten, gilt die Verarbeitung als endgültig fehlgeschlagen und der Job wird in einen entsprechenden Fehlerzustand
