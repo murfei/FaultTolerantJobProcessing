@@ -1,7 +1,7 @@
 %! Author = murfe
-%! Date = 09.06.2026
+%! Date = 28.06.2026
 %TODO: ggfs noch Abschnitte zu den Referenzen hinzufügen
-\chapter{Einleitung}{ch:einleitung}
+\chapter{Einleitung}
 \label{ch:einleitung}
 \section{Motivation}
 \label{sec:motivation}
@@ -15,7 +15,8 @@ Insbesondere in industrienahen und
 sicherheitskritischen Anwendungen, etwa im Bereich der luftfahrttechnischen
 Wartungsdokumentation, müssen solche Prozesse nicht nur funktional korrekt ablaufen,
 sondern darüber hinaus zuverlässig, nachvollziehbar und fehlertolerant sein.
-%TODO: ier auch noch \parencite[Kap.~1 Abschnitt \glqq How Important Is Reliability?\grqq]{kleppmann_designing_2017} mit einbinden
+Aber auch in nicht-kritischen Systemen ist Zuverlässigkeit von Bedeutung für die Nutzerfreundlichkeit der Anwendung, als auch um Produktivitäts- und
+Gewinneinbußen in Produktivsystemen in Folge von Fehlern zu vermeiden \parencite[Kap.~1 Abschnitt \glqq How Important Is Reliability?\grqq]{kleppmann_designing_2017}.
 
 \section{Problemstellung}
 \label{sec:problemstellung}
@@ -32,44 +33,28 @@ Beispielsweise verbleiben Jobs im Status
 \glqq laufend\grqq, obwohl kein Worker sie mehr aktiv verarbeitet, Ergebnisse werden doppelt
 erzeugt oder Aufträge gehen vollständig verloren.
 
-%Für Background-Job-Processing existieren zahlreiche Frameworks und Middleware-Lösungen.TODO
-%Diese basieren jedoch häufig auf dedizierten Message Brokern oder kapseln die zugrundeliegenden Mechanismen zur Fehlertoleranz, Recovery und
-%Nebenläufigkeitskontrolle weitgehend.
-%Eine systematische Betrachtung, unter welchen Voraussetzungen eine relationale Datenbank selbst die Rolle von Persistenzschicht,
-%Queue und Koordinationsmechanismus übernehmen kann, wird in der Literatur nur begrenzt behandelt.
 Bestehende Frameworks und Bibliotheken, etwa Quartz Scheduler \parencite{terracotta_inc_hrsg_quartz_2026}
-oder Spring Batch \parencite{broadcom_inc_hrsg_spring_2026}, adressieren Teilaspekte
-der Hintergrundverarbeitung, setzen jedoch voraus, dass grundlegende
-Architekturentscheidungen bewusst und korrekt getroffen werden.
-So muss unter anderem entschieden werden, wie sichergestellt wird, dass ein Job nach einem
-Prozessabsturz nicht verloren geht, wie verhindert wird, dass zwei Worker denselben
-Job gleichzeitig verarbeiten, wie das System doppelte Aufträge erkennt und redundante
-Ergebnisse vermeidet und wie es sich bei kurzzeitigen Datenbankausfällen verhält.
-Keine der genannten Lösungen beantwortet diese Fragen vollständig.
-Sie erfordern vielmehr ein durchdachtes Zusammenspiel aus einem persistenten Statusmodell, klar
-definierten Transaktionsgrenzen, geeigneten Locking-Strategien, Mechanismen zur
-Vermeidung doppelter Ausführung sowie Retry- und Backoff-Policies.
-Die zentrale Herausforderung liegt darin, diese Mechanismen so zu entwerfen und zu kombinieren,
-dass das System definierte Zusicherungen unter allen relevanten Fehlerszenarien einhält.
+oder Spring Batch \parencite{broadcom_inc_hrsg_spring_2026}, stellen umfangreiche Funktionalitäten für die Hintergrundverarbeitung bereit.
+Hierzu zählen unter anderem Scheduling, Wiederholungsmechanismen sowie Verfahren zur Fehlerbehandlung und Wiederaufnahme.
+Sie verfolgen dabei jedoch jeweils eigene Architekturansätze und abstrahieren die zugrunde liegenden Mechanismen weitgehend hinter ihren Programmierschnittstellen.
+Dadurch eignen sie sich nur eingeschränkt, um systematisch zu untersuchen, welche Architekturentscheidungen für bestimmte Konsistenz- und Verarbeitungszusicherungen
+tatsächlich erforderlich sind.
 
 Die beschriebene Problematik ist von hoher praktischer und industrieller Relevanz.
-Nahezu jedes Backend-System, das über einfache \gls{crud}-Operationen hinausgeht,
-muss eine Form der zuverlässigen Hintergrundverarbeitung mittels Transaktionen
-implementieren \parencite[Kap. 4]{richardson_microservices_2018}.
-Fehler in diesem Bereich führen zu Datenverlust, inkonsistenten Geschäftszuständen
-sowie unnötigem manuellem Eingriff und können insbesondere in regulierten Domänen
+Nahezu jedes Backend-System, das über einfache \gls{crud}-Operationen hinausgeht, muss Aufgaben zuverlässig im Hintergrund verarbeiten und dabei
+konsistente Datenbestände gewährleisten \parencite[Kap. 4]{richardson_microservices_2018}.
+Fehler in diesem Bereich führen zu Datenverlust, inkonsistenten Geschäftszuständen sowie unnötigem manuellem Eingriff und können insbesondere in regulierten Domänen
 wie der Luftfahrt Compliance-Verstöße nach sich ziehen.
 Auch im Kontext von Cloud-nativen Architekturen ist dieses Thema relevant.
-Horizontale Skalierung, Container-Neustarts und kurzzeitige
-Netzwerkunterbrechungen können auftreten und müssen behandelt werden.
-Daher bilden die in dieser Arbeit behandelten Konzepte auch die Grundlage für den
-zuverlässigen Betrieb von Backend-Systemen in Cloud-Umgebungen.
-Trotz dieser Relevanz existiert wenig praxisorientierte und zugleich evaluierte Literatur,
-die den gesamten Entwurfsprozess eines solchen Systems, von der
-Anforderungsdefinition über die Architekturentscheidungen bis hin zum systematischen
-Fehlervalidierung, nachvollziehbar dokumentiert und empirisch überprüft.
-%Die zugrundeliegenden Konzepte wie Fehlertoleranz, Recovery, Idempotenz und Nebenläufigkeitskontrolle werden in der Literatur umfassend behandelt.
-%Eine zusammenhängende Betrachtung ihrer Integration in eine konkrete datenbankbasierte Background-Job-Processing-Architektur findet sich jedoch nur begrenzt. TODO
+Horizontale Skalierung, Container-Neustarts und kurzzeitige Netzwerkunterbrechungen gehören dort zum regulären Betriebsverhalten und müssen bereits beim Entwurf
+eines Systems berücksichtigt werden.
+Daher bilden die in dieser Arbeit behandelten Konzepte auch die Grundlage für den zuverlässigen Betrieb von Backend-Systemen in Cloud-Umgebungen.
+
+Obwohl die zugrundeliegenden Konzepte wie Fehlertoleranz, Recovery, Idempotenz, Nebenläufigkeitskontrolle und Transaktionsmanagement in der Literatur umfassend
+beschrieben werden, existieren nur wenige Arbeiten, die diese Aspekte zu einer durchgängigen datenbankbasierten Architektur für Background-Job-Processing
+zusammenführen und deren Verhalten unter definierten Fehlerszenarien systematisch evaluieren.
+Ebenso implementieren bestehende Frameworks diese Mechanismen häufig als interne Abstraktionen, wodurch deren Zusammenspiel und Auswirkungen
+auf die Zuverlässigkeit des Gesamtsystems für Entwickler nur eingeschränkt nachvollziehbar sind.
 
 Daraus ergibt sich die dieser Arbeit zugrundeliegende Hauptforschungsfrage:\\
 Welche Architekturmechanismen und Entwurfsentscheidungen sind notwendig, um in
@@ -79,7 +64,7 @@ Zur Beantwortung dieser Frage werden folgende Teilfragen untersucht:
 \begin{enumerate}[label=TF\arabic*:, ref=TF\arabic*]
     \item \label{item:tf1} Welche Zusicherungen muss das System gewährleisten, damit Jobs stets
     korrekt und ohne Inkonsistenzen verarbeitet werden?
-    \item \label{item:tf2} Welchen Beitrag leisten Idempotenz, Retry-Strategien und Dead-letter-Handling
+    \item \label{item:tf2} Welchen Beitrag leisten Idempotenz, Retry-Strategien und Recovery-Mechanismen
     zur Robustheit unter definierten Fehlerszenarien?
     \item \label{item:tf3} Wie müssen Transaktionen und Locking-Strategien genutzt werden, damit
     bei paralleler Arbeit mehrerer Worker keine Doppelverarbeitung oder
@@ -104,11 +89,11 @@ Konkret verfolgt die Arbeit folgende Teilziele:
     formuliert werden, die das System zu jedem Zeitpunkt einhalten muss,
     unabhängig davon, welche Fehler auftreten.
     Dazu zählen unter anderem, dass kein Job doppelt erfolgreich abgeschlossen wird,
-    dass kein Job dauerhaft verloren geht und dass Statusübergänge ausschließlich
+    dass kein Job dauerhaft verloren geht und dass Statusübergänge ausschließlich %TODO: schauen wegen Zustandsmodell --> hab ich ein solches tatsächlich genutzt?
     dem definierten Zustandsmodell folgen.
     \item \label{item:tz2} Architekturentwurf: Es soll eine Architektur entworfen werden, die persistente
     Job-States, Idempotenz, Retry-Strategien sowie ein nachvollziehbares
-    Statusmodell umfasst.
+    Statusmodell umfasst. %TODO: auch hier wieder Statusmodell
     Architekturentscheidungen sollen explizit dokumentiert und begründet werden.
     \item \label{item:tz3} Prototypische Implementierung: Die entworfene Architektur soll als
     funktionsfähiger Prototyp umgesetzt werden, der die definierten Zusicherungen
