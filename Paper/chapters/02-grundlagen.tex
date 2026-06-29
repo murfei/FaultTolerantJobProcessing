@@ -507,7 +507,7 @@ eingesetzt werden kann, wird in der Literatur nur begrenzt behandelt.
 Konzepte wie Fehlertoleranz, Recovery, Idempotenz und Nebenläufigkeitskontrolle werden zwar häufig einzeln beschrieben, ihre Integration zu
 einer konsistenten Gesamtarchitektur bleibt jedoch oftmals implizit.
 
-Die vorliegende Arbeit grenzt sich von bestehenden Frameworks ab, indem sie ein rein datenbankgestütztes Pull-Modell entwirft und bezüglich der angestrebten
-Fehlertoleranz evaluiert.
+Die vorliegende Arbeit grenzt sich von bestehenden Frameworks ab, indem sie ein rein datenbankgestütztes Pull-Modell entwirft, die Architekturentscheidungen begründet darlegt
+und das System bezüglich der angestrebten Fehlertoleranz evaluiert.
 Durch den Einsatz von SQL-Polling in Kombination mit der PostgreSQL-Funktionalität \texttt{FOR UPDATE SKIP LOCKED} und einem Statusmodell wird untersucht, wie die Koordination und
 Ausfallwiederherstellung direkt auf der Datenbankebene orchestriert werden kann, ohne einen separaten Message Broker einzusetzen.
