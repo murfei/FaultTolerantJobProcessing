@@ -1,27 +1,192 @@
 %! Author = murfe
-%! Date = 08.06.2026
+%! Date = 29.06.2026
+\chapter{Anforderungen}
+\label{ch:anforderungen}
+%TODO: Einleitung
+\section{Abgrenzung des betrachteten Fehlermodells}
+\label{sec:abgrenzungFehlermodell}
+Verteilte Softwaresysteme können durch eine Vielzahl unterschiedlicher Fehler beeinträchtigt werden.
+Hierzu zählen unter anderem Hardwaredefekte, Softwarefehler, Netzwerkausfälle, Bedienfehler oder Cyberangriffe.
+Wie bereits in \cref{sec:fehlertoleranz} erläutert wurde, kann ein System jedoch nicht sämtliche denkbaren Fehler verhindern oder behandeln.
+Der Entwurf fehlertoleranter Systeme erfordert daher eine bewusste Abwägung, welche Fehlerarten berücksichtigt und welche Risiken akzeptiert werden.
+Diese Entscheidung orientiert sich zum am Anwendungskontext und den Anforderungen an das System und zum anderen an wirtschaftlichen Randbedingungen
+wie Entwicklungs- und Betriebsaufwand \parencite[Kap.~1 Abschnitt \glqq Reliability\grqq]{kleppmann_designing_2017}.
 
-\chapter{Anforderungen}\label{ch:anforderungen}
-\glqq Darüber hinaus können nicht alle denkbaren Fehler mit vertretbarem Aufwand behandelt werden.
-Während kurzzeitige Infrastrukturprobleme, Prozessabstürze oder Kommunikationsfehler häufig durch geeignete Architekturmechanismen abgefangen werden können,
-liegen andere Ereignisse, etwa großflächige Naturkatastrophen oder der vollständige Ausfall eines Rechenzentrums, außerhalb des typischen Fehlerannahmemodells
-vieler Anwendungen.
-Der Entwurf fehlertoleranter Systeme erfordert daher eine bewusste Entscheidung darüber, welche Fehlerarten berücksichtigt werden und welche Risiken
-akzeptiert werden müssen.\grqq \cref{subsec:fehlerklassifikation}
---> Begründen, welche Art von Fehlern in meiner Arbeit behandelt werden sollen und wieso ausgerechnet diese
+Die im Folgenden dargelegte Teilmenge betrachteter Fehler ist eine Auswahl der von
+\textcite{kleppmann_designing_2017,newman_building_2026,bass_software_2021} beschriebenen typisch vorkommenden Fehlern in verteilten Systemen.
+Ziel dieser Arbeit ist der Entwurf einer fehlertoleranten Architektur für ein datenbankgestütztes Background Job-Processing-System.
+Betrachtet werden daher ausschließlich Fehlerklassen, die während des regulären Betriebs auftreten können und deren Auswirkungen durch Mechanismen der
+Anwendungsarchitektur beherrscht werden können.
+Fehler, deren Behandlung zusätzliche Infrastruktur oder organisatorische Maßnahmen wie Backups, Replikation oder physische Redundanz erfordern,
+liegen außerhalb des Betrachtungsumfangs dieser Arbeit.
 
-\section{Funktionale Anforderungen}\label{sec:funktionaleAnf}
+Die Abgrenzung der betrachteten Fehler ist in \cref{tab:fehlermodell} zusammengefasst.
+\begin{table}
+    \centering
+    \begin{tabularx}{\textwidth}{lcX}
+        \toprule
+        \textbf{Fehlerklasse} & \textbf{Relevant} & \textbf{Begründung} \\
+        \midrule
+        Komponenten und Infrastrukturausfälle & \checkmark & Kurze Ausfälle können durch Software behandelt werden\\
+        Doppelte Requests & \checkmark & Mehrfachübermittlung desselben Jobs\\
+        Doppelte Ausführung & \checkmark & Wiederaufnahme begonnener Jobs \\
+        Konkurrierender Zugriff & \checkmark & Parallele Worker können Race Conditions verursachen \\
+        Physischer Datenbankverlust & \ding{55} & Erfordert Backups \& Redundanz \\
+        Totalausfall Infrastruktur & \ding{55} & Erfordern Disaster-Recovery Maßnahmen \\
+        Cyberangriffe & \ding{55} & Qualitätsmerkmal Sicherheit\\
+        Byzantinische Fehler & \ding{55} & Annahme: Vertrauensvolle Komponenten\\
+        \bottomrule
+    \end{tabularx}
+    \caption{}
+    \label{tab:fehlermodell}
+\end{table}
+Innerhalb des Systementwurfs werden im Wesentlichen vier Kategorien von Fehlern behandelt.
+An erster Stelle stehen Ausfälle einzelner Systemkomponenten sowie transiente Infrastruktur- und Kommunikationsstörungen.
+Hierzu zählen insbesondere das unerwartete Beenden eines Worker-Prozesses, Container-Neustarts, JVM-Abstürze, durch das Betriebssystem terminierte Prozesse,
+temporäre Netzwerkunterbrechungen oder kurzfristig nicht erreichbare Datenbanken.
+Dadurch können zwei Arten von Fehlern passieren.
+Zum einen besteht die Gefahr, dass eine laufende Verarbeitung unterbrochen wird oder vorübergehend nicht fortgesetzt werden kann.
+Aufgrund der Charakteristik transienter Fehler wird dabei grundsätzlich davon ausgegangen, dass die betroffene Komponente oder
+Ressource nach kurzer Zeit wieder verfügbar ist.
+Zum anderen kann es sein, dass eine Nachricht bzw. ein Job verloren geht.
+Durch diese Fehler gerät das Gesamtsystem in einen unklaren Zustand darüber, wie weit die Verarbeitung bereits fortgeschritten war
+bzw. ob der Job persistiert wurde.
+Da diese Störungen in verteilten Umgebungen regelmäßig auftreten können \parencite[Kap.~1 Abschnitt \glqq Failure Is Inevitable\grqq]{newman_building_2026},
+muss die Systemarchitektur in der Lage sein, diese autonom zu überbrücken.
 
-\section{Qualitätsanforderungen}\label{sec:qualitAnf}
+Als direkte Folge solcher Infrastrukturprobleme und der darauf reagierenden Wiederholungsmechanismen der Clients entstehen doppelte Requests.
+Ein Client sendet eine Anfrage erneut, weil eine Bestätigung aufgrund eines Timeouts ausblieb.
+Die Architektur muss in diesem Szenario durch Duplikaterkennung verhindern, dass identische Jobs mehrfach im Job-Store persistiert werden.
 
-\section{Zusicherungen}\label{sec:zusicherungen}
+Eng damit verknüpft ist die doppelte Ausführung von Jobs.
+Bei der Wiederaufnahme eines zuvor abgebrochenen Jobs kann nach einem Fehler oft nicht eindeutig festgestellt werden, ob die vorherige Verarbeitung
+bereits Seiteneffekte erzielt hat.
+Die Architektur muss daher zwingend sicherstellen, dass wiederholte Ausführungen keine inkonsistenten Ergebnisse verursachen.
+
+Des Weiteren werden konkurrierende Zugriffe betrachtet.
+Da die Parallelverarbeitung mittels mehrerer, autonom agierender Worker ein wesentliches Merkmal moderner Background Job-Processing-Systeme darstellt,
+entstehen unweigerlich gleichzeitige Zugriffe auf geteilte Datenstrukturen wie den zentralen Job-Store.
+Dies ist im klassischen Sinne zwar nicht direkt ein Fehler, jedoch können parallele Zugriffe ohne entsprechende Synchronisationsmechanismen
+potenziell zu Race Conditions und inkonsistenten Zuständen in der Persistenzschicht führen, weshalb deren Verhinderung wesentlicher Bestandteil des Entwurfs ist.
+
+Dem gegenüber stehen Fehler, die bewusst außerhalb des Betrachtungsumfangs dieser Arbeit liegen.
+Ein physischer Datenbankverlust sowie ein Totalausfall der Infrastruktur können nicht durch die Softwarearchitektur des Job-Processing-Systems gelöst werden.
+Ein Verlust der Persistenzschicht oder ein Ausfall des gesamten Rechenzentrums infolge von großflächigen Stromausfällen oder Bränden am Serverstandort
+erfordert stattdessen infrastrukturelle Maßnahmen wie geografische Redundanz, kontinuierliche Backups und umfassende Disaster-Recovery-Konzepte.
+
+Ebenso werden Cyberangriffe im Rahmen dieser Arbeit ausgeschlossen.
+Obwohl Angriffe wie SQL-Injections oder Denial-of-Service-Szenarien direkte Auswirkungen auf die Zuverlässigkeit eines Systems haben können, betreffen sie
+primär das Qualitätsmerkmal der Sicherheit.
+Ihre Abwehr erfordert spezialisierte Mechanismen wie strikte Eingabevalidierung, Ratenbegrenzungen, Authentifizierung und Angriffserkennungssysteme.
+Der Fokus dieser Arbeit liegt stattdessen auf der Gewährleistung von Fehlertoleranz bei regulärem Systembetrieb.
+
+Schließlich werden auch byzantinische Fehler ausgeschlossen.
+Dies sind Fehler, bei denen kompromittierte oder defekte Komponenten willkürlich falsche oder manipulierte Informationen erzeugen und teilen
+\parencite[Kap.~8 Abschnitt \glqq Byzantine Faults\grqq]{kleppmann_designing_2017}.
+Die vorliegende Arbeit geht dahingehend von der Annahme ehrlicher Komponenten aus.
+Dies bedeutet, dass Komponenten zwar abstürzen oder vorübergehend nicht erreichbar sein können, im aktiven Zustand jedoch nie absichtlich
+falsche Informationen verbreiten.
+
+Aus der gewählten Abgrenzung ergibt sich, dass der Schwerpunkt dieser Arbeit auf der Behandlung von Teilausfällen, konkurrierender Verarbeitung und
+transienten Infrastrukturfehlern liegt.
+Diese Fehlerszenarien besitzen unmittelbaren Einfluss auf die Zuverlässigkeit datenbankgestützter Background Job-Processing-Systeme und bilden daher die
+Grundlage für die im Folgenden formulierten funktionalen Anforderungen, Qualitätsanforderungen und Systemzusicherungen.
+
+\section{Funktionale Anforderungen}
+\label{sec:funktionaleAnf}
+FA1
+Das System muss Jobs über REST entgegennehmen.
+Begründung:
+Da das Zielsystem als Backend-Service konzipiert wird, erfolgt die Kommunikation über HTTP.
+
+FA2
+Das System muss Jobs persistent speichern.
+Begründung:
+Ansonsten würden Jobs bei Prozessabstürzen verloren gehen.
+
+FA3
+Das System muss mehrere Worker unterstützen.
+Begründung:
+Parallelität erhöht den Durchsatz.
+
+FA4
+Das System muss Jobs nach Worker-Ausfällen erneut ausführen können.
+Begründung:
+Worker können jederzeit abstürzen.
+
+FA5
+Das System muss den Zustand eines Jobs verwalten.
+Begründung:
+Recovery setzt Kenntnis des aktuellen Zustands voraus.
+
+
+\section{Qualitätsanforderungen}
+\label{sec:qualitAnf}
+QA1
+Konsistenz
+Fachliche Daten dürfen trotz Fehlern niemals inkonsistent werden.
+Begründung:
+Grundvoraussetzung für zuverlässige Verarbeitung.
+
+QA2
+Fehlertoleranz
+Das System soll transiente Fehler automatisch behandeln.
+Begründung:
+Netzwerk- und Infrastrukturfehler sind normal.
+
+QA3
+Recoverability
+Jobs dürfen durch Worker-Abstürze nicht verloren gehen.
+Begründung:
+Kernziel der Arbeit.
+
+QA4
+Skalierbarkeit
+Mehrere Worker sollen parallel arbeiten können.
+Begründung:
+Erhöhung des Durchsatzes.
+
+QA5
+Nachvollziehbarkeit
+Der Verarbeitungszustand eines Jobs muss jederzeit bestimmbar sein.
+Begründung:
+Recovery und Monitoring.
+
+
+\section{Zusicherungen}
+\label{sec:zusicherungen}
+
+Z1
+Ein Job befindet sich zu jedem Zeitpunkt in genau einem gültigen Zustand.
+
+Z2
+Ein Job wird niemals dauerhaft verloren.
+
+Z3
+Ein Job wird niemals gleichzeitig von mehreren Workern verarbeitet.
+
+Z4
+Nach erfolgreichem Abschluss ist das fachliche Ergebnis genau einmal vorhanden.
+(oder At-Least-Once + Idempotenz, je nach Formulierung)
+
+Z5
+Nach einem Worker-Absturz kann der Job erneut verarbeitet werden.
+
+Z6
+Ein erfolgreich abgeschlossener Job wird nicht erneut gestartet.
+
+Z7
+Zwischenzustände bleiben nach Rollback nicht dauerhaft bestehen.
+
+Sie ergeben sich unmittelbar aus den zuvor definierten funktionalen Anforderungen und den betrachteten Fehlerszenarien.
+
+
 Z.B.:
 Für die Evaluation werden folgende Zusicherungen definiert, die das System zu jedem Zeitpunkt einhalten muss:
 Z1: Kein Job erreicht mehr als einmal den Status SUCCEEDED.
 Z2: Zu einem gegebenen Auftrag (Idempotency-Key) wird höchstens ein Report erzeugt.
 Z3: Statusübergänge folgen ausschließlich dem definierten Zustandsmodell. Ungültige Übergänge (z. B. direkt von QUEUED zu SUCCEEDED) sind ausgeschlossen.
 Z4: Kein Job verbleibt dauerhaft in einem Zwischenzustand. Jeder Job erreicht innerhalb einer definierten Frist einen Endzustand (SUCCEEDED oder FAILED).
-
 
 
 Begründen, warum ich mich für diese Frameworks entschieden habe, die vorkommen.
