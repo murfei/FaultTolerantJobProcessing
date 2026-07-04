@@ -1,0 +1,61 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Seite-1" id="qy2dwIpTLTXcuMl1ii_t">
+    <mxGraphModel dx="734" dy="405" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="8-NNAWgJ6fHZH1UBR2mA-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Recovery Manager" vertex="1">
+          <mxGeometry height="60" width="120" x="200" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="8-NNAWgJ6fHZH1UBR2mA-2" edge="1" parent="1" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="8-NNAWgJ6fHZH1UBR2mA-1" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="260" y="450" as="sourcePoint" />
+            <mxPoint x="420" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="8-NNAWgJ6fHZH1UBR2mA-3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Job Store" vertex="1">
+          <mxGeometry height="60" width="120" x="410" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="8-NNAWgJ6fHZH1UBR2mA-4" edge="1" parent="1" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="8-NNAWgJ6fHZH1UBR2mA-3" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="470" y="450" as="sourcePoint" />
+            <mxPoint x="630" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="8-NNAWgJ6fHZH1UBR2mA-5" edge="1" parent="1" style="endArrow=block;html=1;rounded=0;endFill=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="270" y="305" as="sourcePoint" />
+            <mxPoint x="460" y="305" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="8-NNAWgJ6fHZH1UBR2mA-6" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Sucher verwaiste Jobs" vertex="1">
+          <mxGeometry height="30" width="210" x="260" y="275" as="geometry" />
+        </mxCell>
+        <mxCell id="8-NNAWgJ6fHZH1UBR2mA-7" edge="1" parent="1" style="endArrow=open;html=1;rounded=0;endFill=0;dashed=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="460" y="337" as="sourcePoint" />
+            <mxPoint x="270" y="337" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="8-NNAWgJ6fHZH1UBR2mA-8" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="return liste" vertex="1">
+          <mxGeometry height="30" width="210" x="260" y="307" as="geometry" />
+        </mxCell>
+        <mxCell id="8-NNAWgJ6fHZH1UBR2mA-14" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;pointerEvents=0;recursiveResize=0;container=1;collapsible=0;width=50;height=20;" value="loop" vertex="1">
+          <mxGeometry height="74" width="290" x="200" y="356" as="geometry" />
+        </mxCell>
+        <mxCell id="8-NNAWgJ6fHZH1UBR2mA-9" edge="1" parent="8-NNAWgJ6fHZH1UBR2mA-14" style="endArrow=block;html=1;rounded=0;endFill=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="75" y="54" as="sourcePoint" />
+            <mxPoint x="265" y="54" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="8-NNAWgJ6fHZH1UBR2mA-15" parent="8-NNAWgJ6fHZH1UBR2mA-14" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="[für jedes l : liste]" vertex="1">
+          <mxGeometry height="30" width="130" x="50" as="geometry" />
+        </mxCell>
+        <mxCell id="8-NNAWgJ6fHZH1UBR2mA-16" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="l.setzeStatus(queued)" vertex="1">
+          <mxGeometry height="30" width="210" x="260" y="380" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

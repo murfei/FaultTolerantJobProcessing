@@ -1,0 +1,73 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Seite-1" id="LOUJpbyIvQOb_KfzZSz2">
+    <mxGraphModel dx="834" dy="459" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="rtW427vTi4AfloqAvW88-2" parent="1" style="html=1;whiteSpace=wrap;" value="Worker" vertex="1">
+          <mxGeometry height="50" width="110" x="190" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="rtW427vTi4AfloqAvW88-3" edge="1" parent="1" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="rtW427vTi4AfloqAvW88-2" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="245" y="360" as="sourcePoint" />
+            <mxPoint x="390" y="300" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rtW427vTi4AfloqAvW88-4" parent="1" style="html=1;whiteSpace=wrap;" value="Job Store" vertex="1">
+          <mxGeometry height="50" width="110" x="419" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="rtW427vTi4AfloqAvW88-5" edge="1" parent="1" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="rtW427vTi4AfloqAvW88-4" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="474" y="360" as="sourcePoint" />
+            <mxPoint x="619" y="300" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rtW427vTi4AfloqAvW88-11" edge="1" parent="1" style="endArrow=block;html=1;rounded=0;endFill=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="262" y="307" as="sourcePoint" />
+            <mxPoint x="462" y="307" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rtW427vTi4AfloqAvW88-13" edge="1" parent="1" style="endArrow=none;html=1;rounded=0;endFill=0;startArrow=open;startFill=0;dashed=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="260" y="242" as="sourcePoint" />
+            <mxPoint x="460" y="242" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rtW427vTi4AfloqAvW88-14" edge="1" parent="1" style="endArrow=block;html=1;rounded=0;endFill=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="258" y="273" as="sourcePoint" />
+            <mxPoint x="458" y="273" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rtW427vTi4AfloqAvW88-15" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="lock Job" vertex="1">
+          <mxGeometry height="30" width="180" x="271" y="243" as="geometry" />
+        </mxCell>
+        <mxCell id="rtW427vTi4AfloqAvW88-16" edge="1" parent="1" style="endArrow=block;html=1;rounded=0;endFill=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="257" y="211.52999999999997" as="sourcePoint" />
+            <mxPoint x="457" y="211.52999999999997" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rtW427vTi4AfloqAvW88-17" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="find queued Job" vertex="1">
+          <mxGeometry height="30" width="180" x="270" y="181.52999999999997" as="geometry" />
+        </mxCell>
+        <mxCell id="rtW427vTi4AfloqAvW88-18" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="return Job" vertex="1">
+          <mxGeometry height="30" width="60" x="332" y="211.52999999999997" as="geometry" />
+        </mxCell>
+        <mxCell id="rtW427vTi4AfloqAvW88-20" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="update Status = running" vertex="1">
+          <mxGeometry height="30" width="180" x="270" y="276" as="geometry" />
+        </mxCell>
+        <mxCell id="rtW427vTi4AfloqAvW88-23" edge="1" parent="1" style="endArrow=block;html=1;rounded=0;endFill=1;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="260" y="343" as="sourcePoint" />
+            <mxPoint x="460" y="343" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rtW427vTi4AfloqAvW88-24" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Commit" vertex="1">
+          <mxGeometry height="30" width="180" x="268" y="312" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
