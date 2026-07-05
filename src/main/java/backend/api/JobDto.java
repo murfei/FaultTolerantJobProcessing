@@ -1,4 +1,4 @@
-package api;
+package backend.api;
 
 public class JobDto {
 }

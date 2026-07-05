@@ -1,4 +1,4 @@
-package domain;
+package backend.domain;
 
 public enum JobStatus {
 
