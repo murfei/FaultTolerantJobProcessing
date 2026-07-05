@@ -1,6 +1,8 @@
 package backend.domain;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -9,7 +11,7 @@ import java.util.UUID;
 @Table(name = "jobs")
 public class Job {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @Column(nullable = false, unique = true)
@@ -18,6 +20,7 @@ public class Job {
     @Enumerated(EnumType.STRING)
     private JobStatus status;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String payload;
 
@@ -80,6 +83,22 @@ public class Job {
 
     public int getAttempt_count() {
         return attempt_count;
+    }
+
+    public String getPayload() {
+        return payload;
+    }
+
+    public void setPayload(String payload) {
+        this.payload = payload;
+    }
+
+    public JobResult getResult() {
+        return result;
+    }
+
+    public void setResult(JobResult result) {
+        this.result = result;
     }
 
     public void setAttempt_count(int attempt_count) {
