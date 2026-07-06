@@ -11,16 +11,17 @@ import java.util.concurrent.Executors;
 @Component
 public class WorkerManager {
 
-    @Value("${worker.count}")
     private int workerCount;
 
     private final ExecutorService executorService;
     private final WorkerService workerService;
     private final Processor jobProcessor;
 
-    public WorkerManager(WorkerService workerService, Processor jobProcessor) {
+    public WorkerManager(WorkerService workerService, Processor jobProcessor, @Value("${worker.count}") int workerCount) {
         this.workerService = workerService;
         this.jobProcessor = jobProcessor;
+        this.workerCount = workerCount;
+
         this.executorService = Executors.newFixedThreadPool(workerCount);
     }
 

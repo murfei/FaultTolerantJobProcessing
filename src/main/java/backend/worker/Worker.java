@@ -23,9 +23,10 @@ public class Worker implements Runnable {
     @Override
     public void run() {
         while (!Thread.currentThread().isInterrupted()) {
-            Optional<Job> job = workerService.claimNextJob();
+            Optional<Job> job = workerService.claimNextJob(id);
             try {
                 if (job.isEmpty()) {
+                    System.out.println("Thread: " + Thread.currentThread().threadId()+ " No job found");
                     Thread.sleep(1000);
                     continue;
                 }

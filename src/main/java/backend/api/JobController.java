@@ -1,6 +1,6 @@
 package backend.api;
 
-import backend.application.JobService;
+import backend.service.JobService;
 import backend.domain.Job;
 import jakarta.validation.Valid;
 import org.hibernate.annotations.Parameter;

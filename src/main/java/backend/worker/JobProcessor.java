@@ -8,6 +8,6 @@ import org.springframework.stereotype.Component;
 public class JobProcessor implements Processor {
     @Override
     public JobResult process(Job job) {
-        return null;
+        return null; //TODO: Fachlogik
     }
 }
