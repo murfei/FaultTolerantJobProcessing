@@ -24,12 +24,15 @@ public class Job {
     @Column(columnDefinition = "jsonb")
     private String payload;
 
+    @Column(nullable = false)
     private Instant createdAt;
 
+    @Column(nullable = false)
     private Instant updatedAt;
 
     private String claimed_by;
 
+    @Column(nullable = false)
     private int attempt_count;
 
     private Instant lease_until;
