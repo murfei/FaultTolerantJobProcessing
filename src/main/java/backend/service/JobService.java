@@ -1,4 +1,4 @@
-package backend.application;
+package backend.service;
 
 import backend.api.CreateJobRequest;
 import backend.infrastructure.JobFactory;
