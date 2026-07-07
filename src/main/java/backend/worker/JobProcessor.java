@@ -7,7 +7,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class JobProcessor implements Processor {
     @Override
-    public JobResult process(Job job) {
+    public JobResult process(Job job) throws Exception {
+        Thread.sleep(10000);
         return null; //TODO: Fachlogik
     }
 }

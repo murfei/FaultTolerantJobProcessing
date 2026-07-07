@@ -1,15 +1,14 @@
 package backend.api;
 
+import backend.mapper.JobMapper;
 import backend.service.JobService;
 import backend.domain.Job;
 import jakarta.validation.Valid;
-import org.hibernate.annotations.Parameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -35,14 +34,14 @@ public class JobController {
     }
 
     @GetMapping("/job")
-    public ResponseEntity<List<Job>> getJobs() {
-        return ResponseEntity.status(200).body(jobService.getAllJobs());
+    public ResponseEntity<List<JobDto>> getJobs() {
+        return ResponseEntity.status(200).body(jobService.getAllJobs().stream().map(JobMapper::toDTO).toList());
     }
 
     @GetMapping("/job/{id}")
-    public ResponseEntity<Job> getJobs(@PathVariable UUID id) {
+    public ResponseEntity<JobDto> getJobs(@PathVariable UUID id) {
         return jobService.getJobById(id)
-                .map(value -> ResponseEntity.status(200).body(value))
+                .map(value -> ResponseEntity.status(200).body(JobMapper.toDTO(value)))
                 .orElseGet(() -> ResponseEntity.status(404).body(null));
     }
 }

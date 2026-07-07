@@ -5,5 +5,5 @@ import backend.domain.JobResult;
 
 public interface Processor {
 
-    JobResult process(Job job);
+    JobResult process(Job job) throws Exception;
 }

@@ -33,6 +33,8 @@ public class Worker implements Runnable {
                 processor.process(job.get());
             } catch (InterruptedException e) { //TODO: Fehlerbehandlung
                 System.out.println("Worker interrupted");
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
         }
     }
