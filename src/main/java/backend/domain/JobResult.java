@@ -10,8 +10,9 @@ import java.util.UUID;
 public class JobResult {
 
     @Id
-    private UUID id;
+    private UUID jobId;
 
+    @MapsId
     @OneToOne
     @JoinColumn(name = "job_id", nullable = false, unique = true)
     private Job job;
@@ -20,4 +21,21 @@ public class JobResult {
     private String result;
 
     private Instant createdAt;
+
+    public JobResult() {
+    }
+
+    public JobResult(Job job, String result) {
+        this.job = job;
+        this.result = result;
+        this.createdAt = Instant.now();
+    }
+
+    public String getResult() {
+        return result;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
 }

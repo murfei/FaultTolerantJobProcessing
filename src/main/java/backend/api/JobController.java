@@ -1,6 +1,6 @@
 package backend.api;
 
-import backend.mapper.JobMapper;
+import backend.infrastructure.JobMapper;
 import backend.service.JobService;
 import backend.domain.Job;
 import jakarta.validation.Valid;

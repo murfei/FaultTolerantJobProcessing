@@ -1,4 +1,4 @@
-package backend.mapper;
+package backend.infrastructure;
 
 import backend.api.JobDto;
 import backend.domain.Job;

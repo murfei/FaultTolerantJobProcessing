@@ -30,7 +30,7 @@ public class Job {
     @Column(nullable = false)
     private Instant updatedAt;
 
-    private String claimed_by;
+    private UUID claimed_by;
 
     @Column(nullable = false)
     private int attempt_count;
@@ -76,11 +76,11 @@ public class Job {
         this.updatedAt = updatedAt;
     }
 
-    public String getClaimed_by() {
+    public UUID getClaimed_by() {
         return claimed_by;
     }
 
-    public void setClaimed_by(String claimed_by) {
+    public void setClaimed_by(UUID claimed_by) {
         this.claimed_by = claimed_by;
     }
 

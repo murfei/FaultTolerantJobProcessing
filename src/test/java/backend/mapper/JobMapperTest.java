@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.UUID;
 
-import static backend.mapper.JobMapper.toDTO;
+import static backend.infrastructure.JobMapper.toDTO;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class JobMapperTest {
@@ -24,7 +24,7 @@ public class JobMapperTest {
         job.setUpdatedAt(Instant.now());
         job.setAttempt_count(0);
         job.setLease_until(Instant.now());
-        job.setResult(new JobResult());
+        job.setResult(new JobResult(job, "Test"));
 
         JobDto dto = toDTO(job);
         assertEquals(dto.getIdempotencyKey(), job.getIdempotencyKey());

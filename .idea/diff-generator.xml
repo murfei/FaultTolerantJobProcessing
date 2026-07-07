@@ -3,7 +3,7 @@
   <component name="DiffGenerationConfig">
     <option name="snapshotDb" value="false" />
     <option name="snapshotModelValue" value="FaultTolerantJobProcessing:FaultTolerantJobProcessing" />
-    <option name="sourceModelValue" value="FaultTolerantJobProcessing:FaultTolerantJobProcessing" />
+    <option name="sourceModelValue" value="FaultTolerantJobProcessing:entityManagerFactory" />
     <option name="targetDbValue" value="cd336993-a932-476b-a36a-0eac844830cb" />
   </component>
 </project>
