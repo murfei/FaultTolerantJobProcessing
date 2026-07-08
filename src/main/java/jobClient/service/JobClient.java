@@ -2,18 +2,27 @@ package jobClient.service;
 
 import jobClient.dto.*;
 import jobClient.rest.BackendRestClient;
+import jobClient.retry.RetryExecutor;
+import jobClient.retry.RetryPolicy;
 import org.springframework.http.ResponseEntity;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
 public class JobClient {
 
+    private final RetryExecutor retryExecutor;
     private final BackendRestClient client;
 
+    private final int maxAttempts =5;
+    private final Duration delay = Duration.ofMillis(200);
+    private final double backoffFactor = 2;
+
     public JobClient() {
+        this.retryExecutor = new RetryExecutor(new RetryPolicy(maxAttempts, delay, backoffFactor));
         this.client = new BackendRestClient();
     }
 
@@ -25,22 +34,39 @@ public class JobClient {
         jsonObjekt.put("alter", 30);
         jsonObjekt.put("aktiv", true);
         jsonObjekt.putPOJO("hobbys", new String[]{"Laufen", "Zocken"});
-        return client.createJob(new CreateJobRequest(UUID.randomUUID(), mapper.writeValueAsString(jsonObjekt)));
+
+        try {
+            return retryExecutor.execute(() ->
+                    client.createJob(new CreateJobRequest(UUID.randomUUID(), mapper.writeValueAsString(jsonObjekt)))
+            );
+        } catch (Exception e) {
+            System.out.println("Der Job konnte nicht erfolgreich zugestellt werden. Der letzte Fehler war: " + e.getMessage());
+            return null;
+        }
     }
 
     public ResponseEntity<JobResponse> getJob(UUID idempotencyKey){
-        return client.getJob(idempotencyKey);
+        try {
+            return retryExecutor.execute(() ->
+                    client.getJob(idempotencyKey)
+            );
+        } catch (Exception e) {
+            System.out.println("Es konnte keine Antwort vom Server entgegengenommen werden. Die letzte Fehlermeldung lautet: " + e.getMessage());
+            return null;
+        }
     }
 
     public ResponseEntity<List<JobResponse>> getAllJobs(){
-        return client.getAllJobs();
+        try {
+            return retryExecutor.execute(client::getAllJobs);
+        } catch (Exception e) {
+            System.out.println("Es konnte keine Antwort vom Server entgegengenommen werden. Die letzte Fehlermeldung lautet: " + e.getMessage());
+            return null;
+        }
     }
 
     public static void main(String[] args) {
         JobClient client = new JobClient();
         client.createJob();
-//        Job job = client.getJob(UUID.fromString("da24d963-9af3-4db5-893d-bfa8e7d7f5e4")).getBody();
-//        System.out.println(job);
-//TODO: hier in Zukunft den Retry Executor als Zwischenschicht aufrufen, anstatt direkt den BackendRestClient
     }
 }
