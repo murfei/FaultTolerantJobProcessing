@@ -23,6 +23,6 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
     @NativeQuery(value = "SELECT * FROM jobs WHERE status = :#{#status.name()} ORDER BY created_at LIMIT :limit FOR UPDATE SKIP LOCKED")
     Optional<Job> findByStatus(JobStatus status, int limit);
 
-    @Query("select j from Job j where j.status = :status and j.lease_until < :timestamp")
-    List<Job> findByStatusAndLease_untilBefore(JobStatus status, Instant timestamp);
+    @Query("select j.id from Job j where j.status = :status and j.lease_until < :timestamp")
+    List<UUID> findByStatusAndLease_untilBefore(JobStatus status, Instant timestamp);
 }

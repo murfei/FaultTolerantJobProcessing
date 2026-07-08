@@ -7,6 +7,7 @@ import backend.domain.JobResult;
 import backend.domain.JobStatus;
 import backend.repository.JobRepository;
 import backend.repository.JobResultRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,14 +18,16 @@ import java.util.UUID;
 @Service
 public class WorkerService {
 
-    private final int maximumJobDuration = 30;
+
+    private final int maximumJobDuration;
 
     private final JobRepository jobRepository;
     private final JobResultRepository resultRepository;
 
-    public WorkerService(JobRepository repository, JobResultRepository resultRepository) {
+    public WorkerService(JobRepository repository, JobResultRepository resultRepository, @Value( "${job.max-duration}") int maximumJobDuration) {
         this.jobRepository = repository;
         this.resultRepository = resultRepository;
+        this.maximumJobDuration = maximumJobDuration;
     }
 
     @Transactional

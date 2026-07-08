@@ -30,7 +30,7 @@ public class Worker implements Runnable {
                     Thread.sleep(1000);
                     continue;
                 }
-                processor.process(job.get());
+                processor.process(job.get());       //TODO: Überlegen ob Heartbeat sinnvoll ist, oder zumindest als Alternative in Paper erwähnen
             } catch (InterruptedException e) { //TODO: Fehlerbehandlung
                 System.out.println("Worker interrupted");
             } catch (Exception e) {
