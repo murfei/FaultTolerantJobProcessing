@@ -25,7 +25,7 @@ public class JobClientTest {
 
     @Test
     void testCreate(){
-        ResponseEntity<CreateJobResponse> response = client.createJob(); //TODO: anpassen, wenn Idempotenz implementiert ist
+        ResponseEntity<CreateJobResponse> response = client.createJob();
         assert response.getStatusCode().is2xxSuccessful();
         assert response.getBody().getIdempotencyKey() != null;
         assert response.getBody().getStatus() == JobStatus.QUEUED;
@@ -33,9 +33,11 @@ public class JobClientTest {
 
     @Test
     void testGet(){
-        ResponseEntity<JobResponse> response = client.getJob("da24d963-9af3-4db5-893d-bfa8e7d7f5e8");
+        UUID id = client.createJob().getBody().getIdempotencyKey();
+
+        ResponseEntity<JobResponse> response = client.getJob(id);
         assertTrue(response.getStatusCode().is2xxSuccessful());
-        assertEquals(UUID.fromString("da24d963-9af3-4db5-893d-bfa8e7d7f5e8"), response.getBody().getIdempotencyKey());
+        assertEquals(id, response.getBody().getIdempotencyKey());
         assertEquals(JobStatus.QUEUED, response.getBody().getStatus());
     }
 
@@ -49,5 +51,4 @@ public class JobClientTest {
             assert job.getStatus() == JobStatus.QUEUED;
         }
     }
-
 }

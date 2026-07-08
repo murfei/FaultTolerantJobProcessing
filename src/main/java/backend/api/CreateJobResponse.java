@@ -7,16 +7,26 @@ import java.util.UUID;
 
 public class CreateJobResponse {
 
-    private UUID idempotencyKey;
+    private final UUID idempotencyKey;
 
-    private JobStatus status;
+    private final JobStatus status;
 
-    private Instant createdAt;
+    private final Instant createdAt;
+
+    private final String message;
 
     public CreateJobResponse(UUID idempotencyKey, JobStatus status, Instant createdAt) {
         this.idempotencyKey = idempotencyKey;
         this.status = status;
         this.createdAt = createdAt;
+        message = null;
+    }
+
+    public CreateJobResponse(UUID idempotencyKey, JobStatus status, Instant createdAt, String message) {
+        this.idempotencyKey = idempotencyKey;
+        this.status = status;
+        this.createdAt = createdAt;
+        this.message = message;
     }
 
     public UUID getIdempotencyKey() {
@@ -29,5 +39,9 @@ public class CreateJobResponse {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public String getMessage() {
+        return message;
     }
 }

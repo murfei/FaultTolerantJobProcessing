@@ -1,5 +1,6 @@
 package backend.service;
 
+import backend.Exception.IdempotencyException;
 import backend.api.CreateJobRequest;
 import backend.infrastructure.JobFactory;
 import backend.domain.Job;
@@ -19,7 +20,11 @@ public class JobService {
         this.repository = repository;
     }
 
-    public Job createJob(CreateJobRequest request) {
+    public Job createJob(CreateJobRequest request) throws IdempotencyException {
+        Optional<Job> existenceTest = repository.findByIdempotencyKey(request.getIdempotencyKey());
+        if(existenceTest.isPresent()){
+            throw new IdempotencyException(existenceTest.get());
+        }
         Job job = JobFactory.createJob(request);
         repository.save(job);
         return job;

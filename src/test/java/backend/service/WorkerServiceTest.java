@@ -1,5 +1,6 @@
 package backend.service;
 
+import backend.Exception.IdempotencyException;
 import backend.Exception.JobNotFoundException;
 import backend.Exception.LeaseExpiredException;
 import backend.api.CreateJobRequest;
@@ -33,7 +34,7 @@ public class WorkerServiceTest {
     private JobRepository jobRepository;
 
     @Test
-    void JobLifecycleTest() throws JobNotFoundException {
+    void JobLifecycleTest() throws JobNotFoundException, IdempotencyException {
         UUID idempotencyKey = UUID.randomUUID();
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode jsonObjekt = mapper.createObjectNode();

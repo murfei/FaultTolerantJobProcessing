@@ -13,6 +13,8 @@ public class CreateJobResponse {
 
     private final Instant createdAt;
 
+    private String message;
+
     public CreateJobResponse(UUID idempotencyKey, JobStatus status, Instant createdAt) {
         this.idempotencyKey = idempotencyKey;
         this.status = status;
@@ -29,5 +31,9 @@ public class CreateJobResponse {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public String getMessage() {
+        return message;
     }
 }

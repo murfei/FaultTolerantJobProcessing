@@ -28,8 +28,8 @@ public class JobClient {
         return client.createJob(new CreateJobRequest(UUID.randomUUID(), mapper.writeValueAsString(jsonObjekt)));
     }
 
-    public ResponseEntity<JobResponse> getJob(String idempotencyKey){
-        return client.getJob(UUID.fromString(idempotencyKey));
+    public ResponseEntity<JobResponse> getJob(UUID idempotencyKey){
+        return client.getJob(idempotencyKey);
     }
 
     public ResponseEntity<List<JobResponse>> getAllJobs(){

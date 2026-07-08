@@ -1,5 +1,6 @@
 package backend.api;
 
+import backend.Exception.IdempotencyException;
 import backend.infrastructure.JobMapper;
 import backend.service.JobService;
 import backend.domain.Job;
@@ -28,6 +29,10 @@ public class JobController {
             return ResponseEntity
                     .status(HttpStatus.CREATED)
                     .body(new CreateJobResponse(job.getIdempotencyKey(), job.getStatus(), job.getCreatedAt()));
+        } catch (IdempotencyException e){
+            Job job = e.getExistingJob();
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new CreateJobResponse(job.getIdempotencyKey(), job.getStatus(), job.getCreatedAt(), "Job already exists"));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
