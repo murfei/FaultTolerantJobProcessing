@@ -1,6 +1,7 @@
 package backend.worker;
 
 import backend.domain.Job;
+import backend.domain.JobResult;
 import backend.service.WorkerService;
 import org.springframework.stereotype.Component;
 
@@ -27,10 +28,13 @@ public class Worker implements Runnable {
             try {
                 if (job.isEmpty()) {
                     System.out.println("Thread: " + Thread.currentThread().threadId()+ " No job found");
-                    Thread.sleep(1000);
+                    Thread.sleep(2000);
                     continue;
                 }
-                processor.process(job.get());       //TODO: Überlegen ob Heartbeat sinnvoll ist, oder zumindest als Alternative in Paper erwähnen
+                System.out.println("Thread: " + Thread.currentThread().threadId()+ " working on job: " + job.get().getId());
+                JobResult result = processor.process(job.get());       //TODO: Überlegen ob Heartbeat sinnvoll ist, oder zumindest als Alternative in Paper erwähnen
+                workerService.finishJob(job.get().getId(), id, result);
+                System.out.println("Thread: " + Thread.currentThread().threadId()+ " finished job: " + job.get().getId());
             } catch (InterruptedException e) { //TODO: Fehlerbehandlung
                 System.out.println("Worker interrupted");
             } catch (Exception e) {

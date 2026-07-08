@@ -37,7 +37,8 @@ public class JobClient {
     }
 
     public static void main(String[] args) {
-
+        JobClient client = new JobClient();
+        client.createJob();
 //        Job job = client.getJob(UUID.fromString("da24d963-9af3-4db5-893d-bfa8e7d7f5e4")).getBody();
 //        System.out.println(job);
 //TODO: hier in Zukunft den Retry Executor als Zwischenschicht aufrufen, anstatt direkt den BackendRestClient

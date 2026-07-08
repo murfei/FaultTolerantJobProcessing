@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class RecoveryService {
@@ -21,7 +22,7 @@ public class RecoveryService {
         this.recoveryExecutor = recoveryExecutor;
     }
 
-    @Scheduled(fixedDelay = 30000)
+    @Scheduled(fixedDelay = 30, timeUnit = TimeUnit.SECONDS)
     public void recoverCycle() {
         List<UUID> ids = repository.findByStatusAndLease_untilBefore(JobStatus.RUNNING, Instant.now());
         for (UUID id : ids) {

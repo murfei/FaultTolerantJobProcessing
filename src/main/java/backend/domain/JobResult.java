@@ -1,6 +1,8 @@
 package backend.domain;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -17,6 +19,7 @@ public class JobResult {
     @JoinColumn(name = "job_id", nullable = false, unique = true)
     private Job job;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String result;
 
