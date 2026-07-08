@@ -62,7 +62,10 @@ public class WorkerServiceTest {
         //Test finishing job
         Job job = jobRepository.findByIdempotencyKey(idempotencyKey).orElseGet(() -> fail("Job not found"));
         UUID jobId = job.getId();
-        JobResult jobResult = new JobResult(job, "Test");
+        mapper = new ObjectMapper();
+        jsonObjekt = mapper.createObjectNode();
+        jsonObjekt.put("result", "Test");
+        JobResult jobResult = new JobResult(job, mapper.writeValueAsString(jsonObjekt));
 
         assertThrows(JobNotFoundException.class, () -> workerService.finishJob(UUID.randomUUID(), workerId, jobResult));
         assertThrows(IllegalStateException.class, () -> workerService.finishJob(jobId, UUID.randomUUID(), jobResult));
@@ -78,7 +81,7 @@ public class WorkerServiceTest {
         jobRepository.save(job);
         workerService.finishJob(jobId, workerId, jobResult);
         assertEquals(JobStatus.SUCCESSFUL, jobRepository.findByIdempotencyKey(idempotencyKey).get().getStatus());
-        assertEquals("\"" + jobResult.getResult() + "\"", jobRepository.findByIdempotencyKey(idempotencyKey).get().getResult().getResult());
+        assertEquals(jobResult.getResult(), jobRepository.findByIdempotencyKey(idempotencyKey).get().getResult().getResult());
 
     }
 }
