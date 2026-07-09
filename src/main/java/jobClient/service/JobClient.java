@@ -20,10 +20,16 @@ public class JobClient {
     private final int maxAttempts =5;
     private final Duration delay = Duration.ofMillis(200);
     private final double backoffFactor = 2;
+    private final String baseUrl = "http://localhost:8080/api/jobs";
 
     public JobClient() {
         this.retryExecutor = new RetryExecutor(new RetryPolicy(maxAttempts, delay, backoffFactor));
-        this.client = new BackendRestClient();
+        this.client = new BackendRestClient(baseUrl);
+    }
+
+    public JobClient(BackendRestClient client) {
+        this.retryExecutor = new RetryExecutor(new RetryPolicy(maxAttempts, delay, backoffFactor));
+        this.client = client;
     }
 
     public ResponseEntity<CreateJobResponse> createJob() {

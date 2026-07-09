@@ -15,10 +15,9 @@ import java.util.UUID;
 
 public class BackendRestClient {
 
-    private final String baseUrl = "http://localhost:8080/api/jobs";
     private final RestClient restClient;
 
-    public BackendRestClient() {
+    public BackendRestClient(String baseUrl) {
         restClient = RestClient.builder()
                 .baseUrl(baseUrl)
                 .defaultStatusHandler(this::checkRetriable,
@@ -56,7 +55,7 @@ public class BackendRestClient {
     }
 
     private boolean checkRetriable(HttpStatusCode status) {
-        return status.is5xxServerError()
+        return status.is5xxServerError() //TODO: 501 macht kein Sinn zu retrien
                 || status.value() == 408
                 || status.value() == 429;
     }

@@ -19,8 +19,11 @@ public class RetryExecutor {
                 if(!policy.shouldRetry(e, attempt)){
                     throw e;
                 }
+                System.out.println("Last attempt failed with cause: " + e.getMessage());
+                System.out.println("Waiting " + policy.nexDelay(attempt) + "ms for retry...");
                 Thread.sleep(policy.nexDelay(attempt));
                 attempt++;
+                System.out.println("Retrying now in attempt: " + attempt);
             }
         }
     }
