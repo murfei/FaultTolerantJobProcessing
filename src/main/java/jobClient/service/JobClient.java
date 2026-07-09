@@ -10,6 +10,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Scanner;
 import java.util.UUID;
 
 public class JobClient {
@@ -73,6 +74,10 @@ public class JobClient {
 
     public static void main(String[] args) {
         JobClient client = new JobClient();
-        client.createJob();
+        while(true) {
+            Scanner input = new Scanner(System.in);
+            input.next();
+            client.createJob();
+        }
     }
 }

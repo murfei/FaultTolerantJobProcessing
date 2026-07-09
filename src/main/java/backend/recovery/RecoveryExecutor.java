@@ -42,3 +42,7 @@ public class RecoveryExecutor {
         job.setUpdatedAt(Instant.now());
     }
 }
+//TODO: für Paper: ein hängender Worker kann durch Lease-Mechanismus erkannt werden und der geclaimte Job geht nicht
+//      verloren und wird von einem anderen Worker irgendwann ausgeführt. Die Terminierung und der Neustart des
+//      Worker-Prozesses ist jedoch Aufgabe eines externen Orchestrierungstools bzw. Prozessüberwachung
+//      wie bspw. Kubernetes
