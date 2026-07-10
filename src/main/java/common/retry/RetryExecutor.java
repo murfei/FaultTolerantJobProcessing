@@ -1,4 +1,6 @@
-package jobClient.retry;
+package common.retry;
+
+import jobClient.retry.RestMessageRetryPolicy;
 
 import java.util.concurrent.Callable;
 
@@ -20,8 +22,8 @@ public class RetryExecutor {
                     throw e;
                 }
                 System.out.println("Last attempt failed with cause: " + e.getMessage());
-                System.out.println("Waiting " + policy.nexDelay(attempt) + "ms for retry...");
-                Thread.sleep(policy.nexDelay(attempt));
+                System.out.println("Waiting " + policy.nextDelay(attempt) + "ms for retry...");
+                Thread.sleep(policy.nextDelay(attempt));
                 attempt++;
                 System.out.println("Retrying now in attempt: " + attempt);
             }

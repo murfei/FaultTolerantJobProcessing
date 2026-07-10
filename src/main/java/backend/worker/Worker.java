@@ -2,10 +2,14 @@ package backend.worker;
 
 import backend.domain.Job;
 import backend.domain.JobResult;
+import backend.recovery.WorkerRetryPolicy;
 import backend.service.WorkerService;
+import common.retry.RetryExecutor;
+import org.springframework.core.retry.RetryPolicy;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,18 +19,20 @@ public class Worker implements Runnable {
     private final UUID id;
     private final WorkerService workerService;
     private final Processor processor;
+    private final RetryExecutor retryExecutor;
 
     public Worker(WorkerService workerService, Processor processor) {
         this.id = UUID.randomUUID();
         this.workerService = workerService;
         this.processor = processor;
+        this.retryExecutor = new RetryExecutor(new WorkerRetryPolicy(5, Duration.ofMillis(200), 2));
     }
 
     @Override
     public void run() {
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                Optional<Job> job = workerService.claimNextJob(id);
+                Optional<Job> job = retryExecutor.execute(() -> workerService.claimNextJob(id));
                 if (job.isEmpty()) {
                     System.out.println("Thread: " + Thread.currentThread().threadId() + " No job found");
                     if (!sleep(2000)) {
@@ -36,7 +42,7 @@ public class Worker implements Runnable {
                 }
                 System.out.println("Thread: " + Thread.currentThread().threadId() + " working on job: " + job.get().getId());
                 JobResult result = processor.process(job.get());       //TODO: Überlegen ob Heartbeat sinnvoll ist, oder zumindest als Alternative in Paper erwähnen
-                workerService.finishJob(job.get().getId(), id, result);
+                retryExecutor.execute(() -> workerService.finishJob(job.get().getId(), id, result));
                 System.out.println("Thread: " + Thread.currentThread().threadId() + " finished job: " + job.get().getId());
             } catch (DataAccessException e){
                 System.out.println("Database unavailable, retrying in 5 seconds");

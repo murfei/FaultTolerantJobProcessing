@@ -2,8 +2,8 @@ package jobClient.service;
 
 import jobClient.dto.*;
 import jobClient.rest.BackendRestClient;
-import jobClient.retry.RetryExecutor;
-import jobClient.retry.RetryPolicy;
+import common.retry.RetryExecutor;
+import jobClient.retry.RestMessageRetryPolicy;
 import org.springframework.http.ResponseEntity;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -24,12 +24,12 @@ public class JobClient {
     private final String baseUrl = "http://localhost:8080/api/jobs";
 
     public JobClient() {
-        this.retryExecutor = new RetryExecutor(new RetryPolicy(maxAttempts, delay, backoffFactor));
+        this.retryExecutor = new RetryExecutor(new RestMessageRetryPolicy(maxAttempts, delay, backoffFactor));
         this.client = new BackendRestClient(baseUrl);
     }
 
     public JobClient(BackendRestClient client) {
-        this.retryExecutor = new RetryExecutor(new RetryPolicy(maxAttempts, delay, backoffFactor));
+        this.retryExecutor = new RetryExecutor(new RestMessageRetryPolicy(maxAttempts, delay, backoffFactor));
         this.client = client;
     }
 
