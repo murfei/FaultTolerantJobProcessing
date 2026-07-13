@@ -2,14 +2,11 @@ package backend.worker;
 
 import backend.domain.Job;
 import backend.domain.JobResult;
-import backend.recovery.WorkerRetryPolicy;
+import backend.recovery.DBRetryPolicy;
 import backend.service.WorkerService;
 import common.retry.RetryExecutor;
-import org.springframework.core.retry.RetryPolicy;
-import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,7 +22,7 @@ public class Worker implements Runnable {
         this.id = UUID.randomUUID();
         this.workerService = workerService;
         this.processor = processor;
-        this.retryExecutor = new RetryExecutor(new WorkerRetryPolicy(5, Duration.ofMillis(200), 2));
+        this.retryExecutor = new RetryExecutor(new DBRetryPolicy());
     }
 
     @Override
@@ -44,11 +41,6 @@ public class Worker implements Runnable {
                 JobResult result = processor.process(job.get());       //TODO: Überlegen ob Heartbeat sinnvoll ist, oder zumindest als Alternative in Paper erwähnen
                 retryExecutor.execute(() -> workerService.finishJob(job.get().getId(), id, result));
                 System.out.println("Thread: " + Thread.currentThread().threadId() + " finished job: " + job.get().getId());
-            } catch (DataAccessException e){
-                System.out.println("Database unavailable, retrying in 5 seconds");
-                if (!sleep(5000)) {
-                    break;
-                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
