@@ -1,10 +1,10 @@
 <mxfile host="app.diagrams.net">
   <diagram name="Seite-1" id="9o-pnZK1mopi2xikUVWM">
-    <mxGraphModel dx="881" dy="486" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="1414" dy="779" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="AlAiXl2giYOErD8LHMvS-1" parent="1" style="align=left;overflow=fill;html=1;dropTarget=0;whiteSpace=wrap;" value="&lt;div&gt;&amp;nbsp; &amp;nbsp; &amp;nbsp;&amp;lt;&amp;lt;component&amp;gt;&amp;gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;b&gt;User Interface&lt;/b&gt;&lt;/span&gt;&lt;/div&gt;" vertex="1">
+        <mxCell id="AlAiXl2giYOErD8LHMvS-1" parent="1" style="align=left;overflow=fill;html=1;dropTarget=0;whiteSpace=wrap;" value="&lt;div&gt;&amp;nbsp; &amp;nbsp; &amp;nbsp;&amp;lt;&amp;lt;component&amp;gt;&amp;gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;b&gt;Client&lt;/b&gt;&lt;/span&gt;&lt;/div&gt;" vertex="1">
           <mxGeometry height="70" width="140" x="460" y="250" as="geometry" />
         </mxCell>
         <mxCell id="AlAiXl2giYOErD8LHMvS-2" parent="AlAiXl2giYOErD8LHMvS-1" style="shape=component;jettyWidth=8;jettyHeight=4;" value="" vertex="1">
@@ -78,7 +78,7 @@
             <mxPoint x="226.9999999999999" y="140" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="AimKe7W9tFj7USYPK42e-18" parent="AimKe7W9tFj7USYPK42e-24" style="html=1;whiteSpace=wrap;align=left;" value="&lt;div align=&quot;left&quot;&gt;&amp;nbsp; &amp;lt;&amp;lt;module&amp;gt;&amp;gt;&lt;/div&gt;&lt;div align=&quot;left&quot;&gt;&lt;br&gt;&lt;/div&gt;&lt;div align=&quot;left&quot;&gt;&lt;b&gt;&amp;nbsp; &amp;nbsp;Recovery Manager&lt;/b&gt;&lt;/div&gt;" vertex="1">
+        <mxCell id="AimKe7W9tFj7USYPK42e-18" parent="AimKe7W9tFj7USYPK42e-24" style="html=1;whiteSpace=wrap;align=left;" value="&lt;div align=&quot;left&quot;&gt;&amp;nbsp; &amp;lt;&amp;lt;module&amp;gt;&amp;gt;&lt;/div&gt;&lt;div align=&quot;left&quot;&gt;&lt;br&gt;&lt;/div&gt;&lt;div align=&quot;left&quot;&gt;&lt;b&gt;&amp;nbsp; &amp;nbsp;Recovery Service&lt;/b&gt;&lt;/div&gt;" vertex="1">
           <mxGeometry height="50" width="140" x="15" y="200" as="geometry" />
         </mxCell>
         <mxCell id="AimKe7W9tFj7USYPK42e-19" parent="AimKe7W9tFj7USYPK42e-24" style="fontStyle=0;labelPosition=right;verticalLabelPosition=middle;align=left;verticalAlign=middle;spacingLeft=2;" value="" vertex="1">

@@ -1,12 +1,12 @@
 %! Author = murfe
-%! Date = 08.06.2026
+%! Date = 13.07.2026
 
 \chapter{Umsetzung}\label{ch:umsetzung}
 
 \section{Architektur und Design}\label{sec:architektur}
 
 \subsection{Architekturübersicht}%TODO: Titel ändern
-\label{sec:architekturuebersicht}
+\label{subsec:architekturuebersicht}
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/componentDiagram}
@@ -15,81 +15,48 @@
 \end{figure}
 Obwohl das Queue-Based Load Leveling Pattern in der Praxis häufig mit dedizierten Message Brokern implementiert wird, stellt die
 Verwendung einer relationalen Datenbank wie PostgreSQL als Job-Store für das vorliegende System eine architektonisch bewusste Entscheidung dar.
-Durch die Nutzung von PostgreSQL-spezifischen Mechanismen wie SKIP LOCKED in Kombination mit vollen ACID-Transaktionsgarantien lässt sich die von Microsoft (2023)
+Durch die Nutzung von PostgreSQL-spezifischen Mechanismen wie SKIP LOCKED in Kombination mit vollen \gls{acid}-Transaktionsgarantien lässt sich die von Microsoft (2023)
 geforderte Lastverteilung realisieren, ohne die für die Fehlertoleranz kritische atomare Verknüpfung von Job-Status und Fachdaten aufzugeben.
 Es wird in dieser Arbeit also nicht direkt ein Message Broker genutzt, sondern ein eigenes System auf Basis einer relationalen Datenbank umgesetzt, was sich funktional
-stark an den Prinzipien eines Message Brokers orientiert.
-
+stark an den Prinzipien eines Message Brokers orientiert, dabei aber die Vorteile der Konsistenzzusicherungen von Datenbanken nutzt.
 
 „Es ist anzumerken, dass eine verteilte Konsistenz zwischen einem dedizierten Message Broker und einem relationalen Datenspeicher theoretisch auch über ein Two-Phase-Commit-Protokoll
 (2PC) realisiert werden kann.
 In der verteilten Softwarearchitektur gilt 2PC jedoch aufgrund des hohen Koordinations- und Netzwerk-Overheads sowie des inhärent blockierenden Verhaltens
-bei Koordinator-Ausfällen als performanzkritisch und komplex (vgl. Kleppmann 2017, Kap. 9).
+bei Koordinator-Ausfällen als performanz-kritisch und komplex (vgl. Kleppmann 2017, Kap. 9).
 Die Entscheidung für eine rein datenbankgestützte Architektur auf Basis von PostgreSQL wurde daher bewusst getroffen, um die operationelle Komplexität zu minimieren und
-eine atomare Verknüpfung von Job-Status und Fachdaten innerhalb einer einzigen, lokalen ACID-Transaktion ohne verteiltes Konsensprotokoll zu garantieren
-
+eine atomare Verknüpfung von Job-Status und Fachdaten innerhalb einer einzigen, lokalen \gls{acid}-Transaktion ohne verteiltes Konsensprotokoll zu garantieren.
+Für kleine bis mittelgroße Systeme ist das eine valide Wahl, bei großen Systemen kann die Nutzung einer Datenbank auf grund von ... jedoch zu Performanceeinbußen führen. %TODO: hier noch Referenz
 
 Obwohl das kontinuierliche Abfragen eines solchen externen Datenspeichers im Vergleich zu rein lokalen Hauptspeicher-Lösungen Latenzen erzeugt,
 existiert in der verteilten Architektur kein universeller Idealzustand.
-Die Wahl des Zustandsspeichers ist stets ein bewusster Trade-off zwischen maximalem Nachrichtendurchsatz und strikten Garantien zur Fehlerbehebung
+Die Wahl des Zustandsspeichers ist stets ein bewusster Trade-off zwischen maximalem Nachrichtendurchsatz und strikten Garantien zur Fehlerbehebung %TODO: fraglich, ob das so stimmt. Hier den Tradeoff bzw. die Nutzungsgründe nochmal genau prüfen und belegen
 \parencite[Kap.~11, Abschnitt \glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
 
-\subsection{Entwurf der Datenbank}
-\label{sec:datenbankentwurf}
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.8\textwidth]{images/dbSchema}
-    \caption{cap}%TODO: caption
-    \label{fig:dbSchema}
-\end{figure}
-
-Das Führen eines expliziten Zustandsmodells (z. B. \textit{queued}, \textit{running}) in einer persistenten Datenbank ermöglicht es einer neuen oder neu gestarteten Worker-Instanz,
-den letzten konsistenten Zustand nach einem Teilausfall direkt auszulesen und die Verarbeitung ohne Datenverlust wiederaufzunehmen.
-
-Ein naiver Ansatz zur Absicherung eines Hintergrundjobs bestünde darin, die Transaktionsgrenze über den gesamten Lebenszyklus der Job-Ausführung zu spannen.
-Dies bedeutet, dass eine Transaktion geöffnet wird, sobald ein Worker eine Aufgabe akquiriert, und erst schließt, wenn die vollständige Fachlogik abgearbeitet wurde.
-In produktiven Systemen führt dieses Vorgehen jedoch zu dem Phänomen der langlaufenden Transaktionen (Long-Running Transactions), welche die Resilienz des Gesamtsystems massiv gefährden.
-Da Hintergrundprozesse definitionsgemäß zeitintensive oder ressourcenintensive Berechnungen sowie E/A-Operationen kapseln \parencite[vgl.][Kap.~10]{kleppmann_designing_2017},
-würde eine offene Transaktion über diesen gesamten Zeitraum hinweg die zugewiesene Datenbankverbindung blockieren.
-Da relationale Datenbanksysteme wie PostgreSQL Verbindungen über einen limitierten Pool (\textit{Connection Pool}) verwalten, führt eine langanhaltende Belegung durch wenige Worker-Instanzen
-unweigerlich zur Erschöpfung dieser Ressource (\textit{Connection Starvation}).
-Infolgedessen können synchrone Endpunkte, die für schnelle Client-Anfragen ebenfalls Verbindungen aus diesem Pool benötigen, keine Datenbankinteraktionen mehr durchführen, was zu weitreichenden
-Timeouts und einem Systemausfall führt \parencite[vgl.][Kap.~7]{kleppmann_designing_2017}.
-
-Die Transaktionsgrenzen müssen so eng wie möglich gefasst werden, was zu einem dreiphasigen Kontrollfluss im Worker führt:
-
-\begin{enumerate}
-    \item \textbf{Phase 1 (Gekapselte Statussynchronisation):} Der Worker öffnet eine dedizierte, extrem kurzlaufende Transaktion.
-    Innerhalb dieser Grenze wird ein freier Job gesucht, über Sperrverfahren geschützt und dessen Status im Job-Store atomar von queued auf running aktualisiert.
-    Unmittelbar nach dem Schreiben des Status wird die Transaktion committet und die Verbindung an den Pool zurückgegeben.
-    \item \textbf{Phase 2 (Transaktionsfreie Fachlogik):} Die eigentliche Verarbeitung des Jobs (z.~B. das Generieren eines Reports oder der Aufruf einer externen HTTP-Schnittstelle)
-    erfolgt vollständig außerhalb einer offenen Datenbanktransaktion.
-    Das persistente Zustandsmodell im Speicher verhindert in dieser Phase, dass parallele Worker Zugriff auf denselben Job erhalten \parencite[vgl.][Kap.~11]{kleppmann_designing_2017}.
-    \item \textbf{Phase 3 (Gekapselte Abschlussquittierung):} Nach erfolgreicher Beendigung oder nach einem kontrollierten Abbruch der Fachlogik öffnet der Worker eine zweite, separate Kurzzeittransaktion,
-    um den finalen Endzustand (z.~B. success oder failed) in den Job-Store zu schreiben und sofort zu committen.
-\end{enumerate}
-
-
-Um eine Ressourcenerschöpfung durch langlaufende Datenbank-Transaktionen zu verhindern, wird die physische Datenbanksperre auf der Datenbankebene zeitlich von der eigentlichen Job-Ausführung entkoppelt. Ein Worker nutzt einen exklusiven Sperrmechanismus (wie FOR UPDATE SKIP LOCKED) lediglich für die Millisekunden der atomaren Zustandsänderung eines Jobs von \textit{queued} auf \textit{running}. Sofort nach dem Schreiben des neuen Status wird diese isolierte Datenbank-Transaktion geschlossen und die Zeilensperre freigegeben. Die eigentliche, zeitintensive Fachlogik wird anschließend außerhalb einer offenen Transaktion verarbeitet, während das persistente Zustandsmodell im Datenspeicher parallele Zugriffe anderer Worker verhindert (vgl. Kleppmann 2017, Kap. 11).
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.8\textwidth]{images/dbJobClaiming}
-    \caption{cap}%TODO: caption
-    \label{fig:claiming}
-\end{figure}
-
-erläutern, wieso pessimistisches Locking anstatt von optimistischen verfahren --> Für die atomare Reservierung von Jobs ist ein pessimistisches Verfahren vorteilhaft, da konkurrierende
-Zugriffe bereits zum Zeitpunkt der Jobauswahl verhindert werden können.
-Dadurch lässt sich sicherstellen, dass ein Job nur von einer Worker-Instanz gleichzeitig verarbeitet wird. "
-It performs badly if there is high contention (many transactions trying to access the same objects),
-as this leads to a high proportion of transactions needing to abort. If the system is already close
-to its maximum throughput, the additional transaction load from retried transactions can make
-performance worse." \parencite[Kap.~7 Abschnitt \glqq Pessimistic versus optimistic concurrency control\grqq]{kleppmann_designing_2017}
-
-- unique constraint für idempotenz-key
+System sieht wie folgt aus (vgl. \cref{fig:componentDiagram}:
+- Client, der Jobs initiiert und über \gls{rest} an das Backend zur Entgegennahme und Abarbeitung schickt. Im Prototypen lediglich über einen Service umgesetzt, der spezifische Methoden
+    zur Joberstellung bereitstellt. In der Praxis kann dieser Service aber auch über eine \gls{ui} angesprochen werden, ist für ein Testsystem wie im Rahmen der Arbeit aber nicht nötig.
+- Datenbank die die Jobs persistiert und deren Zustände und Ergebnisse verwaltet
+- Eine \gls{rest}-API, die die Jobs vom Client entgegennimmt und mittels eines Services im Job-Store persistiert %TODO: Abkürzung für API?
+- Worker-Komponente, von denen mehrere Instanzen gestartet werden können und die sich aus dem Job-Store die Jobs holen, um sie zu bearbeiten und ein Ergebnis zu generieren
+- Recovery-Service, der den Job-Store periodisch auf verwaiste Jobs überprüft und diese dann zurücksetzt, damit sie nicht hängen bleiben oder verloren gehen und von einem beliebigen Worker erneut versucht werden können
 
 \subsection{Zustandsmodell}
-\label{sec:zustandsmodell}
+\label{subsec:zustandsmodell}
+
+- Grundlage für Z4 und Z5
+– Nutzung eines Zustandsmodells sorgt dafür, dass Datensätze nicht während des kompletten Verarbeitungszyklus gesperrt bleiben müssen, das schont DB-Ressourcen und
+    wirkt sich positiv auf DB-Performance aus
+- Speicherung in der DB als Attribut eines Jobs (vgl. \cref{subsec:datenbankentwurf})
+- Es sollen 4 Zustände eines Jobs existieren: Queued, für angelegte Jobs, die momentan nicht bearbeitet werden und von Workern zur Verarbeitung geclaimt werden können; Running für Jobs
+    die zur Zeit von einem Worker bearbeitet werden, diese dürfen also von keinem weiteren Worker beansprucht werden; 2 Endzustände zum einen Succeded, wenn ein Job erfolgreich abgeschlossen wurde
+    und das Ergebnis persistent in der DB steht und zum anderen Failed für Jobs, die nicht erfolgreich bearbeitet oder gespeichert werden konnten. Jobs im Zustand Failed sind endgültig
+    fehlgeschlagen und werden nicht mehr automatisch neu ausgeführt. Die Aufmerksamkeit eines Users ist erforderlich.
+- Zustandsübergänge: Kommt in ein neuer Job im Backend an, persistiert der Service diesen in der DB und setzt den Zustand auf Queued. Sobald ein Worker den Job claimed, versetzt er den Job
+    in den Zustand Running. Von Running gibt es 3 mögliche Übergänge: Beendet der Worker den Job erfolgreich, setzt dieser den Zustand auf Succeded. Kommt es bei der Verarbeitung zu einem Fehler
+    oder bleibt kommt der Worker bei der Bearbeitung eines Jobs nicht weiter, entscheidet der RecoveryService über das weitere Vorgehen. Ist ein erneuter Ausführungsversuch sinnvoll,
+    setzt er den Job zurück auf den Zustand Queued, sodass ein Worker diesen erneut claimen kann. Andernfalls wird der Job in den Zustand Failed versetzt und wird nicht weiter vom System verarbeitet
+
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/statusmodell}
@@ -97,8 +64,44 @@ performance worse." \parencite[Kap.~7 Abschnitt \glqq Pessimistic versus optimis
     \label{fig:statusmodell}
 \end{figure}
 
+\subsection{Entwurf der Datenbank}
+\label{subsec:datenbankentwurf}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/dbSchema}
+    \caption{cap}%TODO: caption
+    \label{fig:dbSchema}
+\end{figure}
+
+- jobs brauchen zusätzlich zu einer eindeutigen id die von der db kommt eine id die vom client kommt, um doppelte anfragen des gleichen jobs erkennen zu können
+    und somit die idempotenz sicherzustellen
+- der inhalt der eigentlichen Anfrage (payload) muss persistiert werden
+- zur umsetzung des statusmodells ist die haltung eines status je job nötig
+- created\_at, damit sichergestellt wird, dass alle jobs bearbeitet werden indem nach alter sortiert wird (sonst könnte es passieren, dass immer nur die neusten jobs bearbeitet werden
+    und alte jobs liegen bleiben)
+- claimed\_by Zuordnung eines Jobs zu genau einem Worker --> wichtig um spätere idempotente Ergebnisspeicherung sicherstellen zu können
+- attempt\_count für Recovery und um unendliche Neuversuche eines nichtfunktionierenden Jobs sicherzustellen
+- lease\_until zur Umsetzung zeitbasierter Leases um dadurch verwaiste Jobs zu erkennen
+- zu jedem Job gehört höchstens ein Ergebnis (Idempotenz), sofern ein Job noch nicht bearbeitet wurde existiert aber noch keins, daher 0-1
+- ein Ergebnis gehört zu genau einem Job
+- DB kann je nach Anwendungskontext beliebig erweitert werden und auch für weitere Zwecke der Anwendung verwendet werden. D.h. es kann auch eine bestehende DB genutzt werden, um den Job-Store
+    umzusetzen. Das hier genutzte Schema stellt das Mindestmaß an Attributen dar, dass zu der in der Arbeit behandelten Fehlertoleranz notwendig ist
+
 \subsection{Erstellung von Jobs}
 \label{sec:joberstellung}
+
+- Z1-Z3
+- Client sendet eine request an backend über \gls{rest}
+- request besteht aus payload (der eigentlichen durchzuführenden Arbeit) und einem idempotency-key
+- der key wird vom client erzeugt und ist wichtig, um sicherzustellen, dass falls der client einen retry der Zustellung versucht, obwohl der Job bereits angekommen ist
+    (Im Fall dass das Acknowledgement verloren geht), das backend erkennen kann, dass der Job bereits existiert und eine doppelte Speicherung verhindert wird (Z3))
+- die api gibt die request an einen service weiter
+- service prüft, ob der idempotenyc-key bereits existiert (Z3)
+- falls nein, persistiert der Service den Job, gibt den erstellten Job an die API zurück und diese liefert den Statuscode 201 CREATED an den Client zurück
+- falls ja, wirft der service eine exception, die api fängt diese und schickt den statuscode 200 als Information, dass der Job bereits persistiert wurde (Z3)
+- falls service die db nicht erreicht muss dieser das Erstellen Retrien mit Backoff
+- Erst wenn der job erstellt wurde oder bereits existiert wird dem Client ein 200er Statuscode gesendet. Im Fehlerfall wird ein 500er Code gesendet (Z1, Z2)
+
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/jobannahmeSequenzdiagramm}
@@ -106,7 +109,58 @@ performance worse." \parencite[Kap.~7 Abschnitt \glqq Pessimistic versus optimis
     \label{fig:jobannahme}
 \end{figure}
 
-\subsection{Verarbeitung durch Worker}
+\subsection{Retry-Strategie}
+\label{subsec:retryStrategie}
+rest-retry
+worker-retry
+retry-policy
+exponential backoff
+welche fehler werden behandelt
+wieso diese Fehler
+
+\subsection{Transaktionsmodell}
+\label{subsec:transaktionsmodell}
+Ein naiver Ansatz zur Absicherung eines Hintergrundjobs bestünde darin, die Transaktionsgrenze über den gesamten Lebenszyklus der Job-Ausführung zu spannen.
+Dies bedeutet, dass eine Transaktion geöffnet wird, sobald ein Worker eine Aufgabe akquiriert, und erst schließt, wenn die vollständige Fachlogik abgearbeitet wurde.
+Wie in \cref{subsec:transaktionsgrenzen} verdeutlicht, wirkt sich eine solche Strategie aber schlecht auf die Leistung des Systems aus.
+Da Hintergrundprozesse definitionsgemäß zeitintensive oder ressourcenintensive Berechnungen sowie E/A-Operationen kapseln \parencite[vgl.][Kap.~10]{kleppmann_designing_2017},
+würde eine offene Transaktion über diesen gesamten Zeitraum hinweg die zugewiesene Datenbankverbindung blockieren.
+Die Transaktionsgrenzen sollten daher so weit wie nötig aber so eng wie möglich gefasst werden.
+Eine mögliche Umsetzung, die ihren Fokus auf Verhinderung der Entstehung von Anomalien legt, gleichzeitig aber versucht größtmögliche Parallelität zu gewährleisten,
+besteht in einem dreiphasigen Ablauf, der Datenbanksperren und das Statusmodell aus \cref{subsec:zustandsmodell} kombiniert:
+
+\begin{enumerate} %TODO: Numerierung ist hier Quatsch
+    \item \textbf{Phase 1 (Gekapselte Statussynchronisation):} Der Worker öffnet eine dedizierte, extrem kurzlaufende Transaktion.
+    Innerhalb dieser Grenze wird ein freier Job gesucht, über Sperrverfahren geschützt und dessen Status im Job-Store atomar von queued auf running aktualisiert.
+    Unmittelbar nach dem Schreiben des Status wird die Transaktion committet und die Verbindung an den Pool zurückgegeben.
+    \item \textbf{Phase 2 (Transaktionsfreie Fachlogik):} Die eigentliche Verarbeitung des Jobs (z.~B. das Generieren eines Reports oder der Aufruf einer externen HTTP-Schnittstelle)
+    erfolgt vollständig außerhalb einer offenen Datenbanktransaktion.
+    Das persistente Zustandsmodell im Speicher verhindert in dieser Phase, dass parallele Worker Zugriff auf denselben Job erhalten \parencite[vgl.][Kap.~11]{kleppmann_designing_2017}.
+    \item \textbf{Phase 3 (Gekapselte Abschlussquittierung):} Nach erfolgreicher Beendigung oder nach einem kontrollierten Abbruch der Fachlogik öffnet der Worker bzw. der Recoveryservice
+    eine zweite, separate Kurzzeittransaktion, um den finalen Endzustand (z.~B. success oder failed) inklusive Ergebnis im Erfolgsfall in den Job-Store zu schreiben und sofort zu committen (Z7 erfordert gemeinsame Transaktion für diese Änderungen).
+\end{enumerate}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth]{images/dbJobClaiming}
+    \caption{cap}%TODO: caption
+    \label{fig:claiming}
+\end{figure}
+
+erläutern, wieso pessimistisches Locking anstatt von optimistischen verfahren --> Für die atomare Reservierung von Jobs ist ein pessimistisches Verfahren vorteilhaft, da konkurrierende
+Zugriffe bereits zum Zeitpunkt der Jobauswahl verhindert werden können.
+Dadurch lässt sich sicherstellen, dass ein Job nur von einer Worker-Instanz gleichzeitig verarbeitet wird.
+"It performs badly if there is high contention (many transactions trying to access the same objects),
+as this leads to a high proportion of transactions needing to abort. If the system is already close
+to its maximum throughput, the additional transaction load from retried transactions can make
+performance worse." \parencite[Kap.~7 Abschnitt \glqq Pessimistic versus optimistic concurrency control\grqq]{kleppmann_designing_2017}
+Wie in \cref{subsec:synchronisation} erläutert eignen sich optimistische Synchronisationsverfahren vor allem für Systeme, in denen wenig konkurrierende Änderungen erwartet werden.
+Im Rahmen der Arbeit werden pessimistische Sperrverfahren genutzt, da die Jobs abhängig vom Erstellungszeitpunkt (älteste zuerst) bearbeitet werden.
+Daher sind konkurrierende Statusänderungen wahrscheinlich.
+
+Verwendung einer zentralen Datenbank für Ergebnis und Job-Store hat den Vorteil, dass alles in lokalen ACID-Transaktionen umgesetzt werden kann und keine verteilten Transaktionen erforderlich sind
+
+\subsection{Verarbeitung und Fertigstellen}
 \label{sec:jobverarbeitung}
 \begin{figure}[h]
     \centering
@@ -114,29 +168,33 @@ performance worse." \parencite[Kap.~7 Abschnitt \glqq Pessimistic versus optimis
     \caption{cap}%TODO: caption
     \label{fig:jobverarbeitung}
 \end{figure}
+- Z7 erfordert Transaktionales Modell für das Beenden eines Jobs (update status und ergebnis speichern) um Atomarität zu gewährleisten
 Idempotente verarbeitung:
-- nicht mehrere worker dürfen sich den gleichen job ziehen --> muss synchronisiert werden und ein statusmodell existieren, wobei die reservierung atomar passieren muss,
---> relationale datenbank mit strikten acid-garantien/isolation levels
-- nach absturz eines workers muss eine erneute ausführung zum gleichen ergebnis kommen was die erste ausführung erhalten hätte --> dafür müssen die daten, auf denen die
-fachliche operation aufbaut unverändert vorliegen --> transaktionales modell, wenn prozess abstürzt dürfen keine halb aktualisierten daten zurück bleiben
-
-\subsection{Parallelität}
-\label{sec:parallelitaet}
+- Z8 erfordert Idempotenz bei der Ergebnisgenerierung. Das in \cref{subsec:transaktionsmodell} beschriebene Claiming verhindert, dass 2 Worker einen Job mit Status Queued gleichzeitig
+    claimen. Im Revcovery-Fall kann es jedoch passieren, dass ein Job der noch Verarbeitet wird, zurück auf den Status Queued gesetzt wird, weil der Worker zu lange gebraucht hat.
+    In dem Fall kann es passieren, dass 2 Worker den Job gleichzeitig bearbeiten. Damit die Idempotenz sichergestellt werden kann, muss sichergestellt werden, dass nur
+    der Worker ein Ergebnis speichern darf, der den Job laut Job-Store besitzt. %TODO: theoretisch egal, weil payload bleibt unverändert und dann sollte das gleiche Ergebnis rauskommen --> nochmal überlegen
+- nach absturz eines workers darf eine erneute ausführung nicht von einer vorher angefangenen Verabreitung beeinflusst werden --> dafür müssen die daten, auf denen die
+    fachliche operation aufbaut (vgl. payload im Datenbankentwurf) unverändert vorliegen --> payload muss mind. bis erfolgreiche Beendigung vorliegen; transaktionales modell,
+    wenn prozess abstürzt dürfen keine halb aktualisierten daten zurück bleiben (Z7)
 
 \subsection{Recovery}
 \label{subsec:recoveryarchitektur}
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/recoverySequenz}
+    \includegraphics[width=0.5\textwidth]{images/recoverySequenz}
     \caption{cap}%TODO: caption
     \label{fig:recovery}
 \end{figure}
-Einen Message Consumer Idempotent machen \parencite[Kap.6.1.6]{richardson_microservices_2018}
-Statusmodell: "Consumers may crash at any time, so it could happen that a broker delivers a message to a consumer
-but the consumer never processes it, or only partially processes it before crashing. In order to
-ensure that the message is not lost, message brokers use \textit{acknowledgments}: a client must
-explicitly tell the broker when it has finished processing a message so that the broker can remove
-it from the queue." \parencite[Kap.~11, Abschnitt\glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}
+- periodisch prüfen, ob Jobs exisiteren, die auf running stehen, aber deren Lease abgelaufen ist. Solche jobs werden dann zurückgesetzt. Dabei wird der Status auf Queued
+    gesetzt und claimed\_by und lease\_until werden auch zurückgesetzt. Ist der attempt\_count zu hoch,d.h. wurde schon zu oft retried, wird der Job auf failed gesetzt und
+    er wird nicht mehr erneut ausgeführt. Dadurch werden Jobs trotz Fehler durch hängengebliebene oder abgestürzte Worker erneut ausgeführt.
+- behandelt werden dadurch: Worker crash, JVM crash, Container neustarts, hängende Worker
+ein hängender Worker kann durch Lease-Mechanismus erkannt werden und der geclaimte Job geht nicht
+verloren und wird von einem anderen Worker irgendwann ausgeführt. Die Terminierung und der Neustart des
+Worker-Prozesses ist jedoch Aufgabe eines externen Orchestrierungstools bzw. Prozessüberwachung
+wie bspw. Kubernetes
+%TODO: falls kein Heartbeat, hier erklären wieso
 
 recovery manager setzt einen noch bearbeiteten job zurück und neuer worker beansprucht diesen --> dadurch arbeiten 2 worker an einen job.
 idempotenz durch fencing tokens sicherstellen
@@ -177,7 +235,7 @@ Pro Kapitel eine solche Tabelle um zu erklären welche Architekturentscheidung g
         Keine doppelten Jobs & UNIQUE(idempotency\_key) \\
         Genau ein Zustand & status ENUM \\
         Gültige Übergänge & Anwendung + Transaktionen \\
-        Exklusive Verarbeitung & claimed\_by + lease\_until + atomisches Claiming \\
+        Exklusive Verarbeitung & claimed\_by + lease\_until + atomares Claiming \\
         Kein zweites Ergebnis & 1:1-Beziehung Job <-> JobResult \\
         Recovery & lease\_until \\
         Retry & retry\_count + next\_retry\_at \\

@@ -234,13 +234,18 @@ Dadurch steigt die Wahrscheinlichkeit, dass konkurrierende Transaktionen aufeina
 Zum anderen können langlaufende Transaktionen die Bereinigung alter Datenversionen verzögern, da diese weiterhin für aktive Transaktionen sichtbar bleiben müssen
 \parencite[Kap.~24.1.2]{the_postgresql_global_development_group_hrsg_postgresql_2026}.
 Dies erhöht den Ressourcenbedarf des Datenbanksystems und kann dessen Leistungsfähigkeit beeinträchtigen.
+%Da relationale Datenbanksysteme wie PostgreSQL Verbindungen über einen limitierten Pool (\textit{Connection Pool}) verwalten, führt eine langanhaltende Belegung durch wenige Worker-Instanzen
+%unweigerlich zur Erschöpfung dieser Ressource (\textit{Connection Starvation}).
+%Infolgedessen können synchrone Endpunkte, die für schnelle Client-Anfragen ebenfalls Verbindungen aus diesem Pool benötigen, keine Datenbankinteraktionen mehr durchführen, was zu weitreichenden
+%Timeouts und einem Systemausfall führt \parencite[vgl.][Kap.~7]{kleppmann_designing_2017}. TODO: diese Aussagen nochmal prüfen und passend integrieren
 
 Im Software-Entwurf erfordert das Setzen der Transaktionsgrenzen daher eine kontinuierliche Abwägung zwischen der Systemperformance und dem Schutz vor Datenanomalien.
 Weit gefasste Transaktionsgrenzen reduziert das Risiko der Entstehung von Inkonsistenzen, blockieren jedoch Systemressourcen und Datensätze.
 Eng gefasste Grenzen erhöhen den Durchsatz, können jedoch das Risiko konkurrierender Zugriffe und daraus resultierender Race Conditions erhöhen.
 
 \subsection{Isolationsstufen und Synchronisationsverfahren}
-\label{subsec:synchronisation}
+\label{subsec:synchronisation}%TODO:Unterschiedung Isolationlevel & Sperren klarstellen --> Sperren sind eine Möglichkeiten wie die DB Isolationlevel umzusetzen kann, man kann
+                                %sie aber auch explizit nutzen
 Zur Umsetzung der Isolationseigenschaft von Transaktionen müssen konkurrierende Zugriffe auf gemeinsame Daten koordiniert werden.
 Zu diesem Zweck stellen Datenbanksysteme unterschiedliche Isolationsstufen bereit.
 Diese schwächen Teile der \gls{acid}-Garantien bewusst ab und legen damit fest, in welchem Umfang Transaktionen die Änderungen parallel laufender Transaktionen beobachten
