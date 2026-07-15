@@ -1,45 +1,55 @@
 %! Author = murfe
-%! Date = 13.07.2026
+%! Date = 15.07.2026
 
 \chapter{Umsetzung}\label{ch:umsetzung}
 
 \section{Architektur und Design}\label{sec:architektur}
 
-\subsection{Architekturübersicht}%TODO: Titel ändern
-\label{subsec:architekturuebersicht}
+\subsection{Architekturentwurf}
+\label{subsec:architekturentwurf}
+Eine verbreitete Variante, das Queue-Based Load Leveling Pattern für Nachrichten, oder wie im Fall dieser Arbeit für Jobs, umzusetzen,
+ist die Implementierung mithilfe dedizierter Message Broker \parencite[Kap.~11 Abschnitt \glqq Message brokers\grqq]{kleppmann_designing_2017}.
+Damit keine Jobs verloren gehen und keine doppelten oder inkonsistenten Ergebnisse entstehen, strebt das System eine Exactly-Once Semantik an.
+Für das im Rahmen dieser Arbeit entwickelte System wird daher bewusst eine relationale PostgreSQL-Datenbank als zentraler Job-Store gewählt.
+Durch die Nutzung PostgreSQL-spezifischer Mechanismen wie \textit{SKIP LOCKED} in Kombination mit den vollständigen \gls{acid}-Transaktionsgarantien relationaler Datenbanken
+lässt sich ein Großteil der in \cref{ch:anforderungen} erhobenen Anforderungen mittels der inhärenten Datenbankfunktionen realisieren.
+Die Datenbank übernimmt dabei nicht ausschließlich die Rolle eines persistenten Datenspeichers, sondern fungiert gleichzeitig als Warteschlange sowie als Synchronisationsmechanismus zwischen konkurrierenden Workern.
+Funktional orientiert sich die Architektur somit an den Prinzipien eines klassischen Message Brokers, nutzt jedoch die Konsistenzgarantien einer relationalen Datenbank als Grundlage
+für die Umsetzung der definierten Zusicherungen.
+
+Die Wahl eines datenbankbasierten Job-Stores stellt einen bewussten Architektur-Trade-off dar.
+Im Vergleich zu In-Memory-basierten Messaging-Systemen entstehen durch den permanenten Zugriff auf einen externen persistenten Datenspeicher zusätzliche Latenzen und ein geringerer maximaler Nachrichtendurchsatz.
+Demgegenüber ermöglicht die relationale Datenbank jedoch eine dauerhafte Speicherung sämtlicher Jobs sowie atomare Zustandsübergänge und eine konsistente Wiederherstellung des Systemzustands nach Fehlern.
+Zusätzlich bietet eine relationale Datenbank mehr Sicherheiten vor verloren gegangenen Jobs, als typische In-Memory Message Broker, die dafür aufwändige Mechanismen benötigen.
+Die Haltung des Jobstatus in einer Datenbank hat außerdem für sehr rechenintensive Operationen den Vorteil, dass eine angefangene Operation nach einem Teilausfall sehr einfach fortgesetzt werden kann,
+anstatt den Job vollständig neu starten zu müssen, indem vor der Wiederaufnahme der letzte bekannte Status in der Datenbank nachgeschaut wird
+\parencite[Kap.~11, Abschnitt \glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
+Gerade für kleine bis mittelgroße Systeme stellt dies eine geeignete und praktikable Architektur dar, wenn ein Jobverlust nicht in Kauf genommen werden kann, da auf eine aufwändige Clusterstruktur zur Absicherung von
+Jobverlusten verzichtet werden kann \parencite[Kap.~8 Abschnitt \glqq HowBrokers Work (In A Nutshell)\grqq]{newman_building_2026}.
+
+Die resultierende Gesamtarchitektur ist in \cref{fig:componentDiagram} dargestellt.
+Der Client bildet den Einstiegspunkt des Systems und erzeugt neue Jobs, die über eine \gls{rest}-Schnittstelle an das Backend übertragen werden.
+Im Rahmen des entwickelten Prototyps erfolgt dies lediglich direkt über einen Service, der die Kommunikation mit dem Backend-\gls{api} kapselt.
+In der Praxis kann diese Komponente jedoch ebenso durch eine grafische Benutzeroberfläche oder ein beliebiges externes Anwendungssystem angesprochen werden.
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/componentDiagram}
-    \caption{cap}%TODO: caption
+    \caption{Abstrakte Architektur des entwickelten Systems}
     \label{fig:componentDiagram}
 \end{figure}
-Obwohl das Queue-Based Load Leveling Pattern in der Praxis häufig mit dedizierten Message Brokern implementiert wird, stellt die
-Verwendung einer relationalen Datenbank wie PostgreSQL als Job-Store für das vorliegende System eine architektonisch bewusste Entscheidung dar.
-Durch die Nutzung von PostgreSQL-spezifischen Mechanismen wie SKIP LOCKED in Kombination mit vollen \gls{acid}-Transaktionsgarantien lässt sich die von Microsoft (2023)
-geforderte Lastverteilung realisieren, ohne die für die Fehlertoleranz kritische atomare Verknüpfung von Job-Status und Fachdaten aufzugeben.
-Es wird in dieser Arbeit also nicht direkt ein Message Broker genutzt, sondern ein eigenes System auf Basis einer relationalen Datenbank umgesetzt, was sich funktional
-stark an den Prinzipien eines Message Brokers orientiert, dabei aber die Vorteile der Konsistenzzusicherungen von Datenbanken nutzt.
+Die \gls{rest}-\gls{api} dient als Schnittstelle des Backends zur Erstellung neuer Jobs.
+Sie nimmt eingehende Anfragen entgegen, validiert diese und delegiert sie an die Servicelogik, welche für die Persistierung neuer Jobs sowie die Verwaltung ihrer Zustände verantwortlich ist.
+Alle Jobs werden anschließend im zentralen Job-Store gespeichert, der neben den eigentlichen Jobdaten auch den aktuellen Bearbeitungszustand sowie gegebenenfalls erzeugte Ergebnisse enthält.
 
-„Es ist anzumerken, dass eine verteilte Konsistenz zwischen einem dedizierten Message Broker und einem relationalen Datenspeicher theoretisch auch über ein Two-Phase-Commit-Protokoll
-(2PC) realisiert werden kann.
-In der verteilten Softwarearchitektur gilt 2PC jedoch aufgrund des hohen Koordinations- und Netzwerk-Overheads sowie des inhärent blockierenden Verhaltens
-bei Koordinator-Ausfällen als performanz-kritisch und komplex (vgl. Kleppmann 2017, Kap. 9).
-Die Entscheidung für eine rein datenbankgestützte Architektur auf Basis von PostgreSQL wurde daher bewusst getroffen, um die operationelle Komplexität zu minimieren und
-eine atomare Verknüpfung von Job-Status und Fachdaten innerhalb einer einzigen, lokalen \gls{acid}-Transaktion ohne verteiltes Konsensprotokoll zu garantieren.
-Für kleine bis mittelgroße Systeme ist das eine valide Wahl, bei großen Systemen kann die Nutzung einer Datenbank auf grund von ... jedoch zu Performanceeinbußen führen. %TODO: hier noch Referenz
+Die eigentliche Verarbeitung erfolgt durch mehrere parallel arbeitende Worker.
+Jeder Worker beansprucht einen Job exklusiv aus dem Job-Store, verarbeitet dessen Nutzdaten und speichert das erzeugte Ergebnis anschließend wieder in der Datenbank.
+Da sämtliche Worker auf denselben Job-Store zugreifen, kann die Verarbeitung horizontal skaliert werden, ohne dass eine direkte Kommunikation zwischen den einzelnen Workern erforderlich ist.
 
-Obwohl das kontinuierliche Abfragen eines solchen externen Datenspeichers im Vergleich zu rein lokalen Hauptspeicher-Lösungen Latenzen erzeugt,
-existiert in der verteilten Architektur kein universeller Idealzustand.
-Die Wahl des Zustandsspeichers ist stets ein bewusster Trade-off zwischen maximalem Nachrichtendurchsatz und strikten Garantien zur Fehlerbehebung %TODO: fraglich, ob das so stimmt. Hier den Tradeoff bzw. die Nutzungsgründe nochmal genau prüfen und belegen
-\parencite[Kap.~11, Abschnitt \glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
-
-System sieht wie folgt aus (vgl. \cref{fig:componentDiagram}:
-- Client, der Jobs initiiert und über \gls{rest} an das Backend zur Entgegennahme und Abarbeitung schickt. Im Prototypen lediglich über einen Service umgesetzt, der spezifische Methoden
-    zur Joberstellung bereitstellt. In der Praxis kann dieser Service aber auch über eine \gls{ui} angesprochen werden, ist für ein Testsystem wie im Rahmen der Arbeit aber nicht nötig.
-- Datenbank die die Jobs persistiert und deren Zustände und Ergebnisse verwaltet
-- Eine \gls{rest}-API, die die Jobs vom Client entgegennimmt und mittels eines Services im Job-Store persistiert %TODO: Abkürzung für API?
-- Worker-Komponente, von denen mehrere Instanzen gestartet werden können und die sich aus dem Job-Store die Jobs holen, um sie zu bearbeiten und ein Ergebnis zu generieren
-- Recovery-Service, der den Job-Store periodisch auf verwaiste Jobs überprüft und diese dann zurücksetzt, damit sie nicht hängen bleiben oder verloren gehen und von einem beliebigen Worker erneut versucht werden können
+Ergänzt wird die Architektur durch einen Recovery-Service, der den Job-Store periodisch auf verwaiste Jobs überprüft.
+Kann ein Worker einen bereits beanspruchten Job aufgrund eines Fehlers oder Absturzes nicht erfolgreich abschließen, erkennt der Recovery-Service anhand des abgelaufenen Lease,
+dass die Bearbeitung nicht abgeschlossen wurde.
+Der Status des betroffenen Jobs wird, sofern der Recovery-Service eine erneute Bearbeitung für sinnvoll erachtet, zurückgesetzt und steht damit einem beliebigen Worker erneut zur Bearbeitung zur Verfügung.
+Auf diese Weise wird verhindert, dass Jobs dauerhaft im Zustand \texttt{RUNNING} verbleiben oder infolge eines Worker-Ausfalls verloren gehen.
 
 \subsection{Zustandsmodell}
 \label{subsec:zustandsmodell}
@@ -97,7 +107,7 @@ System sieht wie folgt aus (vgl. \cref{fig:componentDiagram}:
     (Im Fall dass das Acknowledgement verloren geht), das backend erkennen kann, dass der Job bereits existiert und eine doppelte Speicherung verhindert wird (Z3))
 - die api gibt die request an einen service weiter
 - service prüft, ob der idempotenyc-key bereits existiert (Z3)
-- falls nein, persistiert der Service den Job, gibt den erstellten Job an die API zurück und diese liefert den Statuscode 201 CREATED an den Client zurück
+- falls nein, persistiert der Service den Job, gibt den erstellten Job an die \gls{api} zurück und diese liefert den Statuscode 201 CREATED an den Client zurück
 - falls ja, wirft der service eine exception, die api fängt diese und schickt den statuscode 200 als Information, dass der Job bereits persistiert wurde (Z3)
 - falls service die db nicht erreicht muss dieser das Erstellen Retrien mit Backoff
 - Erst wenn der job erstellt wurde oder bereits existiert wird dem Client ein 200er Statuscode gesendet. Im Fehlerfall wird ein 500er Code gesendet (Z1, Z2)
@@ -109,16 +119,7 @@ System sieht wie folgt aus (vgl. \cref{fig:componentDiagram}:
     \label{fig:jobannahme}
 \end{figure}
 
-\subsection{Retry-Strategie}
-\label{subsec:retryStrategie}
-rest-retry
-worker-retry
-retry-policy
-exponential backoff
-welche fehler werden behandelt
-wieso diese Fehler
-
-\subsection{Transaktionsmodell}
+\subsection{Exklusive Verarbeitung und Transaktionsmodell}
 \label{subsec:transaktionsmodell}
 Ein naiver Ansatz zur Absicherung eines Hintergrundjobs bestünde darin, die Transaktionsgrenze über den gesamten Lebenszyklus der Job-Ausführung zu spannen.
 Dies bedeutet, dass eine Transaktion geöffnet wird, sobald ein Worker eine Aufgabe akquiriert, und erst schließt, wenn die vollständige Fachlogik abgearbeitet wurde.
@@ -158,10 +159,10 @@ Wie in \cref{subsec:synchronisation} erläutert eignen sich optimistische Synchr
 Im Rahmen der Arbeit werden pessimistische Sperrverfahren genutzt, da die Jobs abhängig vom Erstellungszeitpunkt (älteste zuerst) bearbeitet werden.
 Daher sind konkurrierende Statusänderungen wahrscheinlich.
 
-Verwendung einer zentralen Datenbank für Ergebnis und Job-Store hat den Vorteil, dass alles in lokalen ACID-Transaktionen umgesetzt werden kann und keine verteilten Transaktionen erforderlich sind
+Verwendung einer zentralen Datenbank für Ergebnis und Job-Store hat den Vorteil, dass alles in lokalen \gls{acid}-Transaktionen umgesetzt werden kann und keine verteilten Transaktionen erforderlich sind
 
-\subsection{Verarbeitung und Fertigstellen}
-\label{sec:jobverarbeitung}
+\subsection{Idempotente Verarbeitung}
+\label{sec:idempotenteverarbeitung}
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/jobVerarbeitungSequenzdiagramm}
@@ -177,6 +178,15 @@ Idempotente verarbeitung:
 - nach absturz eines workers darf eine erneute ausführung nicht von einer vorher angefangenen Verabreitung beeinflusst werden --> dafür müssen die daten, auf denen die
     fachliche operation aufbaut (vgl. payload im Datenbankentwurf) unverändert vorliegen --> payload muss mind. bis erfolgreiche Beendigung vorliegen; transaktionales modell,
     wenn prozess abstürzt dürfen keine halb aktualisierten daten zurück bleiben (Z7)
+
+\subsection{Retry-Strategie}
+\label{subsec:retryStrategie}
+rest-retry
+worker-retry
+retry-policy
+exponential backoff
+welche fehler werden behandelt
+wieso diese Fehler
 
 \subsection{Recovery}
 \label{subsec:recoveryarchitektur}
