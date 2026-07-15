@@ -53,26 +53,34 @@ Auf diese Weise wird verhindert, dass Jobs dauerhaft im Zustand \texttt{RUNNING}
 
 \subsection{Zustandsmodell}
 \label{subsec:zustandsmodell}
+Zur Umsetzung der in \cref{ch:anforderungen} definierten Zusicherungen Z4 und Z5 wird jeder Job durch ein explizites Zustandsmodell beschrieben.
+Der aktuelle Zustand eines Jobs wird dabei als Attribut des jeweiligen Datensatzes in der Datenbank gespeichert (vgl. \cref{subsec:datenbankentwurf}) und beschreibt den Fortschritt der Verarbeitung.
+Das Zustandsmodell bildet die Grundlage für sämtliche Entscheidungen bezüglich der Bearbeitung, Wiederherstellung und Beendigung eines Jobs.
 
-- Grundlage für Z4 und Z5
-– Nutzung eines Zustandsmodells sorgt dafür, dass Datensätze nicht während des kompletten Verarbeitungszyklus gesperrt bleiben müssen, das schont DB-Ressourcen und
-    wirkt sich positiv auf DB-Performance aus
-- Speicherung in der DB als Attribut eines Jobs (vgl. \cref{subsec:datenbankentwurf})
-- Es sollen 4 Zustände eines Jobs existieren: Queued, für angelegte Jobs, die momentan nicht bearbeitet werden und von Workern zur Verarbeitung geclaimt werden können; Running für Jobs
-    die zur Zeit von einem Worker bearbeitet werden, diese dürfen also von keinem weiteren Worker beansprucht werden; 2 Endzustände zum einen Succeded, wenn ein Job erfolgreich abgeschlossen wurde
-    und das Ergebnis persistent in der DB steht und zum anderen Failed für Jobs, die nicht erfolgreich bearbeitet oder gespeichert werden konnten. Jobs im Zustand Failed sind endgültig
-    fehlgeschlagen und werden nicht mehr automatisch neu ausgeführt. Die Aufmerksamkeit eines Users ist erforderlich.
-- Zustandsübergänge: Kommt in ein neuer Job im Backend an, persistiert der Service diesen in der DB und setzt den Zustand auf Queued. Sobald ein Worker den Job claimed, versetzt er den Job
-    in den Zustand Running. Von Running gibt es 3 mögliche Übergänge: Beendet der Worker den Job erfolgreich, setzt dieser den Zustand auf Succeded. Kommt es bei der Verarbeitung zu einem Fehler
-    oder bleibt kommt der Worker bei der Bearbeitung eines Jobs nicht weiter, entscheidet der RecoveryService über das weitere Vorgehen. Ist ein erneuter Ausführungsversuch sinnvoll,
-    setzt er den Job zurück auf den Zustand Queued, sodass ein Worker diesen erneut claimen kann. Andernfalls wird der Job in den Zustand Failed versetzt und wird nicht weiter vom System verarbeitet
+Ein wesentlicher Vorteil dieses Ansatzes besteht darin, dass Datenbankzeilen nicht über den gesamten Verarbeitungszeitraum exklusiv gesperrt werden müssen.
+Sperren sind lediglich während kurzer atomarer Zustandsübergänge erforderlich, während die eigentliche Verarbeitung außerhalb einer Datenbanktransaktion erfolgt.
+Dadurch werden konkurrierende Zugriffe auf den Job-Store reduziert und Datenbankressourcen geschont, was sich positiv auf die Skalierbarkeit des Systems auswirkt.
 
+Die in diesem System definierten Zustände sowie die zulässigen Zustandsübergänge sind in \cref{fig:statusmodell} dargestellt.
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/statusmodell}
-    \caption{cap}%TODO: caption
+    \caption{Zustandsmodell eines Jobs}
     \label{fig:statusmodell}
 \end{figure}
+Nachdem ein neuer Job über die \gls{rest}-Schnittstelle im Backend eingegangen ist, wird dieser persistent gespeichert und zunächst in den Zustand \textit{Queued} versetzt.
+In diesem Zustand wartet der Job auf seine Bearbeitung und kann von einem Worker beansprucht werden.
+Beansprucht ein Worker den Job erfolgreich, erfolgt der atomare Zustandsübergang nach \textit{Running}.
+Dadurch wird sichergestellt, dass der Job während seiner Verarbeitung keinem weiteren Worker zur Verfügung steht.
+
+Zu der Verarbeitung existieren drei mögliche Folgezustände.
+Kann der Worker den Job erfolgreich bearbeiten und das erzeugte Ergebnis dauerhaft in der Datenbank speichern, wird der Job in den Endzustand \textit{Succeeded} überführt.
+Tritt während der Verarbeitung hingegen ein Fehler auf oder beendet der Worker seine Arbeit nicht innerhalb der vorgesehenen Lease-Dauer,
+übernimmt der Recovery-Service die weitere Behandlung des Jobs.
+Ist gemäß der definierten Recovery-Strategie ein erneuter Ausführungsversuch zulässig, wird der Job zurück in den Zustand \textit{Queued} versetzt und kann anschließend
+erneut von einem beliebigen Worker übernommen werden.
+Wurde dagegen die maximale Anzahl zulässiger Wiederholungsversuche erreicht oder liegt ein nicht behebbarer Fehler vor, wird der Job endgültig in den Endzustand \textit{Failed} überführt.
+Jobs in diesem Zustand werden vom System nicht weiter automatisch verarbeitet und erfordern das manuelle Eingreifen durch den Benutzer oder Administrator.
 
 \subsection{Entwurf der Datenbank}
 \label{subsec:datenbankentwurf}

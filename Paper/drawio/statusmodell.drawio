@@ -1,20 +1,20 @@
 <mxfile host="app.diagrams.net">
   <diagram name="Seite-1" id="vo3frjRhPQBXFPIV-cCW">
-    <mxGraphModel dx="617" dy="340" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="774" dy="499" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
         <mxCell id="Han_NfVS7lUhF0MgFpLw-1" parent="1" style="shape=ellipse;html=1;dashed=0;whiteSpace=wrap;aspect=fixed;perimeter=ellipsePerimeter;" value="Queued" vertex="1">
-          <mxGeometry height="60" width="60" x="240" y="115" as="geometry" />
+          <mxGeometry height="67" width="67" x="240" y="115" as="geometry" />
         </mxCell>
         <mxCell id="Han_NfVS7lUhF0MgFpLw-2" parent="1" style="ellipse;html=1;shape=endState;fillColor=strokeColor;" value="" vertex="1">
-          <mxGeometry height="30" width="30" x="570" y="130" as="geometry" />
+          <mxGeometry height="34" width="34" x="575" y="130" as="geometry" />
         </mxCell>
         <mxCell id="Han_NfVS7lUhF0MgFpLw-7" edge="1" parent="1" source="Han_NfVS7lUhF0MgFpLw-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="Han_NfVS7lUhF0MgFpLw-1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="Han_NfVS7lUhF0MgFpLw-3" parent="1" style="ellipse;fillColor=strokeColor;html=1;" value="" vertex="1">
-          <mxGeometry height="30" width="30" x="140" y="130" as="geometry" />
+          <mxGeometry height="34" width="34" x="140" y="131" as="geometry" />
         </mxCell>
         <mxCell id="Han_NfVS7lUhF0MgFpLw-9" edge="1" parent="1" source="Han_NfVS7lUhF0MgFpLw-4" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=1;entryDx=0;entryDy=0;exitX=1;exitY=0;exitDx=0;exitDy=0;" target="Han_NfVS7lUhF0MgFpLw-5">
           <mxGeometry relative="1" as="geometry">
@@ -28,19 +28,19 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="Han_NfVS7lUhF0MgFpLw-4" parent="1" style="shape=ellipse;html=1;dashed=0;whiteSpace=wrap;aspect=fixed;perimeter=ellipsePerimeter;" value="Running" vertex="1">
-          <mxGeometry height="60" width="60" x="320" y="210" as="geometry" />
+          <mxGeometry height="67" width="67" x="322" y="212" as="geometry" />
         </mxCell>
         <mxCell id="Han_NfVS7lUhF0MgFpLw-15" edge="1" parent="1" source="Han_NfVS7lUhF0MgFpLw-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="Han_NfVS7lUhF0MgFpLw-2">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="Han_NfVS7lUhF0MgFpLw-5" parent="1" style="shape=ellipse;html=1;dashed=0;whiteSpace=wrap;aspect=fixed;perimeter=ellipsePerimeter;" value="Succeded" vertex="1">
-          <mxGeometry height="60" width="60" x="400" y="115" as="geometry" />
+        <mxCell id="Han_NfVS7lUhF0MgFpLw-5" parent="1" style="shape=ellipse;html=1;dashed=0;whiteSpace=wrap;aspect=fixed;perimeter=ellipsePerimeter;" value="Succeeded" vertex="1">
+          <mxGeometry height="67" width="67" x="404" y="113" as="geometry" />
         </mxCell>
         <mxCell id="Han_NfVS7lUhF0MgFpLw-14" edge="1" parent="1" source="Han_NfVS7lUhF0MgFpLw-6" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=1;entryDx=0;entryDy=0;" target="Han_NfVS7lUhF0MgFpLw-2">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="Han_NfVS7lUhF0MgFpLw-6" parent="1" style="shape=ellipse;html=1;dashed=0;whiteSpace=wrap;aspect=fixed;perimeter=ellipsePerimeter;" value="Failed" vertex="1">
-          <mxGeometry height="60" width="60" x="480" y="210" as="geometry" />
+        <mxCell id="Han_NfVS7lUhF0MgFpLw-6" parent="1" style="shape=ellipse;html=1;dashed=0;whiteSpace=wrap;aspect=fixed;perimeter=ellipsePerimeter;centerRadius=0;" value="Failed" vertex="1">
+          <mxGeometry height="67" width="67" x="484" y="212" as="geometry" />
         </mxCell>
         <mxCell id="Han_NfVS7lUhF0MgFpLw-8" edge="1" parent="1" source="Han_NfVS7lUhF0MgFpLw-1" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0;entryDx=0;entryDy=0;exitX=1;exitY=1;exitDx=0;exitDy=0;" target="Han_NfVS7lUhF0MgFpLw-4">
           <mxGeometry relative="1" as="geometry">
