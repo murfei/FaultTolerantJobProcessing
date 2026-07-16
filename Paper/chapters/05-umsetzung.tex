@@ -84,26 +84,60 @@ Jobs in diesem Zustand werden vom System nicht weiter automatisch verarbeitet un
 
 \subsection{Entwurf der Datenbank}
 \label{subsec:datenbankentwurf}
+Die relationale Datenbank bildet den zentralen Job-Store des entwickelten Systems.
+Sie übernimmt sowohl die Persistierung eingehender Jobs als auch die Verwaltung ihres aktuellen Bearbeitungszustands und gegebenenfalls erzeugter Verarbeitungsergebnisse.
+Das resultierende Datenbankschema ist in \cref{fig:dbSchema} dargestellt.
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/dbSchema}
-    \caption{cap}%TODO: caption
+    \caption{Datenbankschema des entwickelten Job-Processing-Systems}
     \label{fig:dbSchema}
 \end{figure}
+Hauptbestandteil des Schemas ist die Tabelle \texttt{jobs}.
+Jeder Job besitzt zunächst einen von der Datenbank erzeugten Primärschlüssel, der zur internen Identifikation dient.
+Zusätzlich wird für jeden Job ein vom Client bereitgestellter Idempotenzschlüssel gespeichert.
+Dieser stellt die in Z3 geforderte Idempotenz in der Joberstellung sicher, auf die in \cref{sec:joberstellung} näher eingegangen wird.
+Um das zu gewährleisten, müssen die Idempotenzschlüssel eindeutig sein.
+Daher ist die Spalte idempotency\_key mit einem Unique-Constraint zu belegen.
 
-- jobs brauchen zusätzlich zu einer eindeutigen id die von der db kommt eine id die vom client kommt, um doppelte anfragen des gleichen jobs erkennen zu können
-    und somit die idempotenz sicherzustellen
-- der inhalt der eigentlichen Anfrage (payload) muss persistiert werden
-- zur umsetzung des statusmodells ist die haltung eines status je job nötig
-- created\_at, damit sichergestellt wird, dass alle jobs bearbeitet werden indem nach alter sortiert wird (sonst könnte es passieren, dass immer nur die neusten jobs bearbeitet werden
-    und alte jobs liegen bleiben)
-- claimed\_by Zuordnung eines Jobs zu genau einem Worker --> wichtig um spätere idempotente Ergebnisspeicherung sicherstellen zu können
-- attempt\_count für Recovery und um unendliche Neuversuche eines nichtfunktionierenden Jobs sicherzustellen
-- lease\_until zur Umsetzung zeitbasierter Leases um dadurch verwaiste Jobs zu erkennen
-- zu jedem Job gehört höchstens ein Ergebnis (Idempotenz), sofern ein Job noch nicht bearbeitet wurde existiert aber noch keins, daher 0-1
-- ein Ergebnis gehört zu genau einem Job
-- DB kann je nach Anwendungskontext beliebig erweitert werden und auch für weitere Zwecke der Anwendung verwendet werden. D.h. es kann auch eine bestehende DB genutzt werden, um den Job-Store
-    umzusetzen. Das hier genutzte Schema stellt das Mindestmaß an Attributen dar, dass zu der in der Arbeit behandelten Fehlertoleranz notwendig ist
+Neben den Identifikationsmerkmalen wird der eigentliche Inhalt des Jobs als Payload persistent gespeichert.
+Im Beispielsystem wird dieses Feld als JSON-String modelliert.
+Abhängig von der Art des Jobs und den Anforderungen an das System kann dies jedoch auch
+in jeglicher anderen Form umgesetzt werden, sofern die nötigen Informationen für die Durchführung des Jobs enthalten sind.
+Durch die Persistierung der Payload bleibt die vollständige Anfrage dauerhaft verfügbar und kann im Fehlerfall erneut verarbeitet werden,
+ohne dass der Client den Job nochmals übertragen muss.
+Das bildet die Grundlage für Z1 und Z9.
+
+Zur Umsetzung des in \cref{subsec:zustandsmodell} vorgestellten Zustandsmodells besitzt jeder Job ein Statusattribut, welches den aktuellen Bearbeitungszustand beschreibt.
+Dieser Status wird für die Umsetzung von Z4-Z6 benötigt.
+Ergänzend hierzu werden weitere Metadaten gespeichert, die für die Umsetzung der Fehlertoleranz erforderlich sind.
+Das Attribut \texttt{created\_at} speichert den Zeitpunkt der Joberstellung.
+Da Worker neue Jobs grundsätzlich in der Reihenfolge ihres Erstellungszeitpunkts beanspruchen, wird verhindert, dass ältere Jobs dauerhaft von neu eingehenden
+Jobs verdrängt werden und somit im Job-Store verbleiben.
+Dieses Verhalten adressiert Z10.
+Während der Bearbeitung wird im Attribut \texttt{claimed\_by} gespeichert, welcher Worker einen Job aktuell verarbeitet.
+Diese Zuordnung stellt sicher, dass ausschließlich der Worker, der einen Job erfolgreich beansprucht hat, dessen Verarbeitung abschließen und das Ergebnis
+persistent speichern darf.
+Dadurch wird die in Z8 geforderte idempotente Ergebnisspeicherung unterstützt und verhindert, dass konkurrierende Worker im Recovery-Fall denselben Job gleichzeitig abschließen.
+
+Für die Recovery-Strategie wird zusätzlich die Anzahl bisheriger Bearbeitungsversuche im Attribut \texttt{attempt\_count} gespeichert.
+Dadurch kann die Anzahl automatischer Wiederholungsversuche begrenzt werden, sodass fehlerhafte Jobs nicht unbegrenzt erneut ausgeführt werden.
+Das Attribut \texttt{lease\_until} dient der Umsetzung zeitbasierter Leases.
+Es gibt an, bis zu welchem Zeitpunkt ein Worker den beanspruchten Job exklusiv bearbeiten darf.
+Überschreitet die Bearbeitung diese Zeitspanne, kann der Recovery-Service den Job als verwaist erkennen und ihn entsprechend der definierten
+Recovery-Strategie erneut zur Bearbeitung freigeben.
+Diese beiden Attribute werden für die Umsetzung von Z9 und Z10 benötigt.
+
+Die Verarbeitungsergebnisse werden in einer separaten Tabelle \texttt{job\_result} gespeichert.
+Zwischen einem Job und seinem Ergebnis besteht dabei eine optionale Eins-zu-eins-Beziehung.
+Ein Job besitzt höchstens ein Ergebnis, da die idempotente Verarbeitung sicherstellt, dass erfolgreiche Jobs nur einmal abgeschlossen werden können.
+Gleichzeitig gehört jedes gespeicherte Ergebnis eindeutig zu genau einem Job.
+Solange ein Job noch nicht erfolgreich bearbeitet wurde, existiert dementsprechend kein zugehöriger Ergebniseintrag.
+
+Das dargestellte Datenbankschema bildet das minimale Schema zur Umsetzung der in dieser Arbeit betrachteten Fehlertoleranzmechanismen.
+In realen Anwendungen kann der Job-Store beliebig um weitere fachliche Attribute oder zusätzliche Tabellen erweitert werden.
+Ebenso ist es möglich, eine bereits bestehende relationale Datenbank zur Umsetzung des Job-Processing-Systems zu verwenden, indem das vorgestellte Schema in
+die vorhandene Datenbank integriert wird.
 
 \subsection{Erstellung von Jobs}
 \label{sec:joberstellung}
