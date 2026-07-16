@@ -96,7 +96,7 @@ Das resultierende Datenbankschema ist in \cref{fig:dbSchema} dargestellt.
 Hauptbestandteil des Schemas ist die Tabelle \texttt{jobs}.
 Jeder Job besitzt zunächst einen von der Datenbank erzeugten Primärschlüssel, der zur internen Identifikation dient.
 Zusätzlich wird für jeden Job ein vom Client bereitgestellter Idempotenzschlüssel gespeichert.
-Dieser stellt die in Z3 geforderte Idempotenz in der Joberstellung sicher, auf die in \cref{sec:joberstellung} näher eingegangen wird.
+Dieser stellt die in Z3 geforderte Idempotenz in der Joberstellung sicher, auf die in \cref{subsec:joberstellung} näher eingegangen wird.
 Um das zu gewährleisten, müssen die Idempotenzschlüssel eindeutig sein.
 Daher ist die Spalte idempotency\_key mit einem Unique-Constraint zu belegen.
 
@@ -139,27 +139,48 @@ In realen Anwendungen kann der Job-Store beliebig um weitere fachliche Attribute
 Ebenso ist es möglich, eine bereits bestehende relationale Datenbank zur Umsetzung des Job-Processing-Systems zu verwenden, indem das vorgestellte Schema in
 die vorhandene Datenbank integriert wird.
 
-\subsection{Erstellung von Jobs}
-\label{sec:joberstellung}
-
-- Z1-Z3
-- Client sendet eine request an backend über \gls{rest}
-- request besteht aus payload (der eigentlichen durchzuführenden Arbeit) und einem idempotency-key
-- der key wird vom client erzeugt und ist wichtig, um sicherzustellen, dass falls der client einen retry der Zustellung versucht, obwohl der Job bereits angekommen ist
-    (Im Fall dass das Acknowledgement verloren geht), das backend erkennen kann, dass der Job bereits existiert und eine doppelte Speicherung verhindert wird (Z3))
-- die api gibt die request an einen service weiter
-- service prüft, ob der idempotenyc-key bereits existiert (Z3)
-- falls nein, persistiert der Service den Job, gibt den erstellten Job an die \gls{api} zurück und diese liefert den Statuscode 201 CREATED an den Client zurück
-- falls ja, wirft der service eine exception, die api fängt diese und schickt den statuscode 200 als Information, dass der Job bereits persistiert wurde (Z3)
-- falls service die db nicht erreicht muss dieser das Erstellen Retrien mit Backoff
-- Erst wenn der job erstellt wurde oder bereits existiert wird dem Client ein 200er Statuscode gesendet. Im Fehlerfall wird ein 500er Code gesendet (Z1, Z2)
-
+\subsection{Joberstellung}
+\label{subsec:joberstellung}
+Die Annahme neuer Jobs gehört zur Erstellungsphase neuer Jobs und bildet somit den Einstiegspunkt in das entwickelte Job-Processing-System.
+Zur Umsetzung der Exactly-Once Auslieferung inklusive der Zusicherungen Z1 bis Z3 sind verschiedene Mechanismen nötig, die im Folgenden vorgestellt werden.
+Der Ablauf der Jobannahme ist in \cref{fig:jobannahme} dargestellt.
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/jobannahmeSequenzdiagramm}
-    \caption{cap}%TODO: caption
+    \caption{Ablauf der Jobannahme}
     \label{fig:jobannahme}
 \end{figure}
+Zur Erstellung eines neuen Jobs sendet der Client eine Anfrage über die \gls{rest}-Schnittstelle an das Backend.
+Die Anfrage besteht aus zwei Bestandteilen: der eigentlichen Nutzlast (\textit{Payload}), welche die durchzuführende Arbeit beschreibt,
+sowie einem vom Client erzeugten Idempotenzschlüssel.
+Dieser Schlüssel identifiziert einen Job eindeutig und ermöglicht es, mehrfach übertragene Anfragen desselben Jobs zuverlässig zu erkennen.
+Die Verwendung des Idempotenzschlüssels ist insbesondere für den Fall relevant, dass der Client eine Anfrage erneut sendet, obwohl der ursprüngliche Job bereits
+erfolgreich gespeichert wurde.
+Ein solches Szenario kann beispielsweise auftreten, wenn das Acknowledgement des Backends bei der Übertragung verloren geht und der Client deshalb
+fälschlicherweise von einer fehlgeschlagenen Joberstellung ausgeht.
+Durch den Idempotenzschlüssel kann das Backend erkennen, dass der betreffende Job bereits existiert und eine doppelte Persistierung verhindern.
+Damit wird Zusicherung Z3 umgesetzt.
+
+Nach Eingang der Anfrage leitet die \gls{rest}-\gls{api} diese an den Job-Service weiter.
+Dieser überprüft zunächst, ob bereits ein Job mit dem übermittelten Idempotenzschlüssel existiert.
+Ist dies nicht der Fall, wird der neue Job persistent im Job-Store gespeichert.
+Anschließend gibt der Service den erzeugten Job an die \gls{rest}-\gls{api} zurück, welche dem Client den HTTP-Statuscode \texttt{201 Created} als
+Bestätigung der erfolgreichen Joberstellung liefert.
+
+Existiert dagegen bereits ein Job mit demselben Idempotenzschlüssel, wird keine erneute Persistierung durchgeführt.
+Stattdessen wirft der Service einen Fehler, der von der \gls{rest}-\gls{api} abgefangen wird.
+Da sich der gewünschte Job bereits im System befindet und somit der gewünschte Zielzustand erreicht wurde, beantwortet die \gls{api} die Anfrage mit
+dem HTTP-Statuscode \texttt{200 OK}.
+
+Kann während der Persistierung keine Verbindung zur Datenbank hergestellt werden oder tritt ein anderer transienter Fehler auf, wird der Persistierungsvorgang
+automatisch mehrfach mit exponentiellem Backoff wiederholt.
+Weitere Details zu Client- und Serverseitigen Retries werden in \cref{subsec:retryStrategie} behandelt.
+Erst wenn der Job erfolgreich gespeichert wurde oder bereits existiert, wird dem Client ein erfolgreicher HTTP-Statuscode zurückgegeben.
+Kann der Job dagegen auch nach Ausschöpfen aller Wiederholungsversuche nicht gespeichert werden, antwortet das Backend mit dem HTTP-Statuscode \texttt{500 Internal Server Error}.
+Dadurch kann der Client erkennen, dass kein erfolgreicher Abschluss der Operation garantiert werden konnte und den Erstellungsversuch seinerseits gemäß der
+definierten Retry-Strategie wiederholen.
+Dieses Zusammenspiel zwischen client- und serverseitigen Wiederholungsmechanismen stellt sicher, dass Zusicherung Z1 und Z2 eingehalten werden und gleichzeitig kein direktes
+menschliches Eingreifen nach dem ersten fehlgeschlagenen Versuch notwendig ist.
 
 \subsection{Exklusive Verarbeitung und Transaktionsmodell}
 \label{subsec:transaktionsmodell}

@@ -14,7 +14,7 @@ und als verbindlicher Maßstab für die Umsetzung und die Evaluation dienen.
 Im Rahmen dieser Arbeit wird ein datenbankgestütztes Background Job-Processing-System entwickelt, dessen grundlegende Systemstruktur in \cref{fig:contextView} dargestellt ist.
 Über eine \gls{rest}-Schnittstelle können Aufträge erzeugt werden, die zunächst validiert und anschließend in einem relationalen Job-Store persistent gespeichert werden.
 Unabhängig vom ursprünglichen Aufruf übernehmen mehrere Worker-Prozesse die asynchrone Verarbeitung der gespeicherten Jobs.
-\begin{figure}[h]
+\begin{figure}[h] %TODO: hier ist die Abbildung noch falsch --> dort steht noch UI. Außerdem überlegen, wie man das mit dem User vernünftig darstellt, weil im System ja nur der Service existiert
     \centering
     \includegraphics[width=0.8\textwidth]{images/contextView}
     \caption{Queueing}
@@ -31,7 +31,7 @@ Hierzu zählen insbesondere die zuverlässige Persistierung eingehender Aufträg
 die Behandlung konkurrierender Zugriffe sowie die Wiederaufnahme unterbrochener Verarbeitungen nach Teilausfällen.
 Die genau betrachtete Fehlermenge wird im folgenden Kapitel dargelegt.
 
-\section{Abgrenzung des betrachteten Fehlermodells}
+\section{Abgrenzung des betrachteten Fehlermodells} %TODO: hier sollte whs noch sinnvollerweise irgendwo Exactly-Once Semantik genannt/gefordert werden
 \label{sec:abgrenzungFehlermodell}
 Verteilte Softwaresysteme können durch eine Vielzahl unterschiedlicher Fehler beeinträchtigt werden.
 Hierzu zählen unter anderem Hardwaredefekte, Softwarefehler, Netzwerkausfälle, Bedienfehler oder Cyberangriffe.

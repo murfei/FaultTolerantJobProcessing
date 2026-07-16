@@ -38,7 +38,7 @@ public class JobController {
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new CreateJobResponse(job.getIdempotencyKey(), job.getStatus(), job.getCreatedAt(), "Job already exists"));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new CreateJobResponse(null, null, null, e.getMessage()));
         }
     }
 
