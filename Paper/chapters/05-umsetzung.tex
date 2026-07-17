@@ -3,7 +3,8 @@
 
 \chapter{Umsetzung}\label{ch:umsetzung}
 
-\section{Architektur und Design}\label{sec:architektur}
+\section{Architektur und Design}\label{sec:architektur} %TODO: Hier oder in der ersten subsection auf jeden Fall beschreiben, was welches Kapitel macht bzw welches Kapitel
+%                                                               welche Teilaspekte löst, damit der rote Faden klar bleibt
 
 \subsection{Architekturentwurf}
 \label{subsec:architekturentwurf}
@@ -184,45 +185,57 @@ menschliches Eingreifen nach dem ersten fehlgeschlagenen Versuch notwendig ist.
 
 \subsection{Exklusive Verarbeitung und Transaktionsmodell}
 \label{subsec:transaktionsmodell}
-Ein naiver Ansatz zur Absicherung eines Hintergrundjobs bestünde darin, die Transaktionsgrenze über den gesamten Lebenszyklus der Job-Ausführung zu spannen.
-Dies bedeutet, dass eine Transaktion geöffnet wird, sobald ein Worker eine Aufgabe akquiriert, und erst schließt, wenn die vollständige Fachlogik abgearbeitet wurde.
-Wie in \cref{subsec:transaktionsgrenzen} verdeutlicht, wirkt sich eine solche Strategie aber schlecht auf die Leistung des Systems aus.
-Da Hintergrundprozesse definitionsgemäß zeitintensive oder ressourcenintensive Berechnungen sowie E/A-Operationen kapseln \parencite[vgl.][Kap.~10]{kleppmann_designing_2017},
-würde eine offene Transaktion über diesen gesamten Zeitraum hinweg die zugewiesene Datenbankverbindung blockieren.
-Die Transaktionsgrenzen sollten daher so weit wie nötig aber so eng wie möglich gefasst werden.
-Eine mögliche Umsetzung, die ihren Fokus auf Verhinderung der Entstehung von Anomalien legt, gleichzeitig aber versucht größtmögliche Parallelität zu gewährleisten,
-besteht in einem dreiphasigen Ablauf, der Datenbanksperren und das Statusmodell aus \cref{subsec:zustandsmodell} kombiniert:
+Eine naheliegende Möglichkeit zur Absicherung der Hintergrundverarbeitung vor konkurrierenden Zugriffen besteht darin, eine Datenbanktransaktion über den gesamten
+Lebenszyklus eines Jobs geöffnet zu halten.
+Die Transaktion würde unmittelbar nach dem Beanspruchen eines Jobs beginnen und erst nach Abschluss der vollständigen Fachlogik sowie der Persistierung
+des Ergebnisses beendet werden.
+Wie bereits in \cref{subsec:transaktionsgrenzen} erläutert, bringen lange Transaktionen einige Nachteile mit sich und daher ist dieser Ansatz auch
+für das in dieser Arbeit entworfene System ungeeignet.
+Transaktionen sollten so lang wie nötig und so kurz wie möglich entworfen werden.
+Hintergrundjobs kapseln typischerweise langlaufende Berechnungen oder E/A-intensive Operationen \parencite{microsoft_corporation_hrsg_best_2026}.
+Während der gesamten Bearbeitungsdauer würden dadurch Datenbankverbindungen sowie Sperren unnötig lange gehalten werden müssen.
 
-\begin{enumerate} %TODO: Numerierung ist hier Quatsch
-    \item \textbf{Phase 1 (Gekapselte Statussynchronisation):} Der Worker öffnet eine dedizierte, extrem kurzlaufende Transaktion.
-    Innerhalb dieser Grenze wird ein freier Job gesucht, über Sperrverfahren geschützt und dessen Status im Job-Store atomar von queued auf running aktualisiert.
-    Unmittelbar nach dem Schreiben des Status wird die Transaktion committet und die Verbindung an den Pool zurückgegeben.
-    \item \textbf{Phase 2 (Transaktionsfreie Fachlogik):} Die eigentliche Verarbeitung des Jobs (z.~B. das Generieren eines Reports oder der Aufruf einer externen HTTP-Schnittstelle)
-    erfolgt vollständig außerhalb einer offenen Datenbanktransaktion.
-    Das persistente Zustandsmodell im Speicher verhindert in dieser Phase, dass parallele Worker Zugriff auf denselben Job erhalten \parencite[vgl.][Kap.~11]{kleppmann_designing_2017}.
-    \item \textbf{Phase 3 (Gekapselte Abschlussquittierung):} Nach erfolgreicher Beendigung oder nach einem kontrollierten Abbruch der Fachlogik öffnet der Worker bzw. der Recoveryservice
-    eine zweite, separate Kurzzeittransaktion, um den finalen Endzustand (z.~B. success oder failed) inklusive Ergebnis im Erfolgsfall in den Job-Store zu schreiben und sofort zu committen (Z7 erfordert gemeinsame Transaktion für diese Änderungen).
-\end{enumerate}
+Aus diesem Grund verfolgt das entwickelte System einen anderen Ansatz.
+Die eigentliche Fachlogik wird vollständig außerhalb einer Datenbanktransaktion ausgeführt.
+Datenbanktransaktionen werden ausschließlich zur atomaren Synchronisation der Zustandsübergänge verwendet und deshalb möglichst kurz gehalten.
+Die Kombination aus dem in \cref{subsec:zustandsmodell} vorgestellten Zustandsmodell und kurzlaufenden Transaktionen ermöglicht eine exklusive
+Bearbeitung der Jobs, ohne Datenbankressourcen während der eigentlichen Verarbeitung zu blockieren.
 
+Der Verarbeitungsablauf gliedert sich hierzu in drei Phasen, die in \cref{fig:transaktionsmodell} visualisiert sind.
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.6\textwidth]{images/dbJobClaiming}
-    \caption{cap}%TODO: caption
-    \label{fig:claiming}
+    \includegraphics[width=0.9\textwidth]{images/transaktionsmodell}
+    \caption{Transaktionsmodell}
+    \label{fig:transaktionsmodell}
 \end{figure}
+Zunächst beansprucht ein Worker innerhalb einer Datenbanktransaktion einen freien Job.
+Hierzu wird mittels \textit{SELECT~…~FOR~UPDATE} ein geeigneter Job ausgewählt und exklusiv gesperrt.
+Zusätzlich wird dessen Status von \textit{Queued} nach \textit{Running} überführt und die Attribute für die Recovery wie
+setClaimed\_by, attempt\_count oder lease\_until aktualisiert.
+Unmittelbar nach diesen Änderungen wird die Transaktion committet und die Datenbankverbindung wieder freigegeben.
+Anschließend erfolgt die eigentliche Verarbeitung des Jobs vollständig außerhalb einer Datenbanktransaktion.
+Da der Job bereits den Zustand \textit{Running} besitzt, können andere Worker ihn währenddessen nicht erneut beanspruchen.
+Nach erfolgreichem Abschluss der Verarbeitung wird schließlich eine zweite kurze Transaktion geöffnet, innerhalb der das Verarbeitungsergebnis gespeichert und
+der Job in den Zustand \textit{Successful} überführt wird.
+Muss ein Job dagegen aufgrund eines Fehlers oder eines abgelaufenen Leases zurückgesetzt werden, erfolgt auch dieser Zustandsübergang innerhalb einer separaten Transaktion.
+Damit werden sämtliche Änderungen am Zustand eines Jobs atomar durchgeführt, während die eigentliche Fachlogik vollständig außerhalb der Transaktionsgrenzen verbleibt.
 
-erläutern, wieso pessimistisches Locking anstatt von optimistischen verfahren --> Für die atomare Reservierung von Jobs ist ein pessimistisches Verfahren vorteilhaft, da konkurrierende
-Zugriffe bereits zum Zeitpunkt der Jobauswahl verhindert werden können.
-Dadurch lässt sich sicherstellen, dass ein Job nur von einer Worker-Instanz gleichzeitig verarbeitet wird.
-"It performs badly if there is high contention (many transactions trying to access the same objects),
-as this leads to a high proportion of transactions needing to abort. If the system is already close
-to its maximum throughput, the additional transaction load from retried transactions can make
-performance worse." \parencite[Kap.~7 Abschnitt \glqq Pessimistic versus optimistic concurrency control\grqq]{kleppmann_designing_2017}
-Wie in \cref{subsec:synchronisation} erläutert eignen sich optimistische Synchronisationsverfahren vor allem für Systeme, in denen wenig konkurrierende Änderungen erwartet werden.
-Im Rahmen der Arbeit werden pessimistische Sperrverfahren genutzt, da die Jobs abhängig vom Erstellungszeitpunkt (älteste zuerst) bearbeitet werden.
-Daher sind konkurrierende Statusänderungen wahrscheinlich.
+Für die Synchronisation konkurrierender Worker wird ein pessimistisches Sperrverfahren verwendet.
+Wie bereits in \cref{subsec:synchronisation} erläutert, eignen sich optimistische Synchronisationsverfahren insbesondere für Systeme, in denen konkurrierende
+Änderungen nur selten auftreten.
+Im entwickelten Job-Processing-System ist jedoch das Gegenteil der Fall.
+Da alle Worker neue Jobs entsprechend ihres Erstellungszeitpunkts aus derselben Warteschlange entnehmen, konkurrieren sie regelmäßig um dieselben Datensätze.
+Optimistische Verfahren würden in diesem Szenario zu einer hohen Anzahl abgebrochener Transaktionen und entsprechender Wiederholungsversuche führen.
+\textcite[Kap.~7, Abschnitt \glqq Pessimistic versus optimistic concurrency control\grqq]{kleppmann_designing_2017} weist darauf hin, dass sich optimistische
+Verfahren bei hoher Konkurrenz negativ auf den Gesamtdurchsatz auswirken, da die zusätzlich notwendigen Wiederholungen die Datenbank weiter belasten.
+Aus diesem Grund wird im Rahmen dieser Arbeit ein pessimistisches Sperrverfahren verwendet, bei dem konkurrierende Zugriffe bereits während der Auswahl
+eines Jobs verhindert werden.
+Dadurch kann sichergestellt werden, dass jeder Job zu jedem Zeitpunkt höchstens einem Worker exklusiv zugeordnet ist. %TODO: stimmt nicht für Recovery
 
-Verwendung einer zentralen Datenbank für Ergebnis und Job-Store hat den Vorteil, dass alles in lokalen \gls{acid}-Transaktionen umgesetzt werden kann und keine verteilten Transaktionen erforderlich sind
+Ein weiterer Vorteil der gewählten Architektur ergibt sich daraus, dass sowohl der Job-Store als auch die Verarbeitungsergebnisse innerhalb derselben
+relationalen Datenbank gespeichert werden.
+Sämtliche Zustandsänderungen sowie die Persistierung eines Verarbeitungsergebnisses können dadurch innerhalb lokaler \gls{acid}-Transaktionen erfolgen.
+Die Koordination mehrerer unabhängiger Systeme und damit die Notwendigkeit verteilter Transaktionen entfallen vollständig.
 
 \subsection{Idempotente Verarbeitung}
 \label{sec:idempotenteverarbeitung}
