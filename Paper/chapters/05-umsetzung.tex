@@ -263,12 +263,50 @@ Diese Problematik wird in \cref{subsec:recoveryarchitektur} noch einmal aufgegri
 
 \subsection{Retry-Strategie}
 \label{subsec:retryStrategie}
-rest-retry
-worker-retry
-retry-policy
-exponential backoff
-welche fehler werden behandelt
-wieso diese Fehler
+Auf Grundlage der in \cref{subsec:retry/backoff} beschriebenen Prinzipien werden Wiederholungsmechanismen gezielt an denjenigen
+Stellen der Architektur eingesetzt, an denen temporäre Infrastrukturfehler auftreten können, ohne dass die eigentliche Fachlogik fehlerhaft ist.
+Ziel ist es, kurzfristige Störungen bereits während der Verarbeitung zu kompensieren und dadurch unnötige Recovery-Vorgänge oder Benutzerinteraktionen zu vermeiden.
+
+Hierzu unterscheidet die Architektur zwischen der Kommunikation des Clients mit dem Backend und den internen Datenbankzugriffen der Worker und der Job-\gls{api}.
+Beide Kommunikationswege stellen voneinander unabhängige Fehlerquellen dar und können daher unabhängig voneinander von transienten Infrastrukturfehlern betroffen sein.
+
+Auf Clientseite werden Wiederholungsversuche für die Kommunikation mit der \gls{rest}-Schnittstelle des Backends vorgesehen.
+Kann eine Anfrage aufgrund einer temporären Netzwerkstörung oder einer kurzfristigen Nichtverfügbarkeit des Backends nicht erfolgreich
+abgeschlossen werden, wird die Anfrage automatisch erneut übertragen.
+Da die Joberstellung durch den in \cref{subsec:joberstellung} beschriebenen Idempotenzmechanismus abgesichert ist, führt eine erneute
+Übertragung derselben Anfrage nicht zu einer mehrfachen Persistierung eines Jobs.
+Dadurch kann insbesondere der Fall behandelt werden, dass der Job bereits erfolgreich gespeichert wurde, die Bestätigung über den erfolgreichen
+Abschluss den Client jedoch aufgrund eines Kommunikationsfehlers nicht erreicht.
+Die Kombination aus Retry und Idempotenz schafft somit eine Exactly-Once-Semantik für die Joberstellung unter der Voraussetzung, dass der Fehler tatsächlich
+transient ist und die Parameter für Retry und Backoff passend konfiguriert sind.
+
+Innerhalb des Backends werden Wiederholungsversuche ausschließlich für Datenbankoperationen vorgesehen, deren Fehlschlagen typischerweise auf transiente
+Infrastrukturfehler zurückzuführen ist, beispielsweise kurzzeitige Netzwerkunterbrechungen oder die vorübergehende Nichtverfügbarkeit der Datenbank.
+Dies betrifft insbesondere das Reservieren eines Jobs sowie das Persistieren eines Verarbeitungsergebnisses.
+Kann eine dieser Operationen aufgrund einer vorübergehend nicht erreichbaren Datenbank oder einer vergleichbaren transienten Störung
+nicht abgeschlossen werden, wird sie automatisch erneut ausgeführt.
+Dagegen werden fachliche Fehler während der eigentlichen Jobverarbeitung bewusst nicht wiederholt, da deren Ursache in der Regel nicht
+durch einen erneuten Ausführungsversuch beseitigt werden kann.
+
+Zur strukturellen Entkopplung der Wiederholungslogik wird diese in einem eigenständigen Retry-Teilsystem gekapselt.
+Wie in \cref{fig:retryClassDiagram} dargestellt, nutzen die jeweiligen Komponenten, wie beispielsweise der Client im Frontend zur Erstellung der Jobs,
+einen zentralen RetryExecutor, der die auszuführende Operation über die Methode \textit{execute(...)} entgegennimmt und deren Ausführung entsprechend einer konfigurierbaren Retry-Policy steuert.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/retryClassDiagramm}
+    \caption{Klassendiagramm der Retry-Komponente}
+    \label{fig:retryClassDiagram}
+\end{figure}
+Der RetryExecutor enthält dabei selbst keine anwendungsspezifischen Entscheidungen darüber, wann eine Wiederholung erfolgen soll.
+Stattdessen fängt er Exceptions von der auszuführenden Operation und gibt sie an \textit{shouldRetry(...)} weiter.
+Die spezifische Policy entscheidet dann, ob ein Retry sinnvoll ist oder nicht, indem sie die Exception klassifiziert und einen
+entsprechenden Wahrheitswert zurückliefert.
+Die Retry-Policies implementieren dabei eigene unterschiedliche Kriterien für Wiederholungsversuche, die sich in den behandelten Fehlerarten unterscheiden,
+sowie das zugehörige Backoff-Verhalten.
+Dadurch kann dasselbe Retry-Teilsystem sowohl für die Kommunikation zwischen Client und Backend als auch für interne Datenbankzugriffe der Worker verwendet
+werden, obwohl sich die jeweils behandelten Fehlerarten unterscheiden.
+Die Retry-Logik bleibt dadurch zentral gekapselt, während die konkrete Fehlerbehandlung an den jeweiligen Anwendungskontext angepasst werden kann.
+Die konkrete Implementierung des Retry-Executors sowie die Konfiguration der einzelnen Retry-Policies werden in \cref{sec:implementierung} erläutert. %TODO: Referenz spezifizieren; Prüfen, ob wirklich alles im Implementierungskapitel behandelt wird
 
 \subsection{Recovery}
 \label{subsec:recoveryarchitektur}
