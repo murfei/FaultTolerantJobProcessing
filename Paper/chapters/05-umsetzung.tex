@@ -183,7 +183,7 @@ definierten Retry-Strategie wiederholen.
 Dieses Zusammenspiel zwischen client- und serverseitigen Wiederholungsmechanismen stellt sicher, dass Zusicherung Z1 und Z2 eingehalten werden und gleichzeitig kein direktes
 menschliches Eingreifen nach dem ersten fehlgeschlagenen Versuch notwendig ist.
 
-\subsection{Exklusive Verarbeitung und Transaktionsmodell}
+\subsection{Exklusive Verarbeitung und Transaktionsmodell} %TODO: Zusicherungen einbringen
 \label{subsec:transaktionsmodell}
 Eine naheliegende Möglichkeit zur Absicherung der Hintergrundverarbeitung vor konkurrierenden Zugriffen besteht darin, eine Datenbanktransaktion über den gesamten
 Lebenszyklus eines Jobs geöffnet zu halten.
@@ -215,9 +215,14 @@ setClaimed\_by, attempt\_count oder lease\_until aktualisiert.
 Unmittelbar nach diesen Änderungen wird die Transaktion committet und die Datenbankverbindung wieder freigegeben.
 Anschließend erfolgt die eigentliche Verarbeitung des Jobs vollständig außerhalb einer Datenbanktransaktion.
 Da der Job bereits den Zustand \textit{Running} besitzt, können andere Worker ihn währenddessen nicht erneut beanspruchen.
-Nach erfolgreichem Abschluss der Verarbeitung wird schließlich eine zweite kurze Transaktion geöffnet, innerhalb der das Verarbeitungsergebnis gespeichert und
-der Job in den Zustand \textit{Successful} überführt wird.
-Muss ein Job dagegen aufgrund eines Fehlers oder eines abgelaufenen Leases zurückgesetzt werden, erfolgt auch dieser Zustandsübergang innerhalb einer separaten Transaktion.
+Nach erfolgreichem Abschluss der eigentlichen Fachlogik darf ein Worker den Job nicht unmittelbar als erfolgreich markieren.
+Stattdessen wird zunächst eine neue Transaktion geöffnet, innerhalb der sowohl das Verarbeitungsergebnis persistent gespeichert als auch der
+Jobstatus atomar von \textit{Running} nach \textit{Successful} aktualisiert wird.
+Beide Änderungen werden gemeinsam committet.
+Muss ein Job dagegen aufgrund eines Fehlers oder eines abgelaufenen Leases zurückgesetzt werden, erfolgt auch dieser Zustandsübergang auf identische Weise.
+Dadurch ist sichergestellt, dass niemals ein Zustand entstehen kann, in dem zwar bereits ein Ergebnis gespeichert wurde, der Job jedoch
+weiterhin als \textit{Running} oder \textit{Queued} gekennzeichnet ist oder umgekehrt.
+Die gemeinsame Speicherung von Ergebnis und Jobstatus innerhalb derselben lokalen \gls{acid}-Transaktion gewährleistet somit die in Z7 geforderte Atomarität.
 Damit werden sämtliche Änderungen am Zustand eines Jobs atomar durchgeführt, während die eigentliche Fachlogik vollständig außerhalb der Transaktionsgrenzen verbleibt.
 
 Für die Synchronisation konkurrierender Worker wird ein pessimistisches Sperrverfahren verwendet.
@@ -237,23 +242,24 @@ relationalen Datenbank gespeichert werden.
 Sämtliche Zustandsänderungen sowie die Persistierung eines Verarbeitungsergebnisses können dadurch innerhalb lokaler \gls{acid}-Transaktionen erfolgen.
 Die Koordination mehrerer unabhängiger Systeme und damit die Notwendigkeit verteilter Transaktionen entfallen vollständig.
 
-\subsection{Idempotente Verarbeitung}
-\label{sec:idempotenteverarbeitung}
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.8\textwidth]{images/jobVerarbeitungSequenzdiagramm}
-    \caption{cap}%TODO: caption
-    \label{fig:jobverarbeitung}
-\end{figure}
-- Z7 erfordert Transaktionales Modell für das Beenden eines Jobs (update status und ergebnis speichern) um Atomarität zu gewährleisten
-Idempotente verarbeitung:
-- Z8 erfordert Idempotenz bei der Ergebnisgenerierung. Das in \cref{subsec:transaktionsmodell} beschriebene Claiming verhindert, dass 2 Worker einen Job mit Status Queued gleichzeitig
-    claimen. Im Revcovery-Fall kann es jedoch passieren, dass ein Job der noch Verarbeitet wird, zurück auf den Status Queued gesetzt wird, weil der Worker zu lange gebraucht hat.
-    In dem Fall kann es passieren, dass 2 Worker den Job gleichzeitig bearbeiten. Damit die Idempotenz sichergestellt werden kann, muss sichergestellt werden, dass nur
-    der Worker ein Ergebnis speichern darf, der den Job laut Job-Store besitzt. %TODO: theoretisch egal, weil payload bleibt unverändert und dann sollte das gleiche Ergebnis rauskommen --> nochmal überlegen
-- nach absturz eines workers darf eine erneute ausführung nicht von einer vorher angefangenen Verabreitung beeinflusst werden --> dafür müssen die daten, auf denen die
-    fachliche operation aufbaut (vgl. payload im Datenbankentwurf) unverändert vorliegen --> payload muss mind. bis erfolgreiche Beendigung vorliegen; transaktionales modell,
-    wenn prozess abstürzt dürfen keine halb aktualisierten daten zurück bleiben (Z7)
+\subsection{Idempotente Ergebnisgenerierung}
+\label{subsec:idempotenteErgebnisgenerierung}
+Z8 verlangt, dass pro Job maximal ein Ergebnis erzeugt wird.
+Das in \cref{subsec:transaktionsmodell} vorgestellte Claiming-Verfahren stellt sicher, dass ein Job im Normalfall ausschließlich von einem einzelnen Worker bearbeitet wird.
+Durch den in \cref{subsec:recoveryarchitektur} genauer betrachteten Recovery-Fall kann diese Eigenschaft jedoch nicht immer garantiert werden.
+Daher muss sichergestellt werden, dass das fachliche Ergebnis nur einmal gespeichert werden kann oder die Fachlogik auch bei mehrfacher Ausführung in jedem Fall
+immer das gleiche Ergebnis erzeugt.
+Da der Jobstatus sowie die Jobergebnisse in derselben Datenbank verwaltet werden, bietet sich die Umsetzung der ersten Option mithilfe von Transaktionen an.
+Um die idempotente Verarbeitung auf diese Weise sicherzustellen, darf ein Worker ein Verarbeitungsergebnis ausschließlich dann persistent speichern,
+wenn er laut Job-Store weiterhin der Besitzer des Jobs ist.
+Vor der Speicherung wird daher der betroffene Datensatz gesperrt und innerhalb einer transaktional geschützten Operation erneut der aktuelle Jobstatus,
+die Worker-ID sowie die Gültigkeit des Lease überprüft. %TODO: im gesamten Text prüfen des/eines Lease oder Leases
+Nur wenn der Job sich weiterhin im Zustand \textit{Running} befindet, die gespeicherte Worker-ID mit der des ausführenden Workers übereinstimmt und das
+Lease noch nicht abgelaufen ist, wird das Ergebnis übernommen und der Job erfolgreich abgeschlossen.
+Andernfalls wird der Speichervorgang verworfen, da bereits ein anderer Worker die weitere Verarbeitung übernommen hat oder der Job bereits abgeschlossen wurde.
+Dadurch kann jeder Job höchstens einmal erfolgreich gespeichert werden, selbst wenn mehrere Worker denselben Job parallel ausgeführt haben.
+Mit diesem Vorgehen wird jedoch nicht verhindert, dass Seiteneffekte in externen Systemen ebenfalls idempotent sind.
+Diese Problematik wird in \cref{subsec:recoveryarchitektur} noch einmal aufgegriffen.
 
 \subsection{Retry-Strategie}
 \label{subsec:retryStrategie}
@@ -272,6 +278,20 @@ wieso diese Fehler
     \caption{cap}%TODO: caption
     \label{fig:recovery}
 \end{figure}
+-Überschreitet ein Worker beispielsweise die zulässige Lease-Dauer, stuft der Recovery-Service den Job als verwaist ein und setzt dessen Zustand wieder auf \textit{Queued}.
+Anschließend kann ein zweiter Worker denselben Job übernehmen, obwohl der ursprüngliche Worker seine Verarbeitung möglicherweise noch nicht beendet hat.
+-Darüber hinaus muss sichergestellt werden, dass eine erneute Ausführung eines Jobs stets unter denselben Ausgangsbedingungen erfolgt wie der ursprüngliche Verarbeitungsversuch.
+Aus diesem Grund verbleibt die ursprüngliche Payload bis zum erfolgreichen Abschluss dauerhaft im Job-Store und wird während der Verarbeitung nicht verändert.
+Stürzt ein Worker während der Ausführung ab oder wird ein Job aufgrund eines Recovery-Vorgangs erneut gestartet, kann die Verarbeitung jederzeit auf
+Basis derselben Eingabedaten wiederholt werden.
+In Kombination mit der atomaren Speicherung des Ergebnisses wird dadurch verhindert, dass unvollständig ausgeführte Verarbeitungsversuche den
+Erfolg späterer Wiederholungen beeinflussen.
+Problematisch ist ein solches Vorgehen jedoch, wenn während der Verarbeitung eines Jobs externe Seiteneffekte entstehen.
+Wird beispielsweise im Rahmen der Verarbeitung eine E-Mail versendet, so würde eine erneute Ausführung des Jobs im Recovery-Fall dieselbe E-Mail erneut versenden.
+Die entwickelte Infrastruktur garantiert die idempotente Speicherung des Verarbeitungsergebnisses innerhalb des Job-Processing-Systems.
+Externe Seiteneffekte können dagegen nur dann exakt einmal ausgeführt werden, wenn das aufgerufene Zielsystem selbst eine idempotente Verarbeitung unterstützt,
+beispielsweise durch Idempotenzschlüssel oder eindeutig identifizierbare Geschäftsobjekte.
+Unterstützt das Zielsystem keine solche Semantik, kann eine mehrfache Ausführung infolge eines Recovery-Vorgangs grundsätzlich nicht ausgeschlossen werden.
 - periodisch prüfen, ob Jobs exisiteren, die auf running stehen, aber deren Lease abgelaufen ist. Solche jobs werden dann zurückgesetzt. Dabei wird der Status auf Queued
     gesetzt und claimed\_by und lease\_until werden auch zurückgesetzt. Ist der attempt\_count zu hoch,d.h. wurde schon zu oft retried, wird der Job auf failed gesetzt und
     er wird nicht mehr erneut ausgeführt. Dadurch werden Jobs trotz Fehler durch hängengebliebene oder abgestürzte Worker erneut ausgeführt.
