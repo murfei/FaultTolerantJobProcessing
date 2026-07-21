@@ -1,5 +1,5 @@
 %! Author = murfe
-%! Date = 15.07.2026
+%! Date = 21.07.2026
 
 \chapter{Umsetzung}\label{ch:umsetzung}
 
@@ -242,25 +242,6 @@ relationalen Datenbank gespeichert werden.
 Sämtliche Zustandsänderungen sowie die Persistierung eines Verarbeitungsergebnisses können dadurch innerhalb lokaler \gls{acid}-Transaktionen erfolgen.
 Die Koordination mehrerer unabhängiger Systeme und damit die Notwendigkeit verteilter Transaktionen entfallen vollständig.
 
-\subsection{Idempotente Ergebnisgenerierung}
-\label{subsec:idempotenteErgebnisgenerierung}
-Z8 verlangt, dass pro Job maximal ein Ergebnis erzeugt wird.
-Das in \cref{subsec:transaktionsmodell} vorgestellte Claiming-Verfahren stellt sicher, dass ein Job im Normalfall ausschließlich von einem einzelnen Worker bearbeitet wird.
-Durch den in \cref{subsec:recoveryarchitektur} genauer betrachteten Recovery-Fall kann diese Eigenschaft jedoch nicht immer garantiert werden.
-Daher muss sichergestellt werden, dass das fachliche Ergebnis nur einmal gespeichert werden kann oder die Fachlogik auch bei mehrfacher Ausführung in jedem Fall
-immer das gleiche Ergebnis erzeugt.
-Da der Jobstatus sowie die Jobergebnisse in derselben Datenbank verwaltet werden, bietet sich die Umsetzung der ersten Option mithilfe von Transaktionen an.
-Um die idempotente Verarbeitung auf diese Weise sicherzustellen, darf ein Worker ein Verarbeitungsergebnis ausschließlich dann persistent speichern,
-wenn er laut Job-Store weiterhin der Besitzer des Jobs ist.
-Vor der Speicherung wird daher der betroffene Datensatz gesperrt und innerhalb einer transaktional geschützten Operation erneut der aktuelle Jobstatus,
-die Worker-ID sowie die Gültigkeit des Lease überprüft. %TODO: im gesamten Text prüfen des/eines Lease oder Leases
-Nur wenn der Job sich weiterhin im Zustand \textit{Running} befindet, die gespeicherte Worker-ID mit der des ausführenden Workers übereinstimmt und das
-Lease noch nicht abgelaufen ist, wird das Ergebnis übernommen und der Job erfolgreich abgeschlossen.
-Andernfalls wird der Speichervorgang verworfen, da bereits ein anderer Worker die weitere Verarbeitung übernommen hat oder der Job bereits abgeschlossen wurde.
-Dadurch kann jeder Job höchstens einmal erfolgreich gespeichert werden, selbst wenn mehrere Worker denselben Job parallel ausgeführt haben.
-Mit diesem Vorgehen wird jedoch nicht verhindert, dass Seiteneffekte in externen Systemen ebenfalls idempotent sind.
-Diese Problematik wird in \cref{subsec:recoveryarchitektur} noch einmal aufgegriffen.
-
 \subsection{Retry-Strategie}
 \label{subsec:retryStrategie}
 Auf Grundlage der in \cref{subsec:retry/backoff} beschriebenen Prinzipien werden Wiederholungsmechanismen gezielt an denjenigen
@@ -310,47 +291,77 @@ Die konkrete Implementierung des Retry-Executors sowie die Konfiguration der ein
 
 \subsection{Recovery}
 \label{subsec:recoveryarchitektur}
+Die in \cref{subsec:retryStrategie} beschriebene Retry-Strategie behandelt ausschließlich transiente Infrastrukturfehler, bei denen die ausführende Komponente weiterhin aktiv ist.
+Fällt ein Worker dagegen während der Verarbeitung vollständig aus oder bleibt dauerhaft hängen, kann kein lokaler Retry mehr erfolgen.
+Zur Behandlung solcher Fehler wird die Architektur daher um einen eigenständigen Recovery-Service ergänzt.
+
+Wie in \cref{fig:recovery} dargestellt, überprüft der Recovery-Service den Job-Store in regelmäßigen Abständen auf potenziell verwaiste Jobs.
+Hierzu werden sämtliche Jobs betrachtet, die sich weiterhin im Zustand \textit{Running} befinden, deren Lease jedoch bereits abgelaufen ist.
+Ein abgelaufener Lease wird dabei als Indikator dafür verwendet, dass die ursprüngliche Verarbeitung nicht innerhalb der vorgesehenen Zeit abgeschlossen werden konnte.
+%Die Architektur verzichtet bewusst auf einen Heartbeat-Mechanismus und nutzt stattdessen ausschließlich zeitbasierte Leases, da diese ohne zusätzliche Kommunikation zwischen
+%Worker und Job-Store auskommen und den Implementierungsaufwand reduzieren. TODO: hier nochmal wegen Heartbeat überelgen, ob das nicht doch noch implementiert wird
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.5\textwidth]{images/recoverySequenz}
-    \caption{cap}%TODO: caption
+    \caption{Ablauf des Recovery-Mechanismus} %TODO
     \label{fig:recovery}
 \end{figure}
--Überschreitet ein Worker beispielsweise die zulässige Lease-Dauer, stuft der Recovery-Service den Job als verwaist ein und setzt dessen Zustand wieder auf \textit{Queued}.
-Anschließend kann ein zweiter Worker denselben Job übernehmen, obwohl der ursprüngliche Worker seine Verarbeitung möglicherweise noch nicht beendet hat.
--Darüber hinaus muss sichergestellt werden, dass eine erneute Ausführung eines Jobs stets unter denselben Ausgangsbedingungen erfolgt wie der ursprüngliche Verarbeitungsversuch.
-Aus diesem Grund verbleibt die ursprüngliche Payload bis zum erfolgreichen Abschluss dauerhaft im Job-Store und wird während der Verarbeitung nicht verändert.
-Stürzt ein Worker während der Ausführung ab oder wird ein Job aufgrund eines Recovery-Vorgangs erneut gestartet, kann die Verarbeitung jederzeit auf
-Basis derselben Eingabedaten wiederholt werden.
-In Kombination mit der atomaren Speicherung des Ergebnisses wird dadurch verhindert, dass unvollständig ausgeführte Verarbeitungsversuche den
-Erfolg späterer Wiederholungen beeinflussen.
-Problematisch ist ein solches Vorgehen jedoch, wenn während der Verarbeitung eines Jobs externe Seiteneffekte entstehen.
-Wird beispielsweise im Rahmen der Verarbeitung eine E-Mail versendet, so würde eine erneute Ausführung des Jobs im Recovery-Fall dieselbe E-Mail erneut versenden.
-Die entwickelte Infrastruktur garantiert die idempotente Speicherung des Verarbeitungsergebnisses innerhalb des Job-Processing-Systems.
-Externe Seiteneffekte können dagegen nur dann exakt einmal ausgeführt werden, wenn das aufgerufene Zielsystem selbst eine idempotente Verarbeitung unterstützt,
-beispielsweise durch Idempotenzschlüssel oder eindeutig identifizierbare Geschäftsobjekte.
-Unterstützt das Zielsystem keine solche Semantik, kann eine mehrfache Ausführung infolge eines Recovery-Vorgangs grundsätzlich nicht ausgeschlossen werden.
-- periodisch prüfen, ob Jobs exisiteren, die auf running stehen, aber deren Lease abgelaufen ist. Solche jobs werden dann zurückgesetzt. Dabei wird der Status auf Queued
-    gesetzt und claimed\_by und lease\_until werden auch zurückgesetzt. Ist der attempt\_count zu hoch,d.h. wurde schon zu oft retried, wird der Job auf failed gesetzt und
-    er wird nicht mehr erneut ausgeführt. Dadurch werden Jobs trotz Fehler durch hängengebliebene oder abgestürzte Worker erneut ausgeführt.
-- behandelt werden dadurch: Worker crash, JVM crash, Container neustarts, hängende Worker
-ein hängender Worker kann durch Lease-Mechanismus erkannt werden und der geclaimte Job geht nicht
-verloren und wird von einem anderen Worker irgendwann ausgeführt. Die Terminierung und der Neustart des
-Worker-Prozesses ist jedoch Aufgabe eines externen Orchestrierungstools bzw. Prozessüberwachung
-wie bspw. Kubernetes
-%TODO: falls kein Heartbeat, hier erklären wieso
+Für jeden erkannten verwaisten Job entscheidet der Recovery-Service anschließend über das weitere Vorgehen.
+Wurde die maximal zulässige Anzahl an Ausführungsversuchen noch nicht erreicht, wird der Job erneut zur Verarbeitung freigegeben.
+Hierzu werden innerhalb einer zusammengehörigen Transaktion der Status auf \textit{Queued} zurückgesetzt sowie die Attribute \textit{claimed\_by}
+und \textit{lease\_until} zurückgesetzt.
+Anschließend kann der Job von einem beliebigen Worker erneut beansprucht werden.
+Wurde die konfigurierte Obergrenze der Wiederholungsversuche bereits erreicht, wird der Job stattdessen in den Endzustand \textit{Failed} überführt und nicht erneut verarbeitet.
+Dadurch wird verhindert, dass dauerhaft fehlerhafte Jobs unbegrenzt Systemressourcen belegen.
 
-recovery manager setzt einen noch bearbeiteten job zurück und neuer worker beansprucht diesen --> dadurch arbeiten 2 worker an einen job.
-idempotenz durch fencing tokens sicherstellen
+Durch diesen Mechanismus können insbesondere Worker-Abstürze, JVM-Abstürze, Container-Neustarts sowie dauerhaft blockierte Worker in Bezug auf die
+Jobausführung behandelt werden.
+Die eigentliche Terminierung oder der Neustart fehlerhafter Worker ist dagegen nicht Bestandteil des entwickelten Systems.
+Diese Aufgabe wird bewusst an eine externe Prozessüberwachung oder Orchestrierungsplattform, beispielsweise Kubernetes, delegiert.
+Das entwickelte System stellt lediglich sicher, dass durch den Ausfall eines Workers kein Job dauerhaft verloren geht.
 
-Dein „remote datastore“ ist praktisch deine PostgreSQL-Jobtabelle (persistenter Job-Store).
-Das entspricht dem Ansatz „State remote halten“, was Recovery vereinfacht, aber Laufzeit/Contention beeinflusst.
-Dein Worker hat vermutlich lokalen, transienten Zustand während der Verarbeitung (in-memory).
-Der muss nach Crash nicht „rekonstruiert“ werden, sondern du brauchst Mechanismen wie Lease/Timeout + Retry, um Jobs wieder aufzunehmen.
-„Replay state from input“ entspricht bei dir am ehesten: Job erneut ausführen (at-least-once) – und genau deshalb brauchst du Idempotenz, weil „replay“ bei Side-Effects sonst doppelte Ergebnisse erzeugt.
-\parencite[Kap.11 Rebuilding a state failure]{kleppmann_designing_2017}
+Die Wiederaufnahme eines Jobs erfolgt in der entwickelten Architektur grundsätzlich nicht durch das Fortsetzen eines unterbrochenen Ausführungszustands,
+sondern durch eine vollständige Neuausführung auf Basis der ursprünglich persistierten Eingabedaten.
+Aus diesem Grund muss die Payload eines Jobs mindestens bis zum erfolgreichen Abschluss unverändert im Job-Store verbleiben.
+Dadurch kann jeder Wiederholungsversuch unter identischen Ausgangsbedingungen beginnen.
+In Kombination mit der atomaren Speicherung des Verarbeitungsergebnisses wird sichergestellt, dass unvollständig abgeschlossene Ausführungsversuche
+keine inkonsistenten Zustände hinterlassen und den Erfolg späterer Wiederholungen nicht beeinflussen.
 
+Problematisch ist ein solches Vorgehen jedoch, wenn während der Verarbeitung externe Seiteneffekte entstehen.
+Wird beispielsweise im Rahmen eines Jobs eine E-Mail versendet und der Worker stürzt anschließend vor dem erfolgreichen Abschluss der Verarbeitung ab,
+so wird der Job durch den Recovery-Service erneut zur Verarbeitung freigegeben.
+Die erneute Ausführung würde in diesem Fall dieselbe E-Mail ein weiteres Mal versenden.
 
+Die entwickelte Infrastruktur garantiert daher ausschließlich die idempotente Verarbeitung innerhalb des Job-Processing-Systems,
+hinsichtlich der Reservierung von Jobs und der atomaren Speicherung von Verarbeitungsergebnissen.
+Für externe Seiteneffekte kann eine Exactly-Once-Ausführung dagegen grundsätzlich nicht gewährleistet werden.
+Diese ist nur möglich, wenn das jeweils aufgerufene Zielsystem selbst eine idempotente Verarbeitung unterstützt, beispielsweise durch Nutzung von
+Idempotenzschlüsseln wie im Beispielsystem bei der Joberstellung (vgl. \cref{subsec:joberstellung}).
+Unterstützt das Zielsystem keine entsprechende Semantik, kann eine Mehrfachausführung von Seiteneffekten infolge eines Recovery-Vorgangs nicht ausgeschlossen werden.
+
+Ein Nebeneffekt dieser Architektur besteht darin, dass ein Job zeitweise von mehreren Workern gleichzeitig bearbeitet werden kann.
+Überschreitet beispielsweise ein Worker seine Lease-Dauer, wird der Job erneut freigegeben, obwohl der ursprüngliche Worker seine Verarbeitung möglicherweise noch beendet.
+Die beschriebene Recovery-Strategie versucht damit, die Erfolgswahrscheinlichkeit eines Jobs zu erhöhen.
+Sie verfolgt damit das Ziel einer At-least-Once-Ausführung von Jobs.
+Die daraus resultierenden Anforderungen an die idempotente Verarbeitung werden im folgenden Abschnitt betrachtet.
+
+\subsection{Idempotente Ergebnisgenerierung}
+\label{subsec:idempotenteErgebnisgenerierung}
+Z8 verlangt, dass pro Job maximal ein Ergebnis erzeugt wird.
+Das in \cref{subsec:transaktionsmodell} vorgestellte Claiming-Verfahren stellt sicher, dass ein Job im Normalfall ausschließlich von einem einzelnen Worker bearbeitet wird.
+Durch den in \cref{subsec:recoveryarchitektur} genauer betrachteten Recovery-Fall kann diese Eigenschaft jedoch nicht immer garantiert werden.
+Daher muss sichergestellt werden, dass das fachliche Ergebnis nur einmal gespeichert werden kann oder die Fachlogik auch bei mehrfacher Ausführung in jedem Fall
+immer das gleiche Ergebnis erzeugt.
+Da der Jobstatus sowie die Jobergebnisse in derselben Datenbank verwaltet werden, bietet sich die Umsetzung der ersten Option mithilfe von Transaktionen an.
+Um die idempotente Verarbeitung auf diese Weise sicherzustellen, darf ein Worker ein Verarbeitungsergebnis ausschließlich dann persistent speichern,
+wenn er laut Job-Store weiterhin der Besitzer des Jobs ist.
+Vor der Speicherung wird daher der betroffene Datensatz gesperrt und innerhalb einer transaktional geschützten Operation erneut der aktuelle Jobstatus,
+die Worker-ID sowie die Gültigkeit des Lease überprüft. %TODO: im gesamten Text prüfen des/eines Lease oder Leases
+Nur wenn der Job sich weiterhin im Zustand \textit{Running} befindet, die gespeicherte Worker-ID mit der des ausführenden Workers übereinstimmt und das
+Lease noch nicht abgelaufen ist, wird das Ergebnis übernommen und der Job erfolgreich abgeschlossen.
+Andernfalls wird der Speichervorgang verworfen, da bereits ein anderer Worker die weitere Verarbeitung übernommen hat oder der Job bereits abgeschlossen wurde.
+Dadurch kann jeder Job höchstens einmal erfolgreich gespeichert werden, selbst wenn mehrere Worker denselben Job parallel ausgeführt haben.
+Mit diesem Vorgehen wird jedoch nicht das in \cref{subsec:recoveryarchitektur} erwähnte Problem verhindert, dass Seiteneffekte in externen Systemen ebenfalls idempotent sind.
 
 
 Pro Kapitel eine solche Tabelle um zu erklären welche Architekturentscheidung genau welche Zusicherung erfüllt
