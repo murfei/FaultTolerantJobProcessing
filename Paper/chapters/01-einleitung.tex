@@ -61,7 +61,7 @@ Welche Architekturmechanismen und Entwurfsentscheidungen sind notwendig, um in
 einem Java/Spring-basierten Job-Processing-Backend definierte Konsistenzzusicherungen
 unter typischen Teilausfallszenarien nachweisbar einzuhalten?\\
 Zur Beantwortung dieser Frage werden folgende Teilfragen untersucht:
-\begin{enumerate}[label=TF\arabic*:, ref=TF\arabic*]
+\begin{enumerate}[label=TF\arabic*:, ref=TF\arabic*] %TODO: unbedingt noch auf alle Teilfragen /-ziele eingehen!
     \item \label{item:tf1} Welche Zusicherungen muss das System gewährleisten, damit Jobs stets
     korrekt und ohne Inkonsistenzen verarbeitet werden?
     \item \label{item:tf2} Welchen Beitrag leisten Idempotenz, Retry-Strategien und Recovery-Mechanismen
@@ -89,11 +89,11 @@ Konkret verfolgt die Arbeit folgende Teilziele:
     formuliert werden, die das System zu jedem Zeitpunkt einhalten muss,
     unabhängig davon, welche Fehler auftreten.
     Dazu zählen unter anderem, dass kein Job doppelt erfolgreich abgeschlossen wird,
-    dass kein Job dauerhaft verloren geht und dass Statusübergänge ausschließlich %TODO: schauen wegen Zustandsmodell --> hab ich ein solches tatsächlich genutzt?
+    dass kein Job dauerhaft verloren geht und dass Statusübergänge ausschließlich %TODO: hier ggfs. die Punkte nochmal prüfen und schärfen
     dem definierten Zustandsmodell folgen.
     \item \label{item:tz2} Architekturentwurf: Es soll eine Architektur entworfen werden, die persistente
     Job-States, Idempotenz, Retry-Strategien sowie ein nachvollziehbares
-    Statusmodell umfasst. %TODO: auch hier wieder Statusmodell
+    Statusmodell umfasst. %TODO: hier evtl schärfen: ggfs architektur die die zuvor definierten Zusicherungen umsetzt?
     Architekturentscheidungen sollen explizit dokumentiert und begründet werden.
     \item \label{item:tz3} Prototypische Implementierung: Die entworfene Architektur soll als
     funktionsfähiger Prototyp umgesetzt werden, der die definierten Zusicherungen

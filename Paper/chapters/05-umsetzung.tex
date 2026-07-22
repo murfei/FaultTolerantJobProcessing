@@ -263,7 +263,7 @@ transient ist und die Parameter für Retry und Backoff passend konfiguriert sind
 
 Innerhalb des Backends werden Wiederholungsversuche ausschließlich für Datenbankoperationen vorgesehen, deren Fehlschlagen typischerweise auf transiente
 Infrastrukturfehler zurückzuführen ist, beispielsweise kurzzeitige Netzwerkunterbrechungen oder die vorübergehende Nichtverfügbarkeit der Datenbank.
-Dies betrifft insbesondere das Reservieren eines Jobs sowie das Persistieren eines Verarbeitungsergebnisses.
+Dies betrifft besonders das Reservieren eines Jobs sowie das Persistieren eines Verarbeitungsergebnisses.
 Kann eine dieser Operationen aufgrund einer vorübergehend nicht erreichbaren Datenbank oder einer vergleichbaren transienten Störung
 nicht abgeschlossen werden, wird sie automatisch erneut ausgeführt.
 Dagegen werden fachliche Fehler während der eigentlichen Jobverarbeitung bewusst nicht wiederholt, da deren Ursache in der Regel nicht
@@ -328,10 +328,15 @@ In Kombination mit der atomaren Speicherung des Verarbeitungsergebnisses wird si
 keine inkonsistenten Zustände hinterlassen und den Erfolg späterer Wiederholungen nicht beeinflussen.
 
 Problematisch ist ein solches Vorgehen jedoch, wenn während der Verarbeitung externe Seiteneffekte entstehen.
-Wird beispielsweise im Rahmen eines Jobs eine E-Mail versendet und der Worker stürzt anschließend vor dem erfolgreichen Abschluss der Verarbeitung ab,
-so wird der Job durch den Recovery-Service erneut zur Verarbeitung freigegeben.
+Wird beispielsweise wie in \cref{fig:seiteneffekte} im Rahmen eines Jobs eine E-Mail versendet und der Worker stürzt anschließend
+vor dem erfolgreichen Abschluss der Verarbeitung ab, so wird der Job durch den Recovery-Service erneut zur Verarbeitung freigegeben.
 Die erneute Ausführung würde in diesem Fall dieselbe E-Mail ein weiteres Mal versenden.
-
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/wiederholungenBeiSeiteneffekten}
+    \caption{Mehrfachausführung mit Seiteneffekten}
+    \label{fig:seiteneffekte}
+\end{figure}
 Die entwickelte Infrastruktur garantiert daher ausschließlich die idempotente Verarbeitung innerhalb des Job-Processing-Systems,
 hinsichtlich der Reservierung von Jobs und der atomaren Speicherung von Verarbeitungsergebnissen.
 Für externe Seiteneffekte kann eine Exactly-Once-Ausführung dagegen grundsätzlich nicht gewährleistet werden.
