@@ -1,5 +1,5 @@
 %! Author = murfe
-%! Date = 28.06.2026
+%! Date = 22.07.2026
 %TODO: ggfs noch Abschnitte zu den Referenzen hinzufügen
 \chapter{Einleitung}
 \label{ch:einleitung}
@@ -20,17 +20,12 @@ Gewinneinbußen in Produktivsystemen in Folge von Fehlern zu vermeiden \parencit
 
 \section{Problemstellung}
 \label{sec:problemstellung}
-In der Praxis können bei der Verarbeitung von Hintergrundjobs jederzeit Teilausfälle
-auftreten.
-Prozesse können während der Verarbeitung unerwartet terminieren,
-Datenbankverbindungen können kurzzeitig unterbrochen werden oder identische
-Anfragen werden zum Beispiel infolge von clientseitigen Wiederholungsversuchen
-mehrfach an das System übermittelt oder Ergebnisse bzw. Antworten gehen verloren
-\parencite[Kap. 8]{kleppmann_designing_2017}.
-Ohne geeignete Mechanismen führen derartige Szenarien
-zu inkonsistenten Systemzuständen.
-Beispielsweise verbleiben Jobs im Status
-\glqq laufend\grqq, obwohl kein Worker sie mehr aktiv verarbeitet, Ergebnisse werden doppelt
+In der Praxis können bei der Verarbeitung von Hintergrundjobs jederzeit Teilausfälle auftreten.
+Prozesse können während der Verarbeitung unerwartet terminieren, Datenbankverbindungen können kurzzeitig unterbrochen werden, identische
+Anfragen infolge von clientseitigen Wiederholungsversuchen mehrfach an das System übermittelt werden oder
+Ergebnisse bzw. Antworten gehen verloren \parencite[Kap. 8]{kleppmann_designing_2017}.
+Ohne geeignete Mechanismen führen derartige Szenarien zu inkonsistenten Systemzuständen.
+Beispielsweise verbleiben Jobs im Status \glqq{}laufend\grqq, obwohl kein Worker sie mehr aktiv verarbeitet, Ergebnisse werden doppelt
 erzeugt oder Aufträge gehen vollständig verloren.
 
 Bestehende Frameworks und Bibliotheken, etwa Quartz Scheduler \parencite{terracotta_inc_hrsg_quartz_2026}
@@ -51,7 +46,7 @@ eines Systems berücksichtigt werden.
 Daher bilden die in dieser Arbeit behandelten Konzepte auch die Grundlage für den zuverlässigen Betrieb von Backend-Systemen in Cloud-Umgebungen.
 
 Obwohl die zugrundeliegenden Konzepte wie Fehlertoleranz, Recovery, Idempotenz, Nebenläufigkeitskontrolle und Transaktionsmanagement in der Literatur umfassend
-beschrieben werden, existieren nur wenige Arbeiten, die diese Aspekte zu einer durchgängigen datenbankbasierten Architektur für Background-Job-Processing
+beschrieben werden, fehlen Arbeiten, die diese Aspekte zu einer durchgängigen datenbankbasierten Architektur für Background-Job-Processing
 zusammenführen und deren Verhalten unter definierten Fehlerszenarien systematisch evaluieren.
 Ebenso implementieren bestehende Frameworks diese Mechanismen häufig als interne Abstraktionen, wodurch deren Zusammenspiel und Auswirkungen
 auf die Zuverlässigkeit des Gesamtsystems für Entwickler nur eingeschränkt nachvollziehbar sind.
@@ -79,21 +74,18 @@ Zur Beantwortung dieser Frage werden folgende Teilfragen untersucht:
 \label{sec:zielsetzung}
 Ziel dieser Arbeit ist der Entwurf, die prototypische Implementierung und die Evaluation
 eines fehlertoleranten Job-Processing-Backends auf Basis einer relationalen Datenbank in Kombination mit Java und Spring.
-Dabei soll herausgearbeitet werden, welche Architekturmechanismen erforderlich sind,
-damit Hintergrundjobs auch bei Teilausfällen zuverlässig, korrekt und nachvollziehbar
-verarbeitet werden und definierte Konsistenzzusicherungen eingehalten werden.
+Dabei soll herausgearbeitet werden, welche Architekturmechanismen erforderlich sind, damit Hintergrundjobs auch bei Teilausfällen
+zuverlässig und korrekt verarbeitet werden und definierte Konsistenzzusicherungen eingehalten werden.
 
 Konkret verfolgt die Arbeit folgende Teilziele:
-\begin{enumerate}[label=TZ\arabic*:, ref=TZ\arabic*]
+\begin{enumerate}[label=TZ\arabic*:, ref=TZ\arabic*] %TODO: irgendwie noch retries mit einbringen?
     \item \label{item:tz1} Definition von Zusicherungen: Es sollen präzise Korrektheitsbedingungen
     formuliert werden, die das System zu jedem Zeitpunkt einhalten muss,
     unabhängig davon, welche Fehler auftreten.
     Dazu zählen unter anderem, dass kein Job doppelt erfolgreich abgeschlossen wird,
-    dass kein Job dauerhaft verloren geht und dass Statusübergänge ausschließlich %TODO: hier ggfs. die Punkte nochmal prüfen und schärfen
-    dem definierten Zustandsmodell folgen.
-    \item \label{item:tz2} Architekturentwurf: Es soll eine Architektur entworfen werden, die persistente
-    Job-States, Idempotenz, Retry-Strategien sowie ein nachvollziehbares
-    Statusmodell umfasst. %TODO: hier evtl schärfen: ggfs architektur die die zuvor definierten Zusicherungen umsetzt?
+    dass kein Job dauerhaft verloren geht und dass Statusübergänge ausschließlich dem definierten Zustandsmodell folgen.
+    %TODO: hier ggfs. die Punkte nochmal prüfen und schärfen
+    \item \label{item:tz2} Architekturentwurf: Es soll eine Architektur entworfen werden, die die hergeleiteten Zusicherungen umsetzt.
     Architekturentscheidungen sollen explizit dokumentiert und begründet werden.
     \item \label{item:tz3} Prototypische Implementierung: Die entworfene Architektur soll als
     funktionsfähiger Prototyp umgesetzt werden, der die definierten Zusicherungen
@@ -106,7 +98,7 @@ Konkret verfolgt die Arbeit folgende Teilziele:
 \section{Hypothesen}
 \label{sec:hypothesen}
 Auf Basis der Forschungsfrage und der Zielsetzung werden folgende Hypothesen formuliert,
-deren Überprüfung im Rahmen der Implementierung und insbesondere der Evaluation erfolgt.
+deren Überprüfung im Rahmen der Evaluation erfolgt.
 \begin{enumerate}[label=H\arabic*:, ref=H\arabic*]
     \item \label{item:h1} Durch die Kombination eines persistenten Statusmodells mit transaktionsbasiertem
     Locking und Idempotenz-Mechanismen lässt sich ein System entwerfen, das auch bei
