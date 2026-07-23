@@ -238,21 +238,9 @@ Im Software-Entwurf erfordert das Setzen der Transaktionsgrenzen daher eine kont
 Weit gefasste Transaktionsgrenzen reduzieren das Risiko der Entstehung von Inkonsistenzen, blockieren jedoch Systemressourcen und Datensätze.
 Eng gefasste Grenzen erhöhen den Durchsatz, können jedoch das Risiko konkurrierender Zugriffe und daraus resultierender Race Conditions erhöhen.
 
-\subsection{Isolationsstufen und Synchronisationsverfahren}
-\label{subsec:synchronisation}%TODO:Unterschiedung Isolationlevel & Sperren klarstellen --> Sperren sind eine Möglichkeiten wie die DB Isolationlevel umzusetzen kann, man kann
-                                %sie aber auch explizit nutzen
+\subsection{Synchronisationsverfahren und Isolationsstufen}
+\label{subsec:synchronisation}
 Zur Umsetzung der Isolationseigenschaft von Transaktionen müssen konkurrierende Zugriffe auf gemeinsame Daten koordiniert werden.
-Zu diesem Zweck stellen Datenbanksysteme unterschiedliche Isolationsstufen bereit.
-Diese schwächen Teile der \gls{acid}-Garantien bewusst ab und legen damit fest, in welchem Umfang Transaktionen die Änderungen parallel laufender Transaktionen beobachten
-und welche Parallelitätsanomalien dadurch im System auftreten können \parencite[251]{kudras_taschenbuch_2015}.
-Je nach Anwendungskontext kann es sein, dass nicht alle dieser Anomalien auftreten können, beispielsweise wenn nur Leseoperationen ausgeführt werden, oder dass deren Auftreten
-in Kauf genommen werden kann, um eine bessere Performance zu erhalten.
-Dadurch müssen weniger Überprüfungen stattfinden und weniger Transaktionen müssen zurückgesetzt werden, was zu einer besseren Performance führt.
-Höhere Isolationsstufen bieten stärkere Konsistenzgarantien, können jedoch die Parallelität des Systems verringern
-\parencite[Kap.~13.1.3]{saake_datenbanken_2018}.
-Während die Isolationsstufen somit die Konsistenzgarantien definieren, kommen zur Koordination der Transaktionen im Datenbanksystem verschiedene Synchronisationsverfahren
-zum Einsatz, die durch sperrende oder nicht-sperrende Strategien das Entstehen nicht zugelassener Anomalien verhindern \parencite[253--259]{kudras_taschenbuch_2015}.
-
 Eine verbreitete Strategie zur Durchsetzung der Isolation ist die pessimistische Synchronisation.
 Sie basiert auf der Annahme, dass konkurrierende Zugriffe auftreten können und verhindert diese bereits im Vorfeld durch Sperrmechanismen.
 Bevor eine Transaktion einen Datensatz verändert, wird dieser für andere konkurrierende Transaktionen gesperrt.
@@ -274,6 +262,13 @@ Sie eignen sich daher insbesondere für Systeme, in denen konkurrierende Änderu
 
 Welche Synchronisationsstrategie geeignet ist, hängt von den Anforderungen des jeweiligen Systems und der Häufigkeit erwarteter Konflikte ab.
 Während pessimistische Verfahren Konflikte präventiv verhindern, akzeptieren optimistische Verfahren mögliche Konflikte und behandeln diese nachträglich.
+Zusätzlich können Datenbanksysteme die strenge Isolationsforderung von \gls{acid} durch unterschiedliche Isolationsstufen abschwächen.
+Diese Stufen legen fest, in welchem Umfang Transaktionen die Änderungen parallel laufender Transaktionen beobachten
+und welche Parallelitätsanomalien dadurch im System auftreten können \parencite[251]{kudras_taschenbuch_2015}.
+Je nach Anwendungskontext kann es sein, dass nicht alle dieser Anomalien auftreten können, beispielsweise wenn nur Leseoperationen ausgeführt werden, oder dass deren Auftreten
+in Kauf genommen werden kann, um eine bessere Performance zu erhalten.
+Höhere Isolationsstufen bieten stärkere Konsistenzgarantien, können jedoch die Parallelität des Systems verringern
+\parencite[Kap.~13.1.3]{saake_datenbanken_2018}.
 
 \section{Fehlertoleranz und Wiederherstellung}
 \label{sec:fehlertoleranz}
@@ -318,7 +313,6 @@ Permanente Fehler hingegen bestehen unabhängig von der Anzahl der Wiederholungs
 Ihre Ursache liegt häufig in der Anwendung selbst oder in den zu verarbeitenden Daten.
 Beispiele hierfür sind ungültige Eingabedaten oder fehlende Berechtigungen.
 \textcite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026} verdeutlicht dies anhand von HTTP-Fehlercodes wie 404 Not Found oder 403 Forbidden.
-
 Die Abgrenzung zwischen beiden Fehlerarten ist insbesondere für die automatisierte Fehlerbehandlung relevant.
 Während transiente Fehler häufig eine erneute Ausführung rechtfertigen, sollten permanente Fehler möglichst früh erkannt und gesondert behandelt werden.
 
@@ -341,7 +335,6 @@ Permanente Fehler sollten dagegen unmittelbar als endgültig fehlgeschlagen beha
 Ein typisches Szenario, in dem Retries sinnvoll sind, ist das Verschicken von Nachrichten
 \parencites[{Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq}]{newman_building_2026}[Abschnitt \glqq Reliability considerations\grqq]{microsoft_corporation_hrsg_best_2026}.
 
-Ein mögliches Vorgehen bei einem temporären Fehler ist in \cref{fig:retry} dargestellt.
 Da die Ursache eines transienten Fehlers potenziell auch für eine gewisse Zeit nach dem Auftreten des Fehlers weiterhin besteht, werden Wiederholungen üblicherweise
 nicht unmittelbar durchgeführt.
 Stattdessen wird zwischen den einzelnen Versuchen eine Wartezeit eingefügt.
@@ -351,19 +344,20 @@ Eine einfache Variante besteht darin, zwischen allen Wiederholungsversuchen dies
 In verteilten Systemen wird jedoch häufig ein exponentieller Backoff eingesetzt, bei dem sich das Warteintervall nach jedem fehlgeschlagenen Versuch schrittweise erhöht.
 Dadurch erhält das betroffene System mehr Zeit, sich von einer temporären Störung zu erholen, da die Dichte der Wiederholungsversuche
 reduziert wird \parencite[Kap.~3 Abschnitt \glqq Delays Between Retries\grqq]{newman_building_2026}.
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.5\textwidth]{images/retryBackoff} %TODO: Quali anpassen
-    \caption{Verhalten bei transienten Fehlern}
-    \label{fig:retry}
-\end{figure}
-\\Neben der zeitlichen Staffelung von Wiederholungsversuchen muss auch deren Anzahl begrenzt werden.
+
+Neben der zeitlichen Staffelung von Wiederholungsversuchen muss auch deren Anzahl begrenzt werden.
 Andernfalls besteht die Gefahr, dass ein fehlerhafter Job unendlich oft ausgeführt wird und dadurch dauerhaft Ressourcen belegt.
 In der Praxis wird daher eine maximale Anzahl von Wiederholungsversuchen definiert.
 Wird diese überschritten, gilt die Verarbeitung als endgültig fehlgeschlagen und der Job wird in einen entsprechenden Fehlerzustand
 überführt \parencite[Kap.~3 Abschnitt \glqq How Many Retries Are Appropriate?\grqq]{newman_building_2026}.
-
-Retry- und Backoff-Strategien bilden damit einen wesentlichen Baustein zur Behandlung transienter Fehler.
+\Cref{fig:retry} visualisiert ein mögliches Vorgehen, das die oben beschriebenen Prinzipien umsetzt.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\textwidth]{images/retryBackoff}
+    \caption{Verhalten bei transienten Fehlern}
+    \label{fig:retry}
+\end{figure}
+\\Retry- und Backoff-Strategien bilden damit einen wesentlichen Baustein zur Behandlung transienter Fehler.
 Sie ermöglichen die automatische Wiederholung fehlgeschlagener Verarbeitungen, ohne abhängige Systeme durch unmittelbar aufeinanderfolgende Wiederholungsversuche
 zusätzlich zu belasten.
 
@@ -376,57 +370,59 @@ In einem solchen Szenario kann kein lokaler Retry mehr initiiert werden, da die 
 Recovery bezeichnet in diesem Kontext die Fähigkeit eines Systems, eine derart unterbrochene Verarbeitung zu erkennen und geeignete Maßnahmen zur Wiederaufnahme einzuleiten
 \parencite[Kap.~4.2]{bass_software_2021}.
 
-Die Notwendigkeit solcher Mechanismen ergibt sich aus den Eigenschaften verteilter Systeme.
-Da einzelne Komponenten unabhängig voneinander ausfallen können, während andere Teile des Systems weiterhin funktionieren, entstehen sogenannte Teilausfälle
-\parencite[Kap.~8 Abschnitt \glqq Faults and Partial Failures\grqq]{kleppmann_designing_2017}.
-Dadurch entsteht Unsicherheit über den tatsächlichen Verarbeitungszustand einer Aufgabe.
-Gegebenenfalls ist nicht eindeutig feststellbar, ob eine Verarbeitung bereits erfolgreich abgeschlossen wurde aber die Bestätigung darüber fehlt, ob sie kurz vor ihrem
-Abschluss steht oder aufgrund eines Fehlers vorzeitig abgebrochen wurde \parencite[Kap.~8]{kleppmann_designing_2017}.
-
-Zur Wiederherstellung nach einem Ausfall muss zwischen flüchtigem und persistentem Zustand unterschieden werden.
-Während lokal im Arbeitsspeicher gehaltene Informationen beim Absturz eines Prozesses verloren gehen, kann persistent gespeicherter Zustand auch nach einem Ausfall
-weiterhin genutzt werden \parencite[Kap.~11 Abschnitt \glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
-Die Verarbeitung auf Basis eines Zwischenzustands wieder aufzunehmen ist unter Umständen jedoch nicht trivial.
-Eine verbreitete Wiederherstellungsstrategie besteht daher darin, die für eine Verarbeitung relevanten Eingabedaten mindestens bis zum erfolgreichen Abschluss des Jobs
-zu speichern und eine unterbrochene Verarbeitung bei Bedarf auf Basis dieser Ursprungsdaten erneut auszuführen.
-Dies ist häufig einfacher und robuster als der Versuch, den exakten Laufzeitzustand eines abgestürzten Prozesses zu rekonstruieren und die Verarbeitung dort fortzusetzen
-\parencite[Kap.~17.3]{bass_software_2021}.
-Eine erneute Ausführung setzt voraus, dass die zur Verarbeitung benötigten Informationen auch nach einem Ausfall weiterhin verfügbar sind.
-Darüber hinaus darf ein Ausfall nicht zu inkonsistenten Zuständen führen, die eine spätere Wiederaufnahme verhindern bzw. das Ergebnis beeinflussen.
-Recovery-Mechanismen werden daher häufig mit Verfahren kombiniert, die eine konsistente Speicherung relevanter Zustandsinformationen gewährleisten
-\parencite[Kap.~4.2 Abschnitt \glqq Recover from Faults\grqq]{bass_software_2021}.
-
+%Die Notwendigkeit solcher Mechanismen ergibt sich aus den Eigenschaften verteilter Systeme.
+%Da einzelne Komponenten unabhängig voneinander ausfallen können, während andere Teile des Systems weiterhin funktionieren, entstehen sogenannte Teilausfälle
+%\parencite[Kap.~8 Abschnitt \glqq Faults and Partial Failures\grqq]{kleppmann_designing_2017}.
+%Diese treten nichtdeterministisch auf, wodurch Unsicherheit über den tatsächlichen Verarbeitungszustand einer Aufgabe entstehen kann.
+%Gegebenenfalls ist nicht eindeutig feststellbar, ob eine Verarbeitung bereits erfolgreich abgeschlossen wurde, aber die Bestätigung darüber fehlt, ob sie kurz vor ihrem
+%Abschluss steht oder aufgrund eines Fehlers vorzeitig abgebrochen wurde \parencite[Kap.~8]{kleppmann_designing_2017}.
+%\begin{figure}[h]
+%    \centering
+%    \includegraphics[width=0.8\textwidth]{images/abbildungLostMessageOrLostAck}
+%    \caption{Verhalten bei transienten Fehlern}
+%    \label{fig:noAckowledge}
+%\end{figure}
 Voraussetzung für eine Wiederaufnahme ist zunächst die Erkennung unterbrochener Verarbeitungen.
 Wird eine Verarbeitung nach ihrer Übernahme durch eine ausführende Komponente unterbrochen, kann ein Zustand entstehen, in dem die Aufgabe aus Sicht des Systems
 weiterhin als aktiv gilt, obwohl tatsächlich keine Bearbeitung mehr stattfindet.
-Zur Erkennung solcher Situationen werden häufig Heartbeat- oder Lease-/Timeout-Mechanismen eingesetzt
+Zur Erkennung solcher Situationen werden zusätzlich zu einem Statusmodell Heartbeat- oder Lease-/Timeout-Mechanismen benötigt
 \parencite[Kap.~17.2 Abschnitt \glqq Failure in the Cloud\grqq]{bass_software_2021}.
-Hierbei sendet die ausführende Komponente in regelmäßigen Abständen Signale, anhand derer ihre Aktivität überwacht werden kann.
+Bei Heartbeats sendet die ausführende Komponente in regelmäßigen Abständen Signale, anhand derer ihre Aktivität überwacht werden kann.
 Bleiben diese Signale über einen definierten Zeitraum aus, wird ein Ausfall vermutet und die Verarbeitung als potenziell unterbrochen betrachtet
 \parencite[Kap.~4.2 Abschnitt \glqq Detect Faults\grqq]{bass_software_2021}.
+Lease- und Timeout-Mechanismen definieren lediglich eine Zeitspanne bzw. einen Zeitpunkt, bis zu dem eine Verabreitung erlaubt ist.
+Beendet die ausführende Komponente die Verarbeitung nicht innerhalb dieses Rahmens, wird der Job als fehlgeschlagen interpretiert.
+Ist die Zeitspanne nicht passend konfiguriert, werden daher auch Jobs abgebrochen, die zu lange gebraucht haben, auch wenn
+bei deren Verarbeitung kein Fehler aufgetreten ist.
 
 Nach der Erkennung eines Ausfalls muss die Verarbeitung erneut angestoßen werden.
-Hierfür wird die betroffene Aufgabe erneut zur Bearbeitung bereitgestellt, indem sie wieder freigegeben wird.
-Da eine Verarbeitung häufig erst nach einer expliziten Erfolgsquittierung als abgeschlossen gilt, führt das Ausbleiben einer solchen Quittung infolge eines Ausfalls dazu,
-dass die Aufgabe erneut verarbeitet wird \parencite{microsoft_corporation_hrsg_best_2026}.
-
-Für Recovery sind also zwei Schritte essenziell.
-Zunächst muss erkannt werden, dass eine Verarbeitung unterbrochen wurde.
-Anschließend muss die Verarbeitung neu angestoßen werden.
-Dafür existieren unterschiedliche Ansätze.
-Einerseits kann ein System Zwischenzustände persistent speichern und die Verarbeitung nach einem Ausfall auf Basis des zuletzt bekannten Zustands fortsetzen.
-Andererseits kann die Verarbeitung vollständig neu gestartet werden, sofern die dafür benötigten Eingabedaten weiterhin verfügbar sind.
+Hierfür wird die betroffene Aufgabe lediglich durch Zurücksetzen des Status wieder freigegeben wird.
+Die nächste Ausführungskomponente mit freien Ressourcen kann diesen Job wieder beanspruchen.
+Für die Wiederaufnahme existieren unterschiedliche Ansätze.
+Dabei wird zwischen flüchtigem und persistentem Zustand unterschieden.
+Während lokal im Arbeitsspeicher gehaltene Informationen beim Absturz eines Prozesses verloren gehen, kann persistent gespeicherter Zustand auch nach einem Ausfall
+weiterhin genutzt werden \parencite[Kap.~11 Abschnitt \glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
+Die Verarbeitung auf Basis eines Zwischenzustands wieder aufzunehmen ist unter Umständen jedoch nicht trivial.
+Eine verbreitete Wiederherstellungsstrategie besteht daher darin, die für eine Verarbeitung relevanten Eingabedaten bis zum erfolgreichen Abschluss des Jobs
+zu speichern und eine unterbrochene Verarbeitung bei Bedarf auf Basis dieser Ursprungsdaten erneut auszuführen.
+Dies ist häufig einfacher und robuster als der Versuch, den exakten Laufzeitzustand eines abgestürzten Prozesses zu rekonstruieren und die Verarbeitung dort fortzusetzen
+\parencite[Kap.~17.3]{bass_software_2021}.
 Welcher Ansatz gewählt wird, hängt unter anderem von der Komplexität der Verarbeitung sowie vom Aufwand einer vollständigen Neuausführung ab.
+Unabhängig von Fortsetzung oder Neustart darf ein Ausfall nicht zu inkonsistenten Zuständen führen, die eine spätere Wiederaufnahme verhindern
+bzw. das Ergebnis beeinflussen.
+Daher muss sichergestellt werden, dass keine falschen oder unvollständigen Ergebnisse und Zustandsinformationen persistiert werden und dass
+die Speicherung immer atomar geschieht \parencite[Kap.~4.2 Abschnitt \glqq Recover from Faults\grqq]{bass_software_2021}.
 
 Die in diesem Kapitel beschriebene Wiederaufnahme führt zwangsläufig dazu, dass einzelne Verarbeitungsschritte mehrfach ausgeführt werden können.
-Da dabei häufig nicht eindeutig festgestellt werden kann, ob eine vorherige Ausführung bereits teilweise oder vollständig erfolgreich war, müssen Systeme auf mögliche
+Da dabei gegebenenfalls nicht eindeutig festgestellt werden kann, ob eine vorherige Ausführung bereits teilweise oder vollständig erfolgreich war, müssen Systeme auf mögliche
 Mehrfachausführungen vorbereitet sein.
 Hieraus ergibt sich die Notwendigkeit idempotenter Verarbeitung, die im folgenden Abschnitt näher betrachtet wird.
-%TODO: Grafik OneDrive -> 6.Semester -> Bachelorarbeit -> abbildungLostMessageOrLostAck einbauen \parencite[Kap.~8 Unreliable Networks]{Kleppmann}
+
 \subsection{Idempotenz}
 \label{subsec:idempotenz}
-Die in den vorherigen Abschnitten beschriebenen Retry- und Wiederherstellungsmechanismen erhöhen die Zuverlässigkeit eines Systems, führen jedoch
-gleichzeitig dazu, dass einzelne Verarbeitungsschritte mehrfach ausgeführt werden können.
+Die in den vorherigen Abschnitten beschriebenen Retry- und Wiederherstellungsmechanismen verfolgen eine At-Least-Once-Semantik und
+erhöhen dadurch die Zuverlässigkeit eines Systems, führen jedoch gleichzeitig dazu, dass einzelne Verarbeitungsschritte
+mehrfach ausgeführt werden können.
 Um trotz solcher Mehrfachausführungen konsistente Datenbestände sicherzustellen, wird das Konzept der Idempotenz eingesetzt.
 Eine Operation wird als idempotent bezeichnet, wenn ihre mehrmalige Ausführung denselben fachlichen Zustand erzeugt wie eine einmalige Ausführung
 \parencite[Kap.~3 Abschnitt \glqq Idempotency\grqq]{newman_building_2026}.
@@ -439,14 +435,18 @@ In Bezug auf Job-Processing muss bereits die Aufnahme eines Jobs in den Job-Stor
 im System erfasst wird.
 Ein verbreiteter Ansatz zur idempotenten Annahme von Anfragen ist die Implementierung eines idempotenten Receivers
 \parencite[Kap.~10 Abschnitt \glqq Idempotent Receiver\grqq]{hohpe_enterprise_2005} unter Verwendung eindeutiger Identifikatoren, wie beispielsweise eines \gls{uuid}.
-Bei einer möglichen Variante wird jeder Anfrage vom Sender eine eindeutige Kennung zugefügt, die vom Empfänger zusammen mit der Anfrage persistent gespeichert wird.
+Bei einer möglichen Variante wird jeder Anfrage vom Sender eine eindeutige Kennung hinzugefügt, die vom Empfänger zusammen mit der Anfrage persistent gespeichert wird.
 Geht dieselbe Anfrage erneut ein, kann das System anhand dieser \gls{uuid} erkennen, dass die Anfrage bereits
 verarbeitet wurde und eine redundante Speicherung verhindern \parencites[{Kap.~3 Abschnitt \glqq Client Request IDs\grqq}]{newman_building_2026}[Kap.~3.3.6]{richardson_microservices_2018}.
 
 Darüber hinaus muss auch die eigentliche Verarbeitung eines Jobs so gestaltet werden, dass wiederholte Ausführungen und Wiederaufnahmen keine
 inkonsistenten Ergebnisse erzeugen \parencite[Kap.~3 Abschnitt \glqq Idempotency\grqq]{newman_building_2026}.
-Statusänderungen und fachliche Datenänderungen müssen folglich über klar definierte Transaktionsgrenzen abgesichert werden, um eine konsistente
+Um eine Idempotente Verarbeitung sicherzustellen, darf ein Ergebnis nur einmal erfolgreich persistiert werden.
+Außerdem muss das Speichern des Ergebnisses atomar ausgeführt werden.
+Datenänderungen müssen folglich über klar definierte Transaktionsgrenzen sowie ein Statusmodell abgesichert werden, um eine konsistente
 Weiterbearbeitung nach einem Crash zu gewährleisten \parencite[Kap.~7]{kleppmann_designing_2017}.
+Das Statusmodell garantiert, dass ausschließlich nicht fertige Jobs Ergebnisse speichern dürfen, während das Transaktionsmodell verhindert, dass
+nur Teile von Ergebnissen gespeichert werden.
 
 Idempotenz bildet somit die Grundlage dafür, dass Retry- und Recovery-Mechanismen eingesetzt werden können, ohne die Konsistenz der verarbeiteten Daten zu gefährden.
 Sie stellt einen zentralen Baustein fehlertoleranter Background-Job-Processing-Systeme dar und ermöglicht die korrekte Verarbeitung trotz unvermeidbarer
@@ -507,7 +507,8 @@ eingesetzt werden kann, wird in der Literatur nur begrenzt behandelt.
 Konzepte wie Fehlertoleranz, Recovery, Idempotenz und Nebenläufigkeitskontrolle werden zwar häufig einzeln beschrieben, ihre Integration zu
 einer konsistenten Gesamtarchitektur bleibt jedoch oftmals implizit.
 
-Die vorliegende Arbeit grenzt sich von bestehenden Frameworks ab, indem sie ein rein datenbankgestütztes Pull-Modell entwirft, die Architekturentscheidungen begründet darlegt
-und das System bezüglich der angestrebten Fehlertoleranz evaluiert.
-Durch den Einsatz von SQL-Polling in Kombination mit der PostgreSQL-Funktionalität \texttt{FOR UPDATE SKIP LOCKED} und einem Statusmodell wird untersucht, wie die Koordination und
-Ausfallwiederherstellung direkt auf der Datenbankebene orchestriert werden kann, ohne einen separaten Message Broker einzusetzen.
+Die vorliegende Arbeit grenzt sich von bestehenden Frameworks ab, indem sie ein rein datenbankgestütztes Pull-Modell entwirft,
+die Architekturentscheidungen begründet darlegt und das System bezüglich der angestrebten Fehlertoleranz evaluiert.
+Gleichzeitig wird durch die Kombination aus einem Statusmodell und der PostgreSQL-Funktionalität \texttt{FOR UPDATE SKIP LOCKED}
+untersucht, wie die Koordination direkt auf der Datenbankebene orchestriert werden kann, ohne einen separaten Message Broker einzusetzen
+und somit die Systemkomplexität niedrig zu halten.
