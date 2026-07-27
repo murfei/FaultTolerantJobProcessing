@@ -1,6 +1,6 @@
 %! Author = murfe
-%! Date = 24.07.2026
-\chapter{Anforderungen} %TODO: unbedingt in diesem oder nächsten kapitel begründen, wieso sperrende synchronisation und warum schwache isolationsstufen nicht ausreichen
+%! Date = 27.07.2026
+\chapter{Anforderungen}
 \label{ch:anforderungen}
 Dieses Kapitel legt die Anforderungen an das im Rahmen der Arbeit entwickelte Background-Job-Processing-System fest und schafft damit die Grundlage für
 den späteren Architekturentwurf sowie dessen Evaluation.
@@ -121,10 +121,10 @@ falsche Informationen verbreiten.
 
 Aus der gewählten Abgrenzung ergibt sich, dass der Schwerpunkt dieser Arbeit auf der Behandlung von Teilausfällen, konkurrierender Verarbeitung und
 transienten Infrastrukturfehlern liegt.
-Diese Fehlerszenarien besitzen unmittelbaren Einfluss auf die Zuverlässigkeit datenbankgestützter Background-Job-Processing-Systeme und bilden daher zusammen mit der Systembeschreibung
-aus \cref{sec:systemkontext} die Grundlage für die im Folgenden formulierten Systemzusicherungen.
+Diese Fehlerszenarien besitzen unmittelbaren Einfluss auf die Zuverlässigkeit datenbankgestützter Background-Job-Processing-Systeme und
+bilden daher zusammen mit der Systembeschreibung aus \cref{sec:systemkontext} die Grundlage für die im Folgenden formulierten Systemzusicherungen.
 
-\section{Zusicherungen} %TODO: es fehlt irgendwie noch die Motivation für Retries
+\section{Zusicherungen}
 \label{sec:zusicherungen}
 Die sich aus dem in \cref{sec:systemkontext} beschriebenen Systemkontext und dem in \cref{sec:abgrenzungFehlermodell} definierten Fehlermodell
 ergebenden zentralen Anforderungen an das zu entwickelnde Background-Job-Processing-System sind in \cref{fig:traceability_anforderungen}
@@ -132,21 +132,25 @@ zusammengefasst.
 \begin{figure}[h]
     \centering
     \small
+    \setcounter{anforderung}{0}
     \begin{tabularx}{\textwidth}{l X}
         \toprule
         \textbf{ID} & \textbf{Anforderung / Problemstellung}\\
         \midrule
-        \textbf{A-1} & Erfassung eingehender Aufträge über die \gls{rest}-Schnittstelle\\
+        \anforditem{req:rest} & Erfassung eingehender Aufträge über die \gls{rest}-Schnittstelle\\
         \addlinespace
-        \textbf{A-2} & Behandlung doppelter Client-Anfragen\\
+        \anforditem{req:persistenz} & Persistente Speicherung erfasster Jobs\\
         \addlinespace
-        \textbf{A-3} & Parallele Job-Verarbeitung durch mehrere Worker\\
+        \anforditem{req:duplikate} & Behandlung doppelter Client-Anfragen\\
         \addlinespace
-        \textbf{A-4} & Erkennung von Teilausfällen (Worker-Crashes, Container-Neustarts) und Wiederaufnahme des Jobs\\
+        \anforditem{req:worker} & Parallele Job-Verarbeitung durch mehrere Worker\\
         \addlinespace
-        \textbf{A-5} & Konsistente und idempotente Ergebnisgenerierung bei wiederholter Ausführung\\
+        \anforditem{req:race_conditions} & Vermeidung von Race Conditions bei konkurrierendem Zugriff\\
         \addlinespace
-        \textbf{A-6} & Vermeidung von Race Conditions bei konkurrierendem Zugriff\\
+        \anforditem{req:crashes} & Erkennung von Teilausfällen (Worker-Crashes, Container-Neustarts) und
+        Wiederaufnahme/Wiederholung des betroffenen Verarbeitungsschrittes\\
+        \addlinespace
+        \anforditem{req:idempotenz} & Konsistente Verarbeitung trotz wiederholter Ausführung\\
         \bottomrule
     \end{tabularx}
     \caption{Systemanforderungen}
@@ -162,86 +166,96 @@ jederzeit gelten müssen.
 Die in \cref{sec:architektur} entwickelten Architekturmechanismen dienen dazu, die Einhaltung dieser Zusicherungen sicherzustellen.
 
 \subsection{Joberstellung}
+\label{subsec:anforderungen_joberstellung}
 Die Phase der Joberstellung umfasst die Entgegennahme eines Auftrags über die Schnittstelle sowie dessen dauerhafte Überführung
-in den zentralen Job-Store (\textbf{A-1}).
+in den zentralen Job-Store (\ref{req:rest} \& \ref{req:persistenz}).
 Unvollständige oder fehlerhafte Anfragen sollten dabei nicht zu inkonsistenten Zuständen in der
-Persistenzschicht führen damit Worker-Prozesse sich darauf verlassen können, dass im Job-Store vorhandene Eintragsdaten valide
+Persistenzschicht führen, damit Worker-Prozesse sich darauf verlassen können, dass im Job-Store vorhandene Jobdaten fehlerfrei
 und vollständig verarbeitbar sind.
 Daraus leitet sich die erste Systemzusicherung ab:
+\setcounter{zusicherung}{0}
 \begin{quote}
-    \textbf{Zusicherung Z-1 (Atomare Persistenz und Validität):} \\
+    \zusicherung{Atomare Persistenz und Validität}{zus:atomare_persistenz} \\
     Das System garantiert, dass ein über die Schnittstelle eingehender Auftrag nur dann im Job-Store persistiert wird,
     wenn er die fachliche und syntaktische Validierung erfolgreich durchlaufen hat.
-    Die Persistierung erfolgt atomar: Ein Auftrag ist für nachgelagerte Worker-Prozesse entweder vollständig und in einem gültigen
-    Initialzustand sichtbar oder existiert nicht.
+    Die Persistierung erfolgt atomar.
+    Ein Auftrag ist für Worker-Prozesse entweder vollständig und in einem gültigen Initialzustand sichtbar oder existiert nicht.
 \end{quote}
-%TODO: ein dem Client bestätigter Job geht nicht mehr verloren
 Wie in \cref{sec:abgrenzungFehlermodell} dargelegt, führen transiente Kommunikationsstörungen (wie Netzwerk-Timeouts)
 auf Client-Seite zu Wiederholungsversuchen.
 Um zu verhindern, dass derselbe logische Auftrag infolge dieser Wiederholungen mehrfach erfasst und somit mehrfach ausgeführt
-wird (\textbf{A-2}), muss das System eine idempotente Auftragserfassung bieten:
+wird (\ref{req:duplikate}), muss das System eine idempotente Auftragserfassung implementieren:
 \begin{quote}
-    \textbf{Zusicherung Z-2 (Duplikaterkennung bei der Auftragserfassung):} \\
+    \zusicherung{Duplikaterkennung bei der Auftragserfassung}{zus:duplikaterkennung} \\
     Das System garantiert, dass identische Anfragen, die von Aufrufern erneut gesendet werden,
-    nicht zu mehrfach angelegten Jobs im Job-Store führen.
-    Jeder Auftrag wird exakt einmal im System persistiert (\textit{Exactly-Once-Semantik}).
+    nicht zu mehrfach angelegten Jobs im Job-Store führen (\textit{At-Most-Once-Semantik}).
 \end{quote}
 
 \subsection{Jobverarbeitung}
+\label{subsec:anforderungen_jobverarbeitung}
 Die Phase der Jobverarbeitung beschreibt den regulären Betrieb, in dem mehrere Worker-Prozesse autonom und parallel Aufträge aus
 dem Job-Store beziehen und ausführen.
-Aus dem Zusammenspiel paralleler Instanzen (\textbf{A-3}) und der Konkurrenz beim Zugriff auf den gemeinsamen Job-Store (\textbf{A-6})
-entsteht das Risiko von Race Conditions.
+Aus dem Zusammenspiel paralleler Instanzen (\ref{req:worker}) folgt die Konkurrenz beim Zugriff auf den gemeinsamen Job-Store, wodurch
+das Risiko von Race Conditions entsteht.
 Da im Recovery-Fall eine überschneidende Bearbeitung durch zwei Worker nicht ausgeschlossen werden kann,
-muss das System den Zugriff auf die gemeinsamen Daten koordinieren:
+muss das System den Zugriff auf die gemeinsamen Daten koordinieren (\ref{req:race_conditions}):
 \begin{quote}
-    \textbf{Zusicherung Z-3 (Exklusive Rechte):} \\
+    \zusicherung{Exklusive Rechte}{zus:exklusive_rechte} \\
     Das System garantiert, dass niemals mehrere Worker-Instanzen gleichzeitig Zugriff auf den gleichen Datensatz haben.
-    Zudem darf immer nur eine Worker-Instanz Schreibrechte auf einen bestimmten Job haben, sodass das Schreiben
+    Insbesondere darf immer nur eine Worker-Instanz Schreibrechte auf einen bestimmten Job haben, sodass das Schreiben
     eines Ergebnisses nur durch den besitzenden Job möglich ist.
 \end{quote}
-Die Fachlogik soll zudem klare Schnittstellen und Übergänge bieten.
-Ein Job darf im System nicht schleichend Teilergebnisse hinterlassen:
+Die Fachlogik soll zudem klare Übergänge bieten.
+Im Rahmen der konsistenten Ergebnisgenerierung (\ref{req:idempotenz}) darf ein Job im System keine Teilergebnisse hinterlassen:
 \begin{quote}
-    \textbf{Zusicherung Z-4 (Atomare Wirkung von Ergebnissen):} \\
+    \zusicherung{Atomare Wirkung von Ergebnissen}{zus:atomare_wirkung} \\
     Das System garantiert, dass das Eintragen eines fachlichen Ergebnisses (oder einer Fehlermeldung) und der dazugehörige Übergang
     in den finalen Zustand eine atomare Einheit bilden.
     Nach außen sichtbar ist entweder das vollständige Ergebnis inklusive der Zustandsänderung oder keinerlei Auswirkung.
 \end{quote}
-Zusätzlich müssen die Zustände der Jobverarbeitung einer klaren Richtung folgen:
+Zusätzlich müssen die Zustände der Jobverarbeitung einer klaren Richtung folgen, um eine mehrfache Ergebnisgenerierung zu verhindern
+und die Konsistenz der Daten so zu schützen (\ref{req:idempotenz}):
 \begin{quote}
-    \textbf{Zusicherung Z-5 (Finalität von Endzuständen):} \\
+    \zusicherung{Finalität von Endzuständen}{zus:endzustaende} \\
     Das System garantiert, dass der Lebenszyklus eines Jobs einer strikt gerichteten Zustandslogik folgt.
-    Die Übergänge in die Zustände SUCCEEDED und FAILED sind final und unumkehrbar.
-    Kein Job kann nach Erreichen eines Endzustands erneut in einen aktiven Zustand (QUEUED oder RUNNING) versetzt werden.
+    Die Übergänge in die definierten Endzustände sind final und unumkehrbar.
+    Kein Job kann nach Erreichen eines Endzustands erneut in einen aktiven Zustand versetzt werden.
 \end{quote}
 
 \subsection{Recovery}
+\label{subsec:anforderungen_recovery}
 Das Unterkapitel Recovery adressiert das Verhalten des Systems bei Teilausfällen, wie dem unerwarteten Absturz von Worker-Prozessen
-oder abgebrochenen Verbindungen während einer laufenden Verarbeitung.
-Das Gesamtsystem muss in der Lage sein, diesen Zustand autonom zu erkennen und den betroffenen Job ohne manuellen Eingriff
-wieder im System verfügbar zu machen (\textbf{A-4}):
+oder abgebrochenen Verbindungen.
+Handelt es sich bei der Ursache der abgebrochenen Verbindung um einen transienten Fehler, soll dieser nicht unmittelbar zum
+endgültigen Fehlschlagen der Operation führen (\ref{req:crashes}):
 \begin{quote}
-    \textbf{Zusicherung Z-6 (At-Least-Once-Verarbeitungsgarantie):} \\
+    \zusicherung{Automatische Wiederholungsversuche}{zus:retries} \\
+    Das System kann transiente und permanente Fehler unterscheiden.
+    Erkennt es einen transienten Fehler, behandelt es diesen durch automatische Wiederholungsversuche, ohne dass ein Nutzer
+    eingreifen muss.
+\end{quote}
+Das Gesamtsystem muss außerdem in der Lage sein, abgebrochene Verarbeitungen zu erkennen und den betroffenen Job ohne manuellen Eingriff
+wieder im System verfügbar zu machen (\ref{req:crashes}):
+\begin{quote}
+    \zusicherung{At-Least-Once-Verarbeitungsgarantie}{zus:verarbeitungsgarantie} \\
     Das System garantiert, dass ein einmal erfolgreich persistierter Job nicht verloren geht.
     Wird die Verarbeitung eines Jobs durch den Absturz einer Worker-Instanz oder eine Kommunikationsstörung unterbrochen,
     stellt das System sicher, dass der Job nach Erkennung des Ausfalls automatisch wieder zur Verarbeitung freigegeben und von einer
     verfügbaren Instanz erneut aufgenommen wird.
 \end{quote}
-Da Wiederholungsversuche (Retries) und Recovery-Mechanismen dazu führen können, dass die Bearbeitung eines Jobs mehrfach
-gestartet wird (\textbf{A-5}), muss das fachliche Ergebnis eindeutig bleiben:
+Da Wiederholungsversuche und Recovery-Mechanismen dazu führen können, dass die Bearbeitung eines Jobs mehrfach
+gestartet wird, muss sichergestellt werden, dass das fachliche Ergebnis eindeutig bleibt (\ref{req:idempotenz}):
 \begin{quote}
-    \textbf{Zusicherung Z-7 (Eindeutigkeit des Ergebnisses und Idempotenz):} \\
+    \zusicherung{Eindeutigkeit des Ergebnisses und Idempotenz}{zus:idempotenz} \\
     Das System garantiert, dass zu jedem im System erfassten Job exakt ein finales fachliches Ergebnis oder eine finale
     Fehlerbeschreibung gespeichert wird.
     Mehrfache oder abgebrochene Ausführungsversuche verfälschen das Endergebnis nicht und erzeugen keine duplizierten Ergebnisdatensätze.
 \end{quote}
-Schließlich muss das System sicherstellen, dass Jobs nicht unendlich im System verbleiben oder in endlosen Fehler-Schleifen gefangen sind:
+Schließlich muss das System sicherstellen, dass Jobs nicht unendlich im System verbleiben oder in endlosen Fehlerschleifen gefangen sind:
 \begin{quote}
-    \textbf{Zusicherung Z-8 (Terminierung in endlicher Zeit):} \\
-    Das System garantiert, dass jeder verarbeitbare Job unter normalen Betriebsbedingungen nach endlicher Zeit in einen der
-    beiden Endzustände (\texttt{COMPLETED} oder nach Erreichen einer maximalen Anzahl von Wiederholungsversuchen \texttt{FAILED}) übergeht.
-    Kein Job verbleibt unendlich im Status \texttt{QUEUED} oder \texttt{RUNNING}.
+    \zusicherung{Terminierung in endlicher Zeit}{zus:terminierung} \\
+    Das System garantiert, dass jeder persistierte Job nach endlicher Zeit in einen der Endzustände übergeht.
+    Kein Job verbleibt unendlich in einem aktiven bzw. ausstehenden Status.
 \end{quote}
 
 %\subsection{Zuverlässige Annahme von Jobs}
@@ -250,7 +264,7 @@ Schließlich muss das System sicherstellen, dass Jobs nicht unendlich im System 
 %die dauerhaft gespeichert wurden.
 %Gleichzeitig können durch Kommunikationsfehler oder Wiederholungsmechanismen identische Anfragen mehrfach beim System eintreffen.
 %Daraus ergeben sich die folgenden Zusicherungen:
-%\begin{description}%TODO hier richtige nummerierte Elemente oder Labels einfügen, dass ich die Zusicherungen im Architekturkapitel richtig referenzieren kann
+%\begin{description}
 %\item[Z1: Persistenz bestätigter Jobs]
 %Jeder Job, dessen Annahme gegenüber dem Client bestätigt wurde, ist dauerhaft im System vorhanden und geht nicht verloren.
 %
@@ -274,7 +288,7 @@ Schließlich muss das System sicherstellen, dass Jobs nicht unendlich im System 
 %\item[Z5: Gültige Zustandsübergänge]
 %Statusübergänge erfolgen ausschließlich entsprechend der definierten Übergänge.
 %
-%\item[Z6: Exklusive Verarbeitung] %TODO: kann ich mit meinem System momentan nicht garantieren
+%\item[Z6: Exklusive Verarbeitung]
 %Ein Job wird zu keinem Zeitpunkt gleichzeitig von mehreren Workern verarbeitet.
 %
 %\item[Z7: Atomare Wirkung]
