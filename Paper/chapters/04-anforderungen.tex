@@ -1,5 +1,5 @@
 %! Author = murfe
-%! Date = 27.07.2026
+%! Date = 28.07.2026
 \chapter{Anforderungen}
 \label{ch:anforderungen}
 Dieses Kapitel legt die Anforderungen an das im Rahmen der Arbeit entwickelte Background-Job-Processing-System fest und schafft damit die Grundlage für
@@ -210,7 +210,7 @@ Im Rahmen der konsistenten Ergebnisgenerierung (\ref{req:idempotenz}) darf ein J
 \begin{quote}
     \zusicherung{Atomare Wirkung von Ergebnissen}{zus:atomare_wirkung} \\
     Das System garantiert, dass das Eintragen eines fachlichen Ergebnisses (oder einer Fehlermeldung) und der dazugehörige Übergang
-    in den finalen Zustand eine atomare Einheit bilden.
+    in den Folgezustand eine atomare Einheit bilden.
     Nach außen sichtbar ist entweder das vollständige Ergebnis inklusive der Zustandsänderung oder keinerlei Auswirkung.
 \end{quote}
 Zusätzlich müssen die Zustände der Jobverarbeitung einer klaren Richtung folgen, um eine mehrfache Ergebnisgenerierung zu verhindern
@@ -239,7 +239,7 @@ wieder im System verfügbar zu machen (\ref{req:crashes}):
 \begin{quote}
     \zusicherung{At-Least-Once-Verarbeitungsgarantie}{zus:verarbeitungsgarantie} \\
     Das System garantiert, dass ein einmal erfolgreich persistierter Job nicht verloren geht.
-    Wird die Verarbeitung eines Jobs durch den Absturz einer Worker-Instanz oder eine Kommunikationsstörung unterbrochen,
+    Wird die Verarbeitung eines Jobs durch den Absturz einer Komponente unterbrochen,
     stellt das System sicher, dass der Job nach Erkennung des Ausfalls automatisch wieder zur Verarbeitung freigegeben und von einer
     verfügbaren Instanz erneut aufgenommen wird.
 \end{quote}
