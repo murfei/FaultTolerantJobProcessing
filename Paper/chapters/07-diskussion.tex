@@ -1,12 +1,12 @@
 %! Author = murfe
-%! Date = 08.06.2026
+%! Date = 28.07.2026
 
 \chapter{Diskussion}\label{ch:diskussion}
 
 \section{Gewonnene Erkenntnisse}\label{sec:erkenntnisse}
 
 \section{Einschränkungen und Grenzen der Arbeit}\label{sec:einschraenkungen}
-
+\textbf{Ausschließlich Notizen}\\
 Diese Arbeit betrachtet die Fehlertoleranz ab dem Zeitpunkt, zu dem ein Job persistent im Job-Store vorliegt;
 die zuverlässige Auftragserzeugung/Client-Kommunikation (z.B. Outbox, Messaging) ist nicht Gegenstand.
 "Consumers may crash at any time, so it could happen that a broker delivers a message to a consumer
@@ -37,3 +37,17 @@ sondern ab einem bestimmten punkt wieder angefangen wird \parencite[Abschnitt \g
 
 vorsicht bei dingen bei denen kein rollback gemacht werden kann: versendet ein worker eine email, stürzt ab und die operation wird wiederholt wird potenziell noch eine
 email versendet. das muss gesondert abgefangen werden
+
+Es können Probleme entstehen, wenn zu viele Anfragen rein kommen, die die DB nicht gleichzeitig verarbeiten kann (vgl. Exmaple \parencite{microsoft_corporation_hrsg_queue-based_2026})
+Dafür bräuchte es separates Queue-Based Load Leveling für das Messaging an sich, das System konzentriert sich auf Queue-Based Load Leveling bzgl der Jobverarbeitung. Es werden zwar
+Clientseitige Retries durchgeführt, das ist aber keine Garantie, dass die Nachricht trotz hoher Last ankommt
+
+bietet sich vor allem an, wenn man sowieso schon eine db nutzt, man braucht keine zusätzliche Infrastuktur (im Vergleich zum Message Broker, der als eigener Server läuft)
+
+Bei sehr großen Systemen kann die Datenbank aufgrund einer hohen Anzahl Zugriffsversuche jedoch zum limitierenden Faktor werden, sodass dedizierte Messaging-Systeme hinsichtlich des
+erreichbaren Durchsatzes Vorteile bieten \parencite[Kap.~11, Abschnitt \glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
+
+vermeidung komplexität verteilter Transaktionen durch Nutzung lokaler ACID-Transaktionen da alles in dersselben Datenbank liegt
+
+Einschränkung \ref{zus:verarbeitungsgarantie} nur bis zu einem bestimmten Grad --> Kein Job kann verloren gehen, aber ein job wird nicht unendlich oft
+recovered da sonst Konflikt mit \ref{zus:terminierung}

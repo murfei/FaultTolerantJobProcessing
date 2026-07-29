@@ -38,4 +38,19 @@
     afterskip= 2.3ex plus .2ex
 ]{chapter}
 \addbibresource{bib/bibliography.bib}
+%counter
+\newcounter{anforderung}
+\renewcommand{\theanforderung}{A-\arabic{anforderung}}
+\newcommand{\anforditem}[1]{%
+    \refstepcounter{anforderung}%
+    \textbf{\theanforderung}%
+    \label{#1}%
+}
+\newcounter{zusicherung}
+\renewcommand{\thezusicherung}{Z-\arabic{zusicherung}}
+\newcommand{\zusicherung}[2]{%
+    \refstepcounter{zusicherung}%
+    \textbf{Zusicherung \thezusicherung\ (#1):}%
+    \label{#2}%
+}
 %\includeonly{chapters/02-grundlagen}

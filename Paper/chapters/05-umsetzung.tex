@@ -1,206 +1,442 @@
 %! Author = murfe
-%! Date = 08.06.2026
+%! Date = 28.07.2026
 
 \chapter{Umsetzung}\label{ch:umsetzung}
 
-\section{Architektur und Design}\label{sec:architektur}
+\section{Architektur und Design}\label{sec:architektur} %TODO: Hier oder in der ersten subsection auf jeden Fall beschreiben, was welches Kapitel macht bzw welches Kapitel
+%                                                               welche Teilaspekte löst, damit der rote Faden klar bleibt
+\subsection{Architekturentwurf}
+\label{subsec:architekturentwurf}
+In \cref{subsec:backgroundJobs} wurde bereits dargelegt, dass das Queue-Based Load Leveling Pattern eine geeignete Option ist,
+die ausstehenden Jobs innerhalb eines Backend-Job-Processing-Systems zwischenzuspeichern.
+Eine verbreitete Variante, dieses Pattern für Nachrichten, oder wie im Fall dieser Arbeit für Jobs, umzusetzen,
+ist die Implementierung mithilfe dedizierter Message Broker \parencite[Kap.~11 Abschnitt \glqq Message brokers\grqq]{kleppmann_designing_2017}.
+Das im Rahmen dieser Arbeit entwickelte System nutzt hingegen bewusst eine relationale PostgreSQL-Datenbank als zentralen Job-Store.
+Durch die Nutzung PostgreSQL-spezifischer Mechanismen wie \textit{SKIP LOCKED} in Kombination mit den vollständigen \gls{acid}-Transaktionsgarantien
+relationaler Datenbanken lässt sich bereits ein Teil der in \cref{ch:anforderungen} erhobenen Anforderungen mittels der inhärenten
+Datenbankfunktionen realisieren.
+Die Datenbank übernimmt dabei nicht ausschließlich die Rolle eines persistenten Datenspeichers, sondern fungiert gleichzeitig als
+Warteschlange sowie als Synchronisationsmechanismus zwischen konkurrierenden Workern.
+Funktional orientiert sich die Architektur somit an den Prinzipien eines klassischen Message Brokers, nutzt jedoch die Konsistenzgarantien
+einer relationalen Datenbank als Grundlage für die Umsetzung der definierten Zusicherungen.
+Die Wahl eines datenbankbasierten Job-Stores stellt dabei einen bewussten Architektur-Trade-off dar.
+Im Vergleich zu In-Memory-basierten Messaging-Systemen entstehen durch den permanenten Zugriff auf einen externen persistenten Datenspeicher
+zusätzliche Latenzen und ein geringerer maximaler Nachrichtendurchsatz.
+Demgegenüber ermöglicht die relationale Datenbank jedoch eine dauerhafte Speicherung sämtlicher Jobs sowie atomare Zustandsübergänge und
+eine konsistente Wiederherstellung des Systemzustands nach Fehlern.
+Zusätzlich bietet eine relationale Datenbank mehr Sicherheiten vor verloren gegangenen Jobs, als typische In-Memory Message Broker,
+die dafür aufwändige Mechanismen benötigen.
+Die Haltung des Jobstatus in einer Datenbank hat außerdem für sehr rechenintensive Operationen den Vorteil, dass eine angefangene Operation
+nach einem Teilausfall sehr einfach fortgesetzt werden kann, anstatt den Job vollständig neu starten zu müssen, indem zur Wiederaufnahme
+der letzte bekannte Status des Jobs bei der Datenbank angefragt wird
+\parencite[Kap.~11, Abschnitt \glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
+Gerade für kleine bis mittelgroße Systeme, in deren Anwendungskontext kein Jobverlust auftreten darf, stellt dies eine geeignete und
+praktikable Architektur dar, da auf eine aufwändige Clusterstruktur zur Absicherung von Jobverlusten verzichtet werden kann
+\parencite[Kap.~8 Abschnitt \glqq HowBrokers Work (In A Nutshell)\grqq]{newman_building_2026}.
 
-\subsection{Architekturübersicht}%TODO: Titel ändern
-\label{sec:architekturuebersicht}
+Die resultierende Gesamtarchitektur ist in \cref{fig:componentDiagram} dargestellt.
+Der Client bildet den Einstiegspunkt des Systems und erzeugt neue Jobs, die entsprechend \ref{req:rest} über eine \gls{rest}-Schnittstelle an das Backend übertragen werden.
+Im Rahmen des entwickelten Prototyps erfolgt dies lediglich direkt über einen Service, der die Kommunikation mit dem Backend-\gls{api} kapselt.
+In der Praxis kann diese Komponente jedoch ebenso durch eine grafische Benutzeroberfläche oder ein beliebiges externes Anwendungssystem angesprochen werden.
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/componentDiagram}
-    \caption{cap}%TODO: caption
+    \caption{Abstrakte Architektur des entwickelten Systems}
     \label{fig:componentDiagram}
 \end{figure}
-Obwohl das Queue-Based Load Leveling Pattern in der Praxis häufig mit dedizierten Message Brokern implementiert wird, stellt die
-Verwendung einer relationalen Datenbank wie PostgreSQL als Job-Store für das vorliegende System eine architektonisch bewusste Entscheidung dar.
-Durch die Nutzung von PostgreSQL-spezifischen Mechanismen wie SKIP LOCKED in Kombination mit vollen ACID-Transaktionsgarantien lässt sich die von Microsoft (2023)
-geforderte Lastverteilung realisieren, ohne die für die Fehlertoleranz kritische atomare Verknüpfung von Job-Status und Fachdaten aufzugeben.
-Es wird in dieser Arbeit also nicht direkt ein Message Broker genutzt, sondern ein eigenes System auf Basis einer relationalen Datenbank umgesetzt, was sich funktional
-stark an den Prinzipien eines Message Brokers orientiert.
+Die \gls{rest}-\gls{api} dient als Schnittstelle des Backends zur Erstellung neuer Jobs.
+Sie nimmt eingehende Anfragen entgegen, validiert diese (\ref{zus:atomare_persistenz}) und delegiert sie an die Servicelogik,
+die für die Persistierung neuer Jobs sowie die Verwaltung ihrer Zustände verantwortlich ist.
+Alle Jobs werden anschließend im zentralen Job-Store gespeichert (\ref{req:persistenz}), der neben den eigentlichen Jobdaten auch den aktuellen
+Bearbeitungszustand sowie gegebenenfalls erzeugte Ergebnisse enthält.\\
+Die eigentliche Verarbeitung erfolgt durch mehrere parallel arbeitende Worker (\ref{req:worker}).
+Jeder Worker beansprucht einen Job exklusiv aus dem Job-Store, verarbeitet dessen Nutzdaten und speichert das erzeugte Ergebnis
+anschließend wieder in der Datenbank.
+Da sämtliche Worker auf denselben Job-Store zugreifen, kann die Verarbeitung durch Synchronisation auf Datenbankebene horizontal
+skaliert werden, ohne dass eine direkte Kommunikation zwischen den einzelnen Workern erforderlich ist.
 
-
-„Es ist anzumerken, dass eine verteilte Konsistenz zwischen einem dedizierten Message Broker und einem relationalen Datenspeicher theoretisch auch über ein Two-Phase-Commit-Protokoll
-(2PC) realisiert werden kann.
-In der verteilten Softwarearchitektur gilt 2PC jedoch aufgrund des hohen Koordinations- und Netzwerk-Overheads sowie des inhärent blockierenden Verhaltens
-bei Koordinator-Ausfällen als performanzkritisch und komplex (vgl. Kleppmann 2017, Kap. 9).
-Die Entscheidung für eine rein datenbankgestützte Architektur auf Basis von PostgreSQL wurde daher bewusst getroffen, um die operationelle Komplexität zu minimieren und
-eine atomare Verknüpfung von Job-Status und Fachdaten innerhalb einer einzigen, lokalen ACID-Transaktion ohne verteiltes Konsensprotokoll zu garantieren
-
-
-Obwohl das kontinuierliche Abfragen eines solchen externen Datenspeichers im Vergleich zu rein lokalen Hauptspeicher-Lösungen Latenzen erzeugt,
-existiert in der verteilten Architektur kein universeller Idealzustand.
-Die Wahl des Zustandsspeichers ist stets ein bewusster Trade-off zwischen maximalem Nachrichtendurchsatz und strikten Garantien zur Fehlerbehebung
-\parencite[Kap.~11, Abschnitt \glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
-
-\subsection{Entwurf der Datenbank}
-\label{sec:datenbankentwurf}
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.8\textwidth]{images/dbSchema}
-    \caption{cap}%TODO: caption
-    \label{fig:dbSchema}
-\end{figure}
-
-Das Führen eines expliziten Zustandsmodells (z. B. \textit{queued}, \textit{running}) in einer persistenten Datenbank ermöglicht es einer neuen oder neu gestarteten Worker-Instanz,
-den letzten konsistenten Zustand nach einem Teilausfall direkt auszulesen und die Verarbeitung ohne Datenverlust wiederaufzunehmen.
-
-Ein naiver Ansatz zur Absicherung eines Hintergrundjobs bestünde darin, die Transaktionsgrenze über den gesamten Lebenszyklus der Job-Ausführung zu spannen.
-Dies bedeutet, dass eine Transaktion geöffnet wird, sobald ein Worker eine Aufgabe akquiriert, und erst schließt, wenn die vollständige Fachlogik abgearbeitet wurde.
-In produktiven Systemen führt dieses Vorgehen jedoch zu dem Phänomen der langlaufenden Transaktionen (Long-Running Transactions), welche die Resilienz des Gesamtsystems massiv gefährden.
-Da Hintergrundprozesse definitionsgemäß zeitintensive oder ressourcenintensive Berechnungen sowie E/A-Operationen kapseln \parencite[vgl.][Kap.~10]{kleppmann_designing_2017},
-würde eine offene Transaktion über diesen gesamten Zeitraum hinweg die zugewiesene Datenbankverbindung blockieren.
-Da relationale Datenbanksysteme wie PostgreSQL Verbindungen über einen limitierten Pool (\textit{Connection Pool}) verwalten, führt eine langanhaltende Belegung durch wenige Worker-Instanzen
-unweigerlich zur Erschöpfung dieser Ressource (\textit{Connection Starvation}).
-Infolgedessen können synchrone Endpunkte, die für schnelle Client-Anfragen ebenfalls Verbindungen aus diesem Pool benötigen, keine Datenbankinteraktionen mehr durchführen, was zu weitreichenden
-Timeouts und einem Systemausfall führt \parencite[vgl.][Kap.~7]{kleppmann_designing_2017}.
-
-Die Transaktionsgrenzen müssen so eng wie möglich gefasst werden, was zu einem dreiphasigen Kontrollfluss im Worker führt:
-
-\begin{enumerate}
-    \item \textbf{Phase 1 (Gekapselte Statussynchronisation):} Der Worker öffnet eine dedizierte, extrem kurzlaufende Transaktion.
-    Innerhalb dieser Grenze wird ein freier Job gesucht, über Sperrverfahren geschützt und dessen Status im Job-Store atomar von queued auf running aktualisiert.
-    Unmittelbar nach dem Schreiben des Status wird die Transaktion committet und die Verbindung an den Pool zurückgegeben.
-    \item \textbf{Phase 2 (Transaktionsfreie Fachlogik):} Die eigentliche Verarbeitung des Jobs (z.~B. das Generieren eines Reports oder der Aufruf einer externen HTTP-Schnittstelle)
-    erfolgt vollständig außerhalb einer offenen Datenbanktransaktion.
-    Das persistente Zustandsmodell im Speicher verhindert in dieser Phase, dass parallele Worker Zugriff auf denselben Job erhalten \parencite[vgl.][Kap.~11]{kleppmann_designing_2017}.
-    \item \textbf{Phase 3 (Gekapselte Abschlussquittierung):} Nach erfolgreicher Beendigung oder nach einem kontrollierten Abbruch der Fachlogik öffnet der Worker eine zweite, separate Kurzzeittransaktion,
-    um den finalen Endzustand (z.~B. success oder failed) in den Job-Store zu schreiben und sofort zu committen.
-\end{enumerate}
-
-
-Um eine Ressourcenerschöpfung durch langlaufende Datenbank-Transaktionen zu verhindern, wird die physische Datenbanksperre auf der Datenbankebene zeitlich von der eigentlichen Job-Ausführung entkoppelt. Ein Worker nutzt einen exklusiven Sperrmechanismus (wie FOR UPDATE SKIP LOCKED) lediglich für die Millisekunden der atomaren Zustandsänderung eines Jobs von \textit{queued} auf \textit{running}. Sofort nach dem Schreiben des neuen Status wird diese isolierte Datenbank-Transaktion geschlossen und die Zeilensperre freigegeben. Die eigentliche, zeitintensive Fachlogik wird anschließend außerhalb einer offenen Transaktion verarbeitet, während das persistente Zustandsmodell im Datenspeicher parallele Zugriffe anderer Worker verhindert (vgl. Kleppmann 2017, Kap. 11).
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.8\textwidth]{images/dbJobClaiming}
-    \caption{cap}%TODO: caption
-    \label{fig:claiming}
-\end{figure}
-
-erläutern, wieso pessimistisches Locking anstatt von optimistischen verfahren --> Für die atomare Reservierung von Jobs ist ein pessimistisches Verfahren vorteilhaft, da konkurrierende
-Zugriffe bereits zum Zeitpunkt der Jobauswahl verhindert werden können.
-Dadurch lässt sich sicherstellen, dass ein Job nur von einer Worker-Instanz gleichzeitig verarbeitet wird. "
-It performs badly if there is high contention (many transactions trying to access the same objects),
-as this leads to a high proportion of transactions needing to abort. If the system is already close
-to its maximum throughput, the additional transaction load from retried transactions can make
-performance worse." \parencite[Kap.~7 Abschnitt \glqq Pessimistic versus optimistic concurrency control\grqq]{kleppmann_designing_2017}
-
-- unique constraint für idempotenz-key
+Ergänzt wird die Architektur durch einen Recovery-Service, der den Job-Store periodisch auf verwaiste Jobs überprüft.
+Kann ein Worker einen bereits beanspruchten Job aufgrund eines Fehlers oder Absturzes nicht erfolgreich abschließen,
+erkennt der Recovery-Service anhand des abgelaufenen Leases, dass die Bearbeitung nicht abgeschlossen wurde.
+Der Status des betroffenen Jobs wird, sofern der Recovery-Service eine erneute Bearbeitung für sinnvoll erachtet, zurückgesetzt und steht damit einem beliebigen Worker erneut zur Bearbeitung zur Verfügung.
+Auf diese Weise wird verhindert, dass Jobs dauerhaft im Zustand \texttt{RUNNING} verbleiben (\ref{zus:terminierung})
+oder infolge eines Worker-Ausfalls verloren gehen (\ref{zus:verarbeitungsgarantie}).
 
 \subsection{Zustandsmodell}
-\label{sec:zustandsmodell}
+\label{subsec:zustandsmodell}
+Zur Realisierung der in \cref{ch:anforderungen} definierten Zusicherungen \ref{zus:exklusive_rechte}, \ref{zus:endzustaende},
+\ref{zus:verarbeitungsgarantie}, \ref{zus:idempotenz} und \ref{zus:terminierung} wird jeder Job durch ein explizites Zustandsmodell beschrieben.
+Der aktuelle Zustand eines Jobs wird dabei als Attribut des jeweiligen Datensatzes in der Datenbank gespeichert (vgl. \cref{subsec:datenbankentwurf})
+und beschreibt den Fortschritt der Verarbeitung.
+Das Zustandsmodell bildet die Grundlage für sämtliche Entscheidungen bezüglich der Bearbeitung, Wiederherstellung und Beendigung eines Jobs.\\
+Ein wesentlicher Vorteil dieses Ansatzes besteht darin, dass Datenbankzeilen nicht über den gesamten Verarbeitungszeitraum
+exklusiv gesperrt werden müssen.
+Sperren sind lediglich während kurzer atomarer Zustandsübergänge erforderlich, während die eigentliche Verarbeitung
+außerhalb einer Datenbanktransaktion erfolgt.
+Dadurch werden konkurrierende Zugriffe auf den Job-Store reduziert und Datenbankressourcen geschont, was sich positiv
+auf die Skalierbarkeit des Systems auswirkt.\\
+Die in diesem System definierten Zustände sowie die zulässigen Zustandsübergänge sind in \cref{fig:statusmodell} dargestellt.
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/statusmodell}
-    \caption{cap}%TODO: caption
+    \caption{Zustandsmodell eines Jobs}
     \label{fig:statusmodell}
 \end{figure}
+Nachdem ein neuer Job über die \gls{rest}-Schnittstelle im Backend eingegangen ist, wird dieser persistent gespeichert
+und zunächst in den Zustand \textit{Queued} versetzt.
+In diesem Zustand wartet der Job auf seine Bearbeitung und kann von einem Worker beansprucht werden.
+Beansprucht ein Worker den Job erfolgreich, erfolgt der Zustandsübergang nach \textit{Running}.
+Dadurch wird sichergestellt, dass der Job während seiner Verarbeitung keinem weiteren Worker zur Verfügung steht.\\
+Zur Verarbeitung existieren drei mögliche Folgezustände.
+Kann der Worker den Job erfolgreich bearbeiten und das erzeugte Ergebnis dauerhaft in der Datenbank speichern, wird der Job in den Endzustand \textit{Succeeded} überführt.
+Tritt während der Verarbeitung hingegen ein Fehler auf oder beendet der Worker seine Arbeit nicht innerhalb der vorgesehenen Lease-Dauer,
+übernimmt der Recovery-Service die weitere Behandlung des Jobs.
+Ist gemäß der definierten Recovery-Strategie ein erneuter Ausführungsversuch zulässig, wird der Job zurück in den Zustand \textit{Queued} versetzt und kann anschließend
+erneut von einem beliebigen Worker übernommen werden.
+Wurde dagegen die maximale Anzahl zulässiger Wiederholungsversuche erreicht oder liegt ein nicht behebbarer Fehler vor, wird der Job endgültig in den Endzustand \textit{Failed} überführt.
+Jobs in diesem Zustand werden vom System nicht weiter automatisch verarbeitet und erfordern das manuelle Eingreifen durch den Benutzer oder Administrator.
 
-\subsection{Erstellung von Jobs}
-\label{sec:joberstellung}
+\subsection{Entwurf der Datenbank}
+\label{subsec:datenbankentwurf}
+Die relationale Datenbank bildet den zentralen Job-Store des entwickelten Systems.
+Durch die Nutzung einer relationalen Datenbank mit \gls{acid}, wird automatisch die in \ref{zus:atomare_persistenz}
+und \ref{zus:verarbeitungsgarantie} geforderte Dauerhaftigkeit angenommener Jobs garantiert.
+Sie übernimmt sowohl die Persistierung eingehender Jobs als auch die Verwaltung ihres aktuellen Bearbeitungszustands
+und gegebenenfalls erzeugter Verarbeitungsergebnisse.
+Das resultierende Datenbankschema ist in \cref{fig:dbSchema} dargestellt.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/dbSchema}
+    \caption{Datenbankschema des entwickelten Job-Processing-Systems}
+    \label{fig:dbSchema}
+\end{figure}
+Hauptbestandteil des Schemas ist die Tabelle \texttt{jobs}.
+Jeder Job besitzt zunächst einen von der Datenbank erzeugten Primärschlüssel, der zur internen Identifikation dient.
+Zusätzlich wird für jeden Job ein vom Client bereitgestellter Idempotenzschlüssel gespeichert.
+Dieser stellt die in \ref{zus:duplikaterkennung} geforderte Idempotenz in der Joberstellung sicher, auf die in
+\cref{subsec:joberstellung} näher eingegangen wird.
+Um das zu gewährleisten, müssen die Idempotenzschlüssel eindeutig sein.
+Daher ist die Spalte \textit{idempotency\_key} mit einem Unique-Constraint belegt.\\
+Neben den Identifikationsmerkmalen wird der eigentliche Inhalt des Jobs als Payload persistent gespeichert.
+Im Beispielsystem wird dieses Feld als JSON-String modelliert.
+Abhängig von der Art des Jobs und den Anforderungen an das System kann dies jedoch auch
+in jeglicher anderen Form umgesetzt werden, sofern die nötigen Informationen für die Durchführung des Jobs enthalten sind.
+Durch die Persistierung der Payload bleibt die vollständige Anfrage dauerhaft verfügbar und kann im Fehlerfall erneut verarbeitet werden,
+ohne dass der Client den Job nochmals übertragen muss.
+Das bildet die Grundlage für \ref{zus:verarbeitungsgarantie} und \ref{zus:idempotenz}.\\
+Zur Umsetzung des in \cref{subsec:zustandsmodell} vorgestellten Zustandsmodells besitzt jeder Job ein Statusattribut, welches
+den aktuellen Bearbeitungszustand beschreibt.
+Ergänzend hierzu werden weitere Metadaten gespeichert, die für die Umsetzung der Fehlertoleranz erforderlich sind.
+Das Attribut \texttt{created\_at} speichert den Zeitpunkt der Joberstellung.
+Indem Worker neue Jobs in der Reihenfolge ihres Erstellungszeitpunkts beanspruchen, wird verhindert, dass ältere Jobs dauerhaft von neu eingehenden
+Jobs verdrängt werden und somit im Job-Store verbleiben.
+Dieses Verhalten adressiert \ref{zus:terminierung}.
+Während der Bearbeitung wird im Attribut \texttt{claimed\_by} gespeichert, welcher Worker einen Job aktuell verarbeitet.
+Diese Zuordnung stellt sicher, dass ausschließlich der Worker, der einen Job erfolgreich beansprucht hat, dessen Verarbeitung abschließen und das Ergebnis
+persistent speichern darf.
+Dadurch wird die in \ref{zus:idempotenz} geforderte idempotente Ergebnisspeicherung unterstützt und verhindert, dass konkurrierende
+Worker im Recovery-Fall denselben Job gleichzeitig abschließen.\\
+Für die Recovery-Strategie wird zusätzlich die Anzahl bisheriger Bearbeitungsversuche im Attribut \texttt{attempt\_count} gespeichert.
+Dadurch kann die Anzahl automatischer Wiederholungsversuche begrenzt werden, sodass fehlerhafte Jobs nicht unbegrenzt erneut ausgeführt werden.
+Das Attribut \texttt{lease\_until} dient der Umsetzung zeitbasierter Leases.
+Es gibt an, bis zu welchem Zeitpunkt ein Worker den beanspruchten Job exklusiv bearbeiten darf.
+Überschreitet die Bearbeitung diese Zeitspanne, kann der Recovery-Service den Job als verwaist erkennen und ihn entsprechend der definierten
+Recovery-Strategie erneut zur Bearbeitung freigeben.
+Diese beiden Attribute werden für die Umsetzung von \ref{zus:verarbeitungsgarantie} und \ref{zus:terminierung} benötigt.\\
+Die Verarbeitungsergebnisse werden in einer separaten Tabelle \texttt{job\_result} gespeichert.
+Zwischen einem Job und seinem Ergebnis besteht dabei eine optionale Eins-zu-Eins-Beziehung.
+Ein Job besitzt höchstens ein Ergebnis, da die idempotente Verarbeitung sicherstellt, dass erfolgreiche Jobs nur einmal abgeschlossen werden können.
+Gleichzeitig gehört jedes gespeicherte Ergebnis eindeutig zu genau einem Job.
+Solange ein Job noch nicht erfolgreich bearbeitet wurde, existiert dementsprechend kein zugehöriger Ergebniseintrag.
+
+Das dargestellte Datenbankschema bildet das minimale Schema zur Umsetzung der in dieser Arbeit betrachteten Fehlertoleranzmechanismen.
+In realen Anwendungen kann der Job-Store beliebig um weitere fachliche Attribute oder zusätzliche Tabellen erweitert werden.
+Ebenso ist es möglich, eine bereits bestehende relationale Datenbank zur Umsetzung des Job-Processing-Systems zu verwenden, indem das vorgestellte Schema in
+die vorhandene Datenbank integriert wird.
+
+\subsection{Joberstellung}
+\label{subsec:joberstellung}
+Die Annahme neuer Jobs gehört zur Erstellungsphase neuer Jobs und bildet somit den Einstiegspunkt in das entwickelte Job-Processing-System.
+Zur Umsetzung einer Exactly-Once Auslieferung, die aus den Zusicherungen \ref{zus:duplikaterkennung} und \ref{zus:retries} folgt,
+sind verschiedene Mechanismen nötig, die im Folgenden vorgestellt werden.
+Der Ablauf der Jobannahme ist in \cref{fig:jobannahme} dargestellt.
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/jobannahmeSequenzdiagramm}
-    \caption{cap}%TODO: caption
+    \caption{Ablauf der Jobannahme}
     \label{fig:jobannahme}
 \end{figure}
+Zur Erstellung eines neuen Jobs sendet der Client eine Anfrage über die \gls{rest}-Schnittstelle an das Backend.
+Die Anfrage besteht aus zwei Bestandteilen: der eigentlichen Nutzlast (\textit{Payload}), welche die durchzuführende Arbeit beschreibt,
+sowie einem vom Client erzeugten Idempotenzschlüssel.
+Dieser Schlüssel identifiziert einen Job eindeutig und ermöglicht es, mehrfach übertragene Anfragen desselben Jobs zuverlässig zu erkennen.
+Die Verwendung des Idempotenzschlüssels ist insbesondere für den Fall relevant, dass der Client eine Anfrage erneut sendet, obwohl der ursprüngliche Job bereits
+erfolgreich gespeichert wurde.
+Ein solches Szenario kann beispielsweise auftreten, wenn das Acknowledgement des Backends bei der Übertragung verloren geht und der Client deshalb
+fälschlicherweise von einer fehlgeschlagenen Joberstellung ausgeht.
+Durch den Idempotenzschlüssel kann das Backend erkennen, dass der betroffene Job bereits existiert und eine doppelte Persistierung verhindern.
+Damit wird Zusicherung \ref{zus:duplikaterkennung} umgesetzt.\\
+Nach Eingang der Anfrage leitet die \gls{rest}-\gls{api} diese an den Job-Service weiter.
+Dieser überprüft zunächst, ob bereits ein Job mit dem übermittelten Idempotenzschlüssel existiert.
+Ist dies nicht der Fall, wird der neue Job persistent im Job-Store gespeichert.
+Anschließend gibt der Service den erzeugten Job an die \gls{rest}-\gls{api} zurück, welche dem Client den HTTP-Statuscode \texttt{201 Created} als
+Bestätigung der erfolgreichen Joberstellung liefert.\\
+Existiert dagegen bereits ein Job mit demselben Idempotenzschlüssel, wird keine erneute Persistierung durchgeführt.
+Stattdessen wirft der Service einen Fehler, der von der \gls{rest}-\gls{api} abgefangen wird.
+Da sich der gewünschte Job bereits im System befindet und somit der gewünschte Zielzustand erreicht wurde, beantwortet die \gls{api} die Anfrage mit
+dem HTTP-Statuscode \texttt{200 OK}.
 
-\subsection{Verarbeitung durch Worker}
-\label{sec:jobverarbeitung}
+Kann während der Persistierung keine Verbindung zur Datenbank hergestellt werden oder tritt ein anderer transienter Fehler auf, wird der Persistierungsvorgang
+automatisch mehrfach mit exponentiellem Backoff wiederholt.
+Weitere Details zu Client- und Serverseitigen Retries werden in \cref{subsec:retryStrategie} behandelt.
+Erst wenn der Job erfolgreich gespeichert wurde oder bereits existiert, wird dem Client ein erfolgreicher HTTP-Statuscode zurückgegeben.
+Kann der Job dagegen auch nach Ausschöpfen aller Wiederholungsversuche nicht gespeichert werden, antwortet das Backend mit dem HTTP-Statuscode
+\texttt{500 Internal Server Error}.
+Dadurch kann der Client erkennen, dass kein erfolgreicher Abschluss der Operation garantiert werden konnte und den Erstellungsversuch
+seinerseits gemäß der definierten Retry-Strategie wiederholen.
+Dieses Zusammenspiel zwischen client- und serverseitigen Wiederholungsmechanismen stellt sicher, dass die Zusicherung \ref{zus:retries}
+eingehalten wird und somit kein direktes manuelles Eingreifen nach dem ersten fehlgeschlagenen Versuch notwendig ist.
+
+\subsection{Exklusive Verarbeitung und Transaktionsmodell}
+\label{subsec:transaktionsmodell}
+Eine naheliegende Möglichkeit zur Absicherung der Hintergrundverarbeitung vor konkurrierenden Zugriffen besteht darin, eine
+Datenbanktransaktion über den gesamten Lebenszyklus eines Jobs geöffnet zu halten.
+Die Transaktion würde unmittelbar nach dem Beanspruchen eines Jobs beginnen und erst nach Abschluss der vollständigen Fachlogik
+sowie der Persistierung des Ergebnisses beendet werden.
+Wie bereits in \cref{subsec:transaktionsgrenzen} erläutert, bringen lange Transaktionen einige Nachteile mit sich und werden daher
+auch für das in dieser Arbeit entworfene System nicht verwendet.
+Hintergrundjobs kapseln typischerweise langlaufende Berechnungen oder E/A-intensive Operationen \parencite{microsoft_corporation_hrsg_best_2026}.
+Während der gesamten Bearbeitungsdauer würden dadurch Datenbankverbindungen sowie Sperren unnötig lange gehalten werden müssen.
+Transaktionen sollten so lang wie nötig und so kurz wie möglich entworfen werden.\\
+Aus diesem Grund verfolgt das entwickelte System einen anderen Ansatz.
+Die eigentliche Fachlogik wird vollständig außerhalb einer Datenbanktransaktion ausgeführt.
+Datenbanktransaktionen werden ausschließlich zur atomaren Synchronisation der Zustandsübergänge verwendet und deshalb möglichst kurz gehalten.
+Die Kombination aus dem in \cref{subsec:zustandsmodell} vorgestellten Zustandsmodell und kurzlaufenden Transaktionen ermöglicht eine exklusive
+Bearbeitung der Jobs, ohne Datenbankressourcen während der eigentlichen Verarbeitung zu blockieren.
+
+Der Verarbeitungsablauf gliedert sich hierzu in drei Phasen, die in \cref{fig:transaktionsmodell} visualisiert sind.
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/jobVerarbeitungSequenzdiagramm}
-    \caption{cap}%TODO: caption
-    \label{fig:jobverarbeitung}
+    \includegraphics[width=0.9\textwidth]{images/transaktionsmodell}
+    \caption{Transaktionsmodell}
+    \label{fig:transaktionsmodell}
 \end{figure}
-Idempotente verarbeitung:
-- nicht mehrere worker dürfen sich den gleichen job ziehen --> muss synchronisiert werden und ein statusmodell existieren, wobei die reservierung atomar passieren muss,
---> relationale datenbank mit strikten acid-garantien/isolation levels
-- nach absturz eines workers muss eine erneute ausführung zum gleichen ergebnis kommen was die erste ausführung erhalten hätte --> dafür müssen die daten, auf denen die
-fachliche operation aufbaut unverändert vorliegen --> transaktionales modell, wenn prozess abstürzt dürfen keine halb aktualisierten daten zurück bleiben
+Zunächst beansprucht ein Worker innerhalb einer Datenbanktransaktion einen freien Job.
+Hierzu wird mittels \textit{SELECT~…~FOR~UPDATE~SKIP~LOCKED} ein geeigneter Job ausgewählt und exklusiv gesperrt.
+Bereits von anderen Workern reservierte Jobs werden dadurch nicht blockierend abgewartet, sondern unmittelbar übersprungen.
+Zusätzlich wird der Jobstatus von \textit{Queued} nach \textit{Running} überführt und die Attribute für die Recovery wie
+\textit{setClaimed\_by}, \textit{attempt\_count} oder \textit{lease\_until} aktualisiert.
+Unmittelbar nach diesen Änderungen wird die Transaktion committet und die Datenbankverbindung wieder freigegeben.
+Anschließend erfolgt die eigentliche Verarbeitung des Jobs vollständig außerhalb einer Datenbanktransaktion.
+Da der Job bereits den Zustand \textit{Running} besitzt, können andere Worker ihn währenddessen nicht erneut beanspruchen.
+Nach erfolgreichem Abschluss der eigentlichen Fachlogik darf ein Worker den Job nicht unmittelbar als erfolgreich markieren.
+Stattdessen wird zunächst eine neue Transaktion geöffnet, innerhalb der sowohl das Verarbeitungsergebnis persistent gespeichert als auch der
+Jobstatus von \textit{Running} auf \textit{Succeeded} aktualisiert wird.
+Beide Änderungen werden gemeinsam committet.
+Muss ein Job dagegen aufgrund eines Fehlers oder eines abgelaufenen Leases zurückgesetzt werden, werden innerhalb einer zusammengehörigen
+Transaktion der Status auf \textit{Queued} zurückgesetzt sowie die Attribute \textit{claimed\_by} und \textit{lease\_until} zurückgesetzt.
+Dadurch ist sichergestellt, dass niemals ein Zustand entstehen kann, in dem zwar bereits ein Ergebnis gespeichert wurde, der Job jedoch
+weiterhin als \textit{Running} oder \textit{Queued} gekennzeichnet ist oder umgekehrt.
+Die gemeinsame Speicherung von Ergebnis und Jobstatus innerhalb derselben lokalen \gls{acid}-Transaktion gewährleistet somit die in
+\ref{zus:atomare_wirkung} geforderte Atomarität.
+Damit werden sämtliche Änderungen am Zustand eines Jobs atomar durchgeführt, während die eigentliche Fachlogik vollständig außerhalb
+der Transaktionsgrenzen verbleibt.
 
-\subsection{Parallelität}
-\label{sec:parallelitaet}
+Für die Synchronisation konkurrierender Worker wird ein pessimistisches Sperrverfahren verwendet.
+Wie bereits in \cref{subsec:synchronisation} erläutert, eignen sich optimistische Synchronisationsverfahren insbesondere für Systeme,
+in denen konkurrierende Änderungen nur selten auftreten.
+Im entwickelten Job-Processing-System ist jedoch das Gegenteil der Fall.
+Da alle Worker neue Jobs entsprechend ihres Erstellungszeitpunkts aus derselben Warteschlange entnehmen, konkurrieren sie regelmäßig
+um dieselben Datensätze.
+Optimistische Verfahren würden in diesem Szenario zu einer hohen Anzahl abgebrochener Transaktionen und entsprechender Wiederholungsversuche führen.
+\textcite[Kap.~7, Abschnitt \glqq Pessimistic versus optimistic concurrency control\grqq]{kleppmann_designing_2017} weist darauf hin,
+dass sich optimistische Verfahren bei hoher Konkurrenz negativ auf den Gesamtdurchsatz auswirken, da die zusätzlich notwendigen
+Wiederholungen die Datenbank weiter belasten.
+Aus diesem Grund wird im Rahmen dieser Arbeit ein pessimistisches Sperrverfahren verwendet, bei dem konkurrierende Zugriffe bereits
+während der Auswahl eines Jobs verhindert werden.
+Durch die Nutzung expliziter Sperren wird die exklusive Bearbeitung unabhängig vom verwendeten Isolation Level gewährleistet.
+Aus diesem Grund genügt das in PostgreSQL standardmäßig verwendete Isolation-Level READ COMMITTED, da die notwendige Synchronisation
+durch die expliziten Sperren erfolgt und strengere Isolationsebenen für den beschriebenen Ablauf keinen zusätzlichen Nutzen bieten.
+
+Die Nutzung derselben relationalen Datenbank als Job-Store und zur Speicherung der Verarbeitungsergebnisse bietet den großen Vorteil, dass
+sämtliche Zustandsänderungen sowie die Persistierung eines Verarbeitungsergebnisses innerhalb lokaler \gls{acid}-Transaktionen erfolgen.
+Die Koordination mehrerer unabhängiger Systeme und damit die Notwendigkeit verteilter Transaktionen entfallen vollständig.
+
+\subsection{Retry-Strategie}
+\label{subsec:retryStrategie}
+Auf Grundlage der in \cref{subsec:retry/backoff} beschriebenen Prinzipien werden Wiederholungsmechanismen gezielt an denjenigen
+Stellen der Architektur eingesetzt, an denen temporäre Infrastrukturfehler auftreten können, ohne dass die eigentliche Fachlogik fehlerhaft ist.
+Ziel ist es im Rahmen von \ref{zus:retries}, kurzfristige Störungen durch Wiederholungsversuche zu kompensieren und dadurch unnötige Recovery-Vorgänge oder
+Benutzerinteraktionen zu vermeiden.\\
+Hierzu unterscheidet die Architektur zwischen der Kommunikation des Clients mit dem Backend und den internen Datenbankzugriffen der Worker
+und der Job-\gls{api}.
+Beide Kommunikationswege stellen voneinander unabhängige Fehlerquellen dar und können daher unabhängig voneinander von transienten
+Infrastrukturfehlern betroffen sein.
+
+Auf Clientseite werden Wiederholungsversuche für die Kommunikation mit der \gls{rest}-Schnittstelle des Backends vorgesehen.
+Kann eine Anfrage aufgrund einer temporären Netzwerkstörung oder einer kurzfristigen Nichtverfügbarkeit des Backends nicht erfolgreich
+abgeschlossen werden bzw. bleibt die Erfolgsbestätigung aus, wird die Anfrage automatisch erneut übertragen.
+Da die Joberstellung durch den in \cref{subsec:joberstellung} beschriebenen Idempotenzmechanismus abgesichert ist, kann eine erneute
+Übertragung derselben Anfrage nicht zu einer mehrfachen Persistierung eines Jobs führen.
+Die Kombination aus Retry und Idempotenz schafft somit eine Exactly-Once-Semantik für die Joberstellung unter der Voraussetzung, dass der Fehler tatsächlich
+transient ist und die Parameter für Retry und Backoff passend konfiguriert sind.
+
+Auch innerhalb des Backends werden Wiederholungsversuche für Datenbankoperationen vorgesehen, deren Fehlschlagen
+auf transiente Infrastrukturfehler zurückzuführen ist, beispielsweise kurzzeitige Netzwerkunterbrechungen oder die
+vorübergehende Nichtverfügbarkeit der Datenbank.
+Kann eine Operation aufgrund eines solchen Fehlers nicht abgeschlossen werden, wird sie automatisch erneut ausgeführt.
+Dagegen werden fachliche Fehler während der eigentlichen Jobverarbeitung bewusst nicht wiederholt, da deren Ursache nicht
+durch einen erneuten Ausführungsversuch beseitigt werden kann.\\
+Zur strukturellen Entkopplung der Wiederholungslogik wird diese in einem eigenständigen Retry-Teilsystem gekapselt.
+Wie in \cref{fig:retryClassDiagram} dargestellt, nutzen die jeweiligen Komponenten, wie beispielsweise der Client im Frontend
+zur Erstellung der Jobs, einen zentralen RetryExecutor, der die auszuführende Operation über die Methode \textit{execute(...)}
+entgegennimmt und deren Ausführung entsprechend einer konfigurierbaren Retry-Policy steuert.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{images/retryClassDiagramm}
+    \caption{Klassendiagramm der Retry-Komponente}
+    \label{fig:retryClassDiagram}
+\end{figure}
+Der RetryExecutor enthält dabei selbst keine anwendungsspezifischen Entscheidungen darüber, wann eine Wiederholung erfolgen soll.
+Stattdessen fängt er Exceptions von der auszuführenden Operation und gibt sie an \textit{shouldRetry(...)} weiter.
+Die spezifische Policy entscheidet dann, ob ein Retry sinnvoll ist oder nicht, indem sie die Exception klassifiziert und einen
+entsprechenden Wahrheitswert zurückliefert.
+Die Retry-Policies implementieren dabei eigene unterschiedliche Kriterien für Wiederholungsversuche, die sich in den behandelten
+Fehlerarten unterscheiden, sowie das zugehörige Backoff-Verhalten.
+Dadurch kann dasselbe Retry-Teilsystem sowohl für die Kommunikation zwischen Client und Backend als auch für interne
+Datenbankzugriffe der Worker verwendet werden, obwohl sich die jeweils behandelten Fehlerarten unterscheiden.
+Die Retry-Logik bleibt dadurch zentral gekapselt, während die konkrete Fehlerbehandlung an den jeweiligen Anwendungskontext angepasst werden kann.
+Die konkrete Implementierung des Retry-Executors sowie die Konfiguration der einzelnen Retry-Policies werden in \cref{sec:implementierung} erläutert. %TODO: Referenz spezifizieren; Prüfen, ob wirklich alles im Implementierungskapitel behandelt wird
 
 \subsection{Recovery}
 \label{subsec:recoveryarchitektur}
+Die in \cref{subsec:retryStrategie} beschriebene Retry-Strategie behandelt ausschließlich transiente Infrastrukturfehler, bei denen
+die ausführende Komponente weiterhin aktiv ist.
+Fällt ein Worker dagegen während der Verarbeitung vollständig aus oder bleibt dauerhaft hängen, kann kein lokaler Retry mehr erfolgen.
+Zur Behandlung solcher Fehler wird die Architektur daher um einen eigenständigen Recovery-Service ergänzt.
+Dieser überprüft den Job-Store in regelmäßigen Abständen auf potenziell verwaiste Jobs.
+Hierzu werden sämtliche Jobs betrachtet, die sich weiterhin im Zustand \textit{Running} befinden, deren Lease jedoch bereits abgelaufen ist.
+Ein abgelaufenes Lease wird dabei als Indikator dafür verwendet, dass die ursprüngliche Verarbeitung nicht innerhalb der vorgesehenen
+Zeit abgeschlossen werden konnte.
+%Die Architektur verzichtet bewusst auf einen Heartbeat-Mechanismus und nutzt stattdessen ausschließlich zeitbasierte Leases, da diese ohne zusätzliche Kommunikation zwischen
+%Worker und Job-Store auskommen und den Implementierungsaufwand reduzieren. TODO: hier nochmal wegen Heartbeat überelgen, ob das nicht doch noch implementiert wird
+%\begin{figure}[h]
+%    \centering
+%    \includegraphics[width=0.5\textwidth]{images/recoverySequenz}
+%    \caption{Ablauf des Recovery-Mechanismus}
+%    \label{fig:recovery}
+%\end{figure}
+Für jeden erkannten verwaisten Job entscheidet der Recovery-Service anschließend über das weitere Vorgehen.
+Wurde die maximal zulässige Anzahl an Ausführungsversuchen noch nicht erreicht, wird der Job nach dem in \cref{subsec:transaktionsmodell}
+vorgestellten Transaktionsschema erneut zur Verarbeitung freigegeben.
+Anschließend kann der Job von einem beliebigen Worker erneut beansprucht werden.
+Wurde die konfigurierte Obergrenze der Wiederholungsversuche bereits erreicht, wird der Job stattdessen in den
+Endzustand \textit{Failed} überführt und nicht erneut verarbeitet.
+Dadurch wird verhindert, dass dauerhaft fehlerhafte Jobs unbegrenzt Systemressourcen belegen und nie terminieren (\ref{zus:terminierung}).\\
+Durch diesen Mechanismus können insbesondere Worker-Abstürze, JVM-Abstürze, Container-Neustarts sowie dauerhaft blockierte
+Worker in Bezug auf die Jobausführung behandelt werden (\ref{zus:verarbeitungsgarantie}).
+Die eigentliche Terminierung oder der Neustart fehlerhafter Worker ist dagegen nicht Bestandteil des entwickelten Systems.
+Diese Aufgabe wird bewusst an eine externe Prozessüberwachung oder Orchestrierungsplattform, beispielsweise Kubernetes, delegiert.
+Das entwickelte System stellt lediglich sicher, dass durch den Ausfall eines Workers kein Job dauerhaft verloren geht.
+
+Die Wiederaufnahme eines Jobs erfolgt in der entwickelten Architektur grundsätzlich nicht durch das Fortsetzen eines
+unterbrochenen Ausführungszustands, sondern durch eine vollständige Neuausführung auf Basis der ursprünglich persistierten Eingabedaten.
+Aus diesem Grund muss die Payload eines Jobs mindestens bis zum erfolgreichen Abschluss unverändert im Job-Store verbleiben.
+Dadurch kann jeder Wiederholungsversuch unter identischen Ausgangsbedingungen beginnen und unvollständig abgeschlossene Ausführungsversuche
+haben keine Auswirkungen auf den Erfolg oder das Ergebnis späterer Wiederholungen (\ref{zus:idempotenz}).\\
+Problematisch ist ein solches Vorgehen jedoch, wenn während der Verarbeitung externe Seiteneffekte entstehen.
+Wird beispielsweise wie in \cref{fig:seiteneffekte} im Rahmen eines Jobs eine E-Mail versendet und der Worker stürzt anschließend
+vor dem erfolgreichen Abschluss der Verarbeitung ab, so wird der Job durch den Recovery-Service erneut zur Verarbeitung freigegeben.
+Die erneute Ausführung würde in diesem Fall dieselbe E-Mail ein weiteres Mal versenden.
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/recoverySequenz}
-    \caption{cap}%TODO: caption
-    \label{fig:recovery}
+    \includegraphics[width=0.9\textwidth]{images/wiederholungenBeiSeiteneffekten}
+    \caption{Mehrfachausführung mit Seiteneffekten}
+    \label{fig:seiteneffekte}
 \end{figure}
-Einen Message Consumer Idempotent machen \parencite[Kap.6.1.6]{richardson_microservices_2018}
-Statusmodell: "Consumers may crash at any time, so it could happen that a broker delivers a message to a consumer
-but the consumer never processes it, or only partially processes it before crashing. In order to
-ensure that the message is not lost, message brokers use \textit{acknowledgments}: a client must
-explicitly tell the broker when it has finished processing a message so that the broker can remove
-it from the queue." \parencite[Kap.~11, Abschnitt\glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}
+Die entwickelte Infrastruktur garantiert daher ausschließlich die idempotente Verarbeitung der internen Fachlogik des Job-Processing-Systems.
+Für externe Seiteneffekte kann eine Exactly-Once-Ausführung dagegen grundsätzlich nicht gewährleistet werden.
+Wie schon in \cref{subsec:exactlyOnce} erwähnt ist dies nur möglich, wenn das jeweils aufgerufene Zielsystem selbst eine
+idempotente Verarbeitung unterstützt, beispielsweise durch Nutzung von Idempotenzschlüsseln wie im Beispielsystem bei
+der Joberstellung (vgl. \cref{subsec:joberstellung}).
+Unterstützt das Zielsystem keine entsprechende Semantik, kann eine Mehrfachausführung von Seiteneffekten infolge eines
+Recovery-Vorgangs nicht ausgeschlossen werden.
 
-recovery manager setzt einen noch bearbeiteten job zurück und neuer worker beansprucht diesen --> dadurch arbeiten 2 worker an einen job.
-idempotenz durch fencing tokens sicherstellen
+Ein Nebeneffekt dieser Architektur besteht darin, dass ein Job zeitweise von mehreren Workern gleichzeitig bearbeitet werden kann.
+Überschreitet beispielsweise ein Worker seine Lease-Dauer, wird der Job erneut freigegeben, obwohl der ursprüngliche Worker
+seine Verarbeitung möglicherweise noch beendet.
+Die beschriebene Recovery-Strategie versucht damit, die Erfolgswahrscheinlichkeit eines Jobs zu erhöhen.
+Sie verfolgt damit das Ziel einer At-least-Once-Ausführung von Jobs.
+Die daraus resultierenden Anforderungen an die idempotente Verarbeitung werden im folgenden Abschnitt betrachtet.
 
-Dein „remote datastore“ ist praktisch deine PostgreSQL-Jobtabelle (persistenter Job-Store).
-Das entspricht dem Ansatz „State remote halten“, was Recovery vereinfacht, aber Laufzeit/Contention beeinflusst.
-Dein Worker hat vermutlich lokalen, transienten Zustand während der Verarbeitung (in-memory).
-Der muss nach Crash nicht „rekonstruiert“ werden, sondern du brauchst Mechanismen wie Lease/Timeout + Retry, um Jobs wieder aufzunehmen.
-„Replay state from input“ entspricht bei dir am ehesten: Job erneut ausführen (at-least-once) – und genau deshalb brauchst du Idempotenz, weil „replay“ bei Side-Effects sonst doppelte Ergebnisse erzeugt.
-\parencite[Kap.11 Rebuilding a state failure]{kleppmann_designing_2017}
-
-
-
-
-Pro Kapitel eine solche Tabelle um zu erklären welche Architekturentscheidung genau welche Zusicherung erfüllt
-\begin{table}
-    \centering
-    \begin{tabular}{ll}
-        \toprule
-        \textbf{Problem} & \textbf{Betroffene Zusicherungen} \\
-        \midrule
-        Doppelte Requests & SZ1 SZ3 \\
-        Mehrere Worker & SZ6 \\
-        Recovery & SZ9 SZ10 \\
-        \bottomrule
-    \end{tabular}
-    \caption{}
-    \label{tab:TODO}
-\end{table}
-
-\begin{table}
-    \centering
-    \begin{tabular}{ll}
-        \toprule
-        \textbf{Zusicherung} & \textbf{DB-Unterstützung} \\
-        \midrule
-        Job geht nicht verloren & persistente Job-Tabelle \\
-        Keine doppelten Jobs & UNIQUE(idempotency\_key) \\
-        Genau ein Zustand & status ENUM \\
-        Gültige Übergänge & Anwendung + Transaktionen \\
-        Exklusive Verarbeitung & claimed\_by + lease\_until + atomisches Claiming \\
-        Kein zweites Ergebnis & 1:1-Beziehung Job <-> JobResult \\
-        Recovery & lease\_until \\
-        Retry & retry\_count + next\_retry\_at \\
-        \bottomrule
-    \end{tabular}
-    \caption{}
-    \label{tab:ende}
-\end{table}
-
+\subsection{Idempotente Ergebnisgenerierung}
+\label{subsec:idempotenteErgebnisgenerierung}
+\ref{zus:idempotenz} verlangt, dass pro Job maximal ein Ergebnis erzeugt wird.
+Das in \cref{subsec:transaktionsmodell} vorgestellte Claiming-Verfahren stellt sicher, dass ein Job im Normalfall
+ausschließlich von einem einzelnen Worker bearbeitet wird.
+Durch den in \cref{subsec:recoveryarchitektur} genauer betrachteten Recovery-Fall kann diese Eigenschaft jedoch nicht immer garantiert werden.
+Daher muss sichergestellt werden, dass das fachliche Ergebnis nur einmal gespeichert werden kann oder die Fachlogik auch bei
+mehrfacher Ausführung in jedem Fall immer das gleiche Ergebnis erzeugt.
+Da der Jobstatus sowie die Jobergebnisse in derselben Datenbank verwaltet werden, bietet sich die Umsetzung der ersten
+Option mithilfe von Transaktionen an.
+Um die idempotente Verarbeitung auf diese Weise sicherzustellen, darf ein Worker ein Verarbeitungsergebnis ausschließlich
+dann persistent speichern, wenn er laut Job-Store weiterhin der Besitzer des Jobs ist.
+Vor der Speicherung wird daher der betroffene Datensatz gesperrt und innerhalb einer transaktional geschützten Operation
+erneut der aktuelle Jobstatus, die Worker-ID sowie die Gültigkeit des Leases überprüft.
+Nur wenn der Job sich weiterhin im Zustand \textit{Running} befindet, die gespeicherte Worker-ID mit der des ausführenden Workers
+übereinstimmt und das Lease noch nicht abgelaufen ist, wird das Ergebnis übernommen und der Job erfolgreich abgeschlossen.
+Andernfalls wird der Speichervorgang verworfen, da bereits ein anderer Worker die weitere Verarbeitung übernommen hat oder der
+Job bereits abgeschlossen wurde.
+Dadurch kann jeder Job höchstens einmal erfolgreich gespeichert werden, selbst wenn mehrere Worker denselben Job parallel ausgeführt haben.
+Das in \cref{subsec:recoveryarchitektur} bereits erwähnte Problem bezüglich Seiteneffekten in externen Systemen bleibt jedoch bestehen.
+%
+%Pro Kapitel eine solche Tabelle um zu erklären welche Architekturentscheidung genau welche Zusicherung erfüllt
+%\begin{table}
+%    \centering
+%    \begin{tabular}{ll}
+%        \toprule
+%        \textbf{Problem} & \textbf{Betroffene Zusicherungen} \\
+%        \midrule
+%        Doppelte Requests & SZ1 SZ3 \\
+%        Mehrere Worker & SZ6 \\
+%        Recovery & SZ9 SZ10 \\
+%        \bottomrule
+%    \end{tabular}
+%    \caption{}
+%    \label{tab:}
+%\end{table}
+%
+%\begin{table}
+%    \centering
+%    \begin{tabular}{ll}
+%        \toprule
+%        \textbf{Zusicherung} & \textbf{DB-Unterstützung} \\
+%        \midrule
+%        Job geht nicht verloren & persistente Job-Tabelle \\
+%        Keine doppelten Jobs & UNIQUE(idempotency\_key) \\
+%        Genau ein Zustand & status ENUM \\
+%        Gültige Übergänge & Anwendung + Transaktionen \\
+%        Exklusive Verarbeitung & claimed\_by + lease\_until + atomares Claiming \\
+%        Kein zweites Ergebnis & 1:1-Beziehung Job <-> JobResult \\
+%        Recovery & lease\_until \\
+%        Retry & retry\_count + next\_retry\_at \\
+%        \bottomrule
+%    \end{tabular}
+%    \caption{}
+%    \label{tab:ende}
+%\end{table}
 
 \section{Implementierung}\label{sec:implementierung}
-\parencite[Kap.~5 Abschnitt \glqq Command Message\grqq]{hohpe_enterprise_2005}
-\parencite[Kap.~6.2]{richardson_microservices_2018}
+%\parencite[Kap.~5 Abschnitt \glqq Command Message\grqq]{hohpe_enterprise_2005}
+%\parencite[Kap.~6.2]{richardson_microservices_2018}
 
 \subsection{Technologie-Stack}\label{subsec:stack}
 
 \subsection{Zentrale Code-Entscheidungen}\label{subsec:code}
 
 
-
-
-Begründen, warum ich mich für diese Frameworks entschieden habe, die vorkommen.
---> Jede (auch implizite) Entscheidung begründen
-Alles Begründen!!! Wieso ist das überhaupt relevant? Welches Problem löse ich, wieso habe ich das so gemacht?
-Wieso genau diese Fehlerszenarien? Begründen wieso nicht andere oder mehr?
-Gibt es formale Modelle die die Zusicherungen zu jedem Zeitpunkt checken?
+%TODO: Begründen, warum ich mich für diese Frameworks entschieden habe, die vorkommen.
+%--> Jede (auch implizite) Entscheidung begründen
+%Alles Begründen!!! Wieso ist das überhaupt relevant? Welches Problem löse ich, wieso habe ich das so gemacht?
+%Wieso genau diese Fehlerszenarien? Begründen wieso nicht andere oder mehr?
+%Gibt es formale Modelle die die Zusicherungen zu jedem Zeitpunkt checken?

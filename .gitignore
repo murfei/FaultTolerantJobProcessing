@@ -40,3 +40,6 @@ build/
 /out/
 /auxil/
 !/out/paperMaster.pdf
+/src/main/resources/application.properties
+/src/main/resources/application-test.properties.xml
+/src/main/resources/application-test.properties
