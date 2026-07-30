@@ -6,6 +6,7 @@ import backend.infrastructure.JobFactory;
 import backend.domain.Job;
 import backend.repository.JobRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,6 +21,7 @@ public class JobService {
         this.repository = repository;
     }
 
+    @Transactional
     public Job createJob(CreateJobRequest request) throws IdempotencyException {
         Optional<Job> existenceTest = repository.findByIdempotencyKey(request.getIdempotencyKey());
         if(existenceTest.isPresent()){

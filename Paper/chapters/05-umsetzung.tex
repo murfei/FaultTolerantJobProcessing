@@ -428,18 +428,113 @@ Das in \cref{subsec:recoveryarchitektur} bereits erwähnte Problem bezüglich Se
 %    \label{tab:ende}
 %\end{table}
 
-\section{Implementierung}\label{sec:implementierung}
-\textbf{To be done}
-
+\section{Implementierung}
+\label{sec:implementierung}
+Die Implementierung orientiert sich an den im Abschnitt \cref{sec:zusicherungen} definierten Zusicherungen.
+Da einzelne Zusicherungen durch das Zusammenwirken mehrerer Komponenten und technischer Mechanismen realisiert werden, erfolgt die Darstellung der
+Implementierung nicht anhand der einzelnen Zusicherungen, sondern anhand der zentralen technischen Mechanismen des Systems.
+Die Zuordnung zu den jeweiligen Zusicherungen wird innerhalb der entsprechenden Abschnitte kenntlich gemacht.
 %\parencite[Kap.~5 Abschnitt \glqq Command Message\grqq]{hohpe_enterprise_2005}
 %\parencite[Kap.~6.2]{richardson_microservices_2018}
 
-\subsection{Technologie-Stack}\label{subsec:stack}
+\subsection{Technologie-Stack}
+\label{subsec:stack} %TODO: hier ggfs. Titel anpassen
+-JPA --> einfache Handhabung viel Automatisierung --> NativeQueries ermöglichen trotzdem viel Kontrolle beim Zugriff
 
-\subsection{Zentrale Code-Entscheidungen}\label{subsec:code}
+\subsection{Persistenz und Datenbankzugriff}
+\label{subsec:impl_persistenz}
+Für den Zugriff auf die relationale Datenbank wird Spring Data JPA verwendet.
+Die Abbildung der persistenten Daten erfolgt durch die Entitätsklassen \texttt{Job} und \texttt{JobResult}, die jeweils mit
+der Annotation \texttt{@Entity} versehen sind.\\
+Der Status eines Jobs wird als Java-Enumeration modelliert und über JPA persistent gespeichert.
+Damit wird sichergestellt, dass ausschließlich die im Zustandsmodell definierten Zustände verwendet werden können.
+Die Nutzdaten eines Jobs werden als JSON in der Datenbank persistiert.
+Dadurch kann die \textit{Payload} eine Menge an strukturierten Informationen für die Jobspezifikation beinhalten.
+Alternativ könnte die \textit{Payload} auch in Abhängigkeit von der Domain und dem Systementwurf als eigene Entität modelliert werden mit einer
+1:1-Beziehung zum Job.\\
+Eine besondere Bedeutung besitzt der \textit{Idempotency-Key}, der zusätzlich zur technischen Identifikation eines Jobs gespeichert wird.
+Dieser Schlüssel wird vom Client erzeugt und dient zur Erkennung mehrfach übermittelter Anfragen.
+Auf Datenbankebene wird daher ein \texttt{UNIQUE}-Constraint für das entsprechende Attribut definiert.
+Dadurch kann die Datenbank selbst sicherstellen, dass die Idempotency-Keys eindeutig sind.
+In Kombination mit der Kennzeichnung \textit{nullable=false} kann so die Eindeutigkeit erstellter Jobs auf Datenbankebene
+sichergestellt werden (\ref{zus:duplikaterkennung}).\\
+Die Verarbeitungsergebnisse werden durch die Entitätsklasse \texttt{JobResult} repräsentiert.
+Umgesetzt wird die 1:1-Beziehung zwischen \texttt{JobResult} und \texttt{Job} über die \texttt{@OneToOne}-Annotation.
+Dabei wird die Fremdschlüsselbeziehung über \texttt{@JoinColumn} in der Tabelle des Ergebnisses umgesetzt.
+Die Beschränkung auf höchstens ein Ergebnis pro Job ist insbesondere für die idempotente Ergebnisspeicherung relevant (\ref{zus:idempotenz}).
+Daher wird auch der Fremdschlüssel mit einem \texttt{UNIQUE}- als auch mit einem \texttt{NOT NULL}-Constraint belegt.
 
+Der Datenbankzugriff wird über ein Repository-Interface gekapselt.
+Neben den von Spring Data JPA bereitgestellten Standardoperationen werden für das Job-Processing-System spezifische Abfragen
+definiert, die unmittelbar die Anforderungen an die konkurrierende Verarbeitung und die Recovery unterstützen.
+Für die Auswahl eines Jobs zur Verarbeitung wird beispielsweise eine native SQL-Abfrage definiert:
 
-%TODO: Begründen, warum ich mich für diese Frameworks entschieden habe, die vorkommen.
+\begin{verbatim}
+SELECT *
+FROM jobs
+WHERE status = :status
+ORDER BY created_at
+LIMIT :limit
+FOR UPDATE SKIP LOCKED
+\end{verbatim}
+
+\texttt{FOR UPDATE} sperrt dabei den ausgewählten Datensatz (\ref{zus:exklusive_rechte}) für die laufende Transaktion,
+während \texttt{SKIP LOCKED} bereits durch andere Transaktionen gesperrte Datensätze ignoriert.
+Dadurch können mehrere Worker gleichzeitig nach verfügbaren Jobs suchen, ohne sich gegenseitig durch gesperrte Datensätze
+zu blockieren.
+Die Sortierung nach dem Erstellungszeitpunkt stellt dabei sicher, dass ältere Jobs bevorzugt verarbeitet werden (\ref{zus:terminierung}).
+
+Für den Abschluss einer Verarbeitung beziehungsweise für Recovery-Szenarien wird außerdem ein gezielter Zugriff inklusive Sperre auf einzelne
+Jobs bereitgestellt:
+
+\begin{verbatim}
+SELECT *
+FROM jobs
+WHERE id = :jobId
+FOR UPDATE
+\end{verbatim}
+
+Damit können konkurrierende Änderungen an einem konkreten Job infolge von Recovery verhindert werden (\ref{zus:exklusive_rechte}).
+Zusätzlich stellt das Repository eine Abfrage bereit, mit der Jobs anhand der Kombination ihres Status und des Ablaufs ihres Leases
+identifiziert werden können:
+
+\begin{verbatim}
+SELECT j.id
+FROM Job j
+WHERE j.status = :status
+AND j.lease_until < :timestamp
+\end{verbatim}
+
+Diese Abfrage bildet die Grundlage für die Erkennung verwaister Jobs durch den Recovery-Mechanismus.\\
+Die Transaktionskapselung wird durch \texttt{@Transactional} erreicht.
+Alle Datenbankoperationen in einer mit \texttt{@Transactional} gekennzeichneten Methode werden im Rahmen einer
+gemeinsamen Transaktion ausgeführt.
+Die konkrete Nutzung zur Umsetzung der in \cref{sec:architektur} definierten Transaktionen wird bei den jeweiligen
+Verarbeitungsmechanismen in den folgenden Abschnitten erläutert.
+
+Die implementierte Persistenzschicht stellt damit neben der dauerhaften Speicherung der Jobs und Ergebnisse (\ref{zus:verarbeitungsgarantie})
+auch die für die Fehlertoleranz erforderlichen Mechanismen zur Sicherstellung von Konsistenz
+(\ref{zus:atomare_persistenz}, \ref{zus:duplikaterkennung}, \ref{zus:atomare_wirkung}, \ref{zus:idempotenz})
+und zur Synchronisation konkurrierender Zugriffe (\ref{zus:exklusive_rechte}) bereit.
+
+\subsection{Joberstellung}
+\label{subsec:impl_joberstellung}
+- Prüfung auf Vorhandensein des Idempotenzschlüssel durch Datenbankabfrage --> Datenbankconstraint ist nur Rückfallebene
+    %TODO: macht das überhaupt Sinn, das extra nochmal vorher zu prüfen und die DB damit mit einer extra Anfrage zu belasten, oder sollte besser
+    %einfach nur der Constraint-Fehler abgefangen werden?
+
+\subsection{Claiming nud Verarbeitung}
+\label{subsec:impl_verarbeitung}
+
+\subsection{Ergebnisspeicherung}
+\label{subsec:impl_ergebnis} %TODO: Titel überdenken
+
+\subsection{Retries}
+\label{subsec:impl_retries}
+
+\subsection{Recovery}
+\label{subsec:impl_recovery}
+
 %--> Jede (auch implizite) Entscheidung begründen
 %Alles Begründen!!! Wieso ist das überhaupt relevant? Welches Problem löse ich, wieso habe ich das so gemacht?
 %Wieso genau diese Fehlerszenarien? Begründen wieso nicht andere oder mehr?

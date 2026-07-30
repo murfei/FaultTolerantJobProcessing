@@ -13,7 +13,7 @@ public class JobResult {
 
     @Id
     private UUID jobId;
-
+//TODO: ist das hier richtig mit doppelter id oder so? einmal genau prüfen was hier jobId macht und was job und woher im schema id kommt
     @MapsId
     @OneToOne
     @JoinColumn(name = "job_id", nullable = false, unique = true)
