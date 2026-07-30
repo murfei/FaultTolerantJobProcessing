@@ -179,12 +179,12 @@ fälschlicherweise von einer fehlgeschlagenen Joberstellung ausgeht.
 Durch den Idempotenzschlüssel kann das Backend erkennen, dass der betroffene Job bereits existiert und eine doppelte Persistierung verhindern.
 Damit wird Zusicherung \ref{zus:duplikaterkennung} umgesetzt.\\
 Nach Eingang der Anfrage leitet die \gls{rest}-\gls{api} diese an den Job-Service weiter.
-Dieser überprüft zunächst, ob bereits ein Job mit dem übermittelten Idempotenzschlüssel existiert.
-Ist dies nicht der Fall, wird der neue Job persistent im Job-Store gespeichert.
-Anschließend gibt der Service den erzeugten Job an die \gls{rest}-\gls{api} zurück, welche dem Client den HTTP-Statuscode \texttt{201 Created} als
-Bestätigung der erfolgreichen Joberstellung liefert.\\
-Existiert dagegen bereits ein Job mit demselben Idempotenzschlüssel, wird keine erneute Persistierung durchgeführt.
-Stattdessen wirft der Service einen Fehler, der von der \gls{rest}-\gls{api} abgefangen wird.
+Dieser versucht, den Job zusammen mit dem Idempotenzschlüssel zu speichern.
+Existiert der Idempotenzschlüssel noch nicht, liefert die Anfrage den Job als Ergebnis.
+Der Service gibt den erstellten Job an die \gls{rest}-\gls{api} zurück,
+welche dem Client mit dem HTTP-Statuscode \texttt{201 Created} als Bestätigung der erfolgreichen Joberstellung antwortet.\\
+Existiert dagegen bereits ein Job mit demselben Idempotenzschlüssel, wird ein Fehler aufgrund des Unique-Constraints der Datenbank ausgelöst.
+Der Service wirft daraufhin einen Fehler, der von der \gls{rest}-\gls{api} abgefangen wird.
 Da sich der gewünschte Job bereits im System befindet und somit der gewünschte Zielzustand erreicht wurde, beantwortet die \gls{api} die Anfrage mit
 dem HTTP-Statuscode \texttt{200 OK}.
 
@@ -519,9 +519,7 @@ und zur Synchronisation konkurrierender Zugriffe (\ref{zus:exklusive_rechte}) be
 
 \subsection{Joberstellung}
 \label{subsec:impl_joberstellung}
-- Prüfung auf Vorhandensein des Idempotenzschlüssel durch Datenbankabfrage --> Datenbankconstraint ist nur Rückfallebene
-    %TODO: macht das überhaupt Sinn, das extra nochmal vorher zu prüfen und die DB damit mit einer extra Anfrage zu belasten, oder sollte besser
-    %einfach nur der Constraint-Fehler abgefangen werden?
+
 
 \subsection{Claiming nud Verarbeitung}
 \label{subsec:impl_verarbeitung}

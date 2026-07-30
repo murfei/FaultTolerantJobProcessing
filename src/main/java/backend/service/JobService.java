@@ -5,6 +5,8 @@ import backend.api.CreateJobRequest;
 import backend.infrastructure.JobFactory;
 import backend.domain.Job;
 import backend.repository.JobRepository;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,13 +25,20 @@ public class JobService {
 
     @Transactional
     public Job createJob(CreateJobRequest request) throws IdempotencyException {
-        Optional<Job> existenceTest = repository.findByIdempotencyKey(request.getIdempotencyKey());
-        if(existenceTest.isPresent()){
-            throw new IdempotencyException(existenceTest.get());
-        }
         Job job = JobFactory.createJob(request);
-        repository.save(job);
-        return job;
+        try{
+            repository.saveAndFlush(job);
+            return job;
+        } catch (DataIntegrityViolationException e){
+            if(!isConstraintViolation(e)){
+                throw e;
+            }
+            Optional<Job> existingJob = repository.findByIdempotencyKey(request.getIdempotencyKey());
+            if (existingJob.isPresent()){
+                throw new IdempotencyException(existingJob.get());
+            }
+            throw e;
+        }
     }
 
     public List<Job> getAllJobs() {
@@ -38,5 +47,9 @@ public class JobService {
 
     public Optional<Job> getJobById(UUID id) {
         return repository.findByIdempotencyKey(id);
+    }
+
+    private boolean isConstraintViolation(DataIntegrityViolationException e) {
+        return e.getMostSpecificCause() instanceof ConstraintViolationException;
     }
 }
