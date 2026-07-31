@@ -1,12 +1,15 @@
 %! Author = murfe
 %! Date = 28.07.2026
 
+
 \chapter{Umsetzung}\label{ch:umsetzung}
 \textbf{To be done}
+
 
 \section{Architektur und Design}\label{sec:architektur} %TODO: Hier oder in der ersten subsection auf jeden Fall beschreiben, was welches Kapitel macht bzw welches Kapitel
 %                                                               welche Teilaspekte löst, damit der rote Faden klar bleibt
 \textbf{To be done (Einleitung)}
+
 \subsection{Architekturentwurf}
 \label{subsec:architekturentwurf}
 In \cref{subsec:backgroundJobs} wurde bereits dargelegt, dass das Queue-Based Load Leveling Pattern eine geeignete Option ist,
@@ -428,6 +431,7 @@ Das in \cref{subsec:recoveryarchitektur} bereits erwähnte Problem bezüglich Se
 %    \label{tab:ende}
 %\end{table}
 
+
 \section{Implementierung}
 \label{sec:implementierung}
 Die Implementierung orientiert sich an den im Abschnitt \cref{sec:zusicherungen} definierten Zusicherungen.
@@ -453,7 +457,7 @@ Dadurch kann die \textit{Payload} eine Menge an strukturierten Informationen fü
 Alternativ könnte die \textit{Payload} auch in Abhängigkeit von der Domain und dem Systementwurf als eigene Entität modelliert werden mit einer
 1:1-Beziehung zum Job.\\
 Eine besondere Bedeutung besitzt der \textit{Idempotency-Key}, der zusätzlich zur technischen Identifikation eines Jobs gespeichert wird.
-Dieser Schlüssel wird vom Client erzeugt und dient zur Erkennung mehrfach übermittelter Anfragen.
+Dieser Schlüssel wird vom Client als \texttt{\gls{uuid}} erzeugt und dient zur Erkennung mehrfach übermittelter Anfragen.
 Auf Datenbankebene wird daher ein \texttt{UNIQUE}-Constraint für das entsprechende Attribut definiert.
 Dadurch kann die Datenbank selbst sicherstellen, dass die Idempotency-Keys eindeutig sind.
 In Kombination mit der Kennzeichnung \textit{nullable=false} kann so die Eindeutigkeit erstellter Jobs auf Datenbankebene
@@ -467,45 +471,52 @@ Daher wird auch der Fremdschlüssel mit einem \texttt{UNIQUE}- als auch mit eine
 Der Datenbankzugriff wird über ein Repository-Interface gekapselt.
 Neben den von Spring Data JPA bereitgestellten Standardoperationen werden für das Job-Processing-System spezifische Abfragen
 definiert, die unmittelbar die Anforderungen an die konkurrierende Verarbeitung und die Recovery unterstützen.
-Für die Auswahl eines Jobs zur Verarbeitung wird beispielsweise eine native SQL-Abfrage definiert:
-
-\begin{verbatim}
+Für die Auswahl eines Jobs zur Verarbeitung wird beispielsweise die in \cref{lst:claiming} dargestellte native SQL-Abfrage definiert.
+\begin{lstlisting}[
+    language=SQL,
+    caption={Claiming eines Jobs im \texttt{JobRepository}},
+    label={lst:claiming}
+]
 SELECT *
 FROM jobs
 WHERE status = :status
 ORDER BY created_at
 LIMIT :limit
 FOR UPDATE SKIP LOCKED
-\end{verbatim}
-
-\texttt{FOR UPDATE} sperrt dabei den ausgewählten Datensatz (\ref{zus:exklusive_rechte}) für die laufende Transaktion,
+\end{lstlisting}
+\texttt{FOR UPDATE} sperrt dabei den ausgewählten Datensatz für die laufende Transaktion zum Zwecke des exklusiven Zugriffs (\ref{zus:exklusive_rechte}),
 während \texttt{SKIP LOCKED} bereits durch andere Transaktionen gesperrte Datensätze ignoriert.
 Dadurch können mehrere Worker gleichzeitig nach verfügbaren Jobs suchen, ohne sich gegenseitig durch gesperrte Datensätze
 zu blockieren.
-Die Sortierung nach dem Erstellungszeitpunkt stellt dabei sicher, dass ältere Jobs bevorzugt verarbeitet werden (\ref{zus:terminierung}).
-
-Für den Abschluss einer Verarbeitung beziehungsweise für Recovery-Szenarien wird außerdem ein gezielter Zugriff inklusive Sperre auf einzelne
-Jobs bereitgestellt:
-
-\begin{verbatim}
+Die Sortierung nach dem Erstellungszeitpunkt stellt dabei sicher, dass ältere Jobs bevorzugt verarbeitet werden (\ref{zus:terminierung}).\\
+Für den Abschluss einer Verarbeitung und Recovery-Szenarien wird der in \cref{lst:forUpdate} gezeigte Befehl
+zum gezielten Zugriff auf einzelne Jobs bereitgestellt und gleichzeitig eine Sperre für diesen Datensatz gesetzt.
+\begin{lstlisting}[
+    language=SQL,
+    caption={Auswählen eines Jobs zur Bearbeitung},
+    label={lst:forUpdate}
+]
 SELECT *
 FROM jobs
 WHERE id = :jobId
 FOR UPDATE
-\end{verbatim}
-
-Damit können konkurrierende Änderungen an einem konkreten Job infolge von Recovery verhindert werden (\ref{zus:exklusive_rechte}).
+\end{lstlisting}
+Auch dieser Befehl dient dazu, konkurrierende Änderungen an einem konkreten Job zu verhindern (\ref{zus:exklusive_rechte}).\\
 Zusätzlich stellt das Repository eine Abfrage bereit, mit der Jobs anhand der Kombination ihres Status und des Ablaufs ihres Leases
-identifiziert werden können:
-
-\begin{verbatim}
+identifiziert werden können.
+Damit bildet die Abfrage aus \cref{lst:joberstellung-service} die Grundlage für die Erkennung verwaister Jobs durch den Recovery-Mechanismus.
+\begin{lstlisting}[
+    language=SQL,
+    caption={Finden verwaister Jobs},
+    label={lst:joberstellung-service}
+]
 SELECT j.id
 FROM Job j
 WHERE j.status = :status
 AND j.lease_until < :timestamp
-\end{verbatim}
-
-Diese Abfrage bildet die Grundlage für die Erkennung verwaister Jobs durch den Recovery-Mechanismus.\\
+\end{lstlisting}
+Wird der gesuchte Status auf \textit{Running} und der \texttt{timestamp} auf den aktuellen Zeitpunkt gesetzt, liefert
+die Anfrage alle Jobs, die noch nicht beendet wurden und deren Lease gleichzeitig abgelaufen ist.\\
 Die Transaktionskapselung wird durch \texttt{@Transactional} erreicht.
 Alle Datenbankoperationen in einer mit \texttt{@Transactional} gekennzeichneten Methode werden im Rahmen einer
 gemeinsamen Transaktion ausgeführt.
@@ -519,9 +530,102 @@ und zur Synchronisation konkurrierender Zugriffe (\ref{zus:exklusive_rechte}) be
 
 \subsection{Joberstellung}
 \label{subsec:impl_joberstellung}
+Die Erstellung eines Jobs beginnt auf Clientseite mit der Zusammenstellung der für die Verarbeitung benötigten Nutzdaten.
+Diese werden als \textit{Payload} in Form eines JSON-Dokuments repräsentiert.
+Zusätzlich erzeugt der Client einen \gls{uuid}-basierten \textit{Idempotency-Key}, der gemeinsam mit der Payload in dem
+\gls{dto} \texttt{CreateJobRequest} zusammengefasst wird.\\
+\Cref{lst:createJob} zeigt, wie das Request-Objekt anschließend über den im Frontend implementierten \texttt{BackendRestClient}
+an die \gls{rest}-Schnittstelle des Backends übertragen wird.
+Die Anfrage wird als HTTP-POST-Request an den Endpunkt \texttt{/job} gesendet und enthält das zuvor erzeugte Request-Objekt im HTTP-Body.
+\begin{lstlisting}[
+    language=Java,
+    caption={POST eines Jobs},
+    label={lst:createJob}
+]
+public ResponseEntity<CreateJobResponse> createJob(CreateJobRequest request) {
+    return restClient.post()
+        .uri("/job")
+        .body(request)
+        .retrieve()
+        .toEntity(CreateJobResponse.class);
+}
+\end{lstlisting}
+Im Backend wird die Anfrage durch den mit Spring Web implementierten \texttt{JobController} entgegengenommen.
+Der entsprechende Endpunkt ist über \texttt{@PostMapping("/job")} definiert und in \cref{lst:endpoint} dargestellt.
+Der HTTP-Body wird durch \texttt{@RequestBody} automatisch in ein \texttt{CreateJobRequest}-Objekt überführt.
+Anschließend delegiert der Controller die eigentliche Joberstellung an den \texttt{JobService}.
+Die Validierung des Request-Objekts erfolgt dabei bereits auf Ebene der \gls{rest}-Schnittstelle.
+%TODO: hier wenn Validierung implementiert ist anpassen
+Nach erfolgreicher Erstellung gibt der Controller den HTTP-Status \texttt{201 Created} zurück.
+Tritt dagegen eine \texttt{IdempotencyException} auf, wird der bereits vorhandene Job mit \texttt{200 OK} zurückgegeben.
+Andere Fehler werden als serverseitige Fehler mit \texttt{500 Internal Server Error} beantwortet.
+Für den Client ist damit unabhängig davon, ob die ursprüngliche Anfrage oder eine erneute Übermittlung verarbeitet wurde,
+erkennbar, dass der angeforderte Job bereits im Job-Store vorhanden ist.
+\begin{lstlisting}[
+    language=Java,
+    caption={POST Endpoint},
+    label={lst:endpoint}
+]
+@PostMapping("/job")
+public ResponseEntity<CreateJobResponse> createJob(@Valid @RequestBody CreateJobRequest request) {
+    try {
+        Job job = jobService.createJob(request);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(new CreateJobResponse(job.getIdempotencyKey(),
+                      job.getStatus(), job.getCreatedAt()));
+    } catch (IdempotencyException e){
+        Job job = e.getExistingJob();
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(new CreateJobResponse(job.getIdempotencyKey(),
+                      job.getStatus(), job.getCreatedAt(),
+                      "Job already exists"));
+    } catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new CreateJobResponse(null, null, null, e.getMessage()));
+    }
+}
+\end{lstlisting}
+Die eigentliche Erstellung und Persistierung des Jobs übernimmt der \texttt{JobService}.
+Hierzu wird zunächst über eine Factory aus dem Request-Objekt eine neue \texttt{Job}-Entität erzeugt.
+Anschließend versucht der Service, diese innerhalb einer Transaktion über das Repository zu persistieren.
+\texttt{@Transactional} stellt sicher, dass die Persistierung des Jobs atomar erfolgt, sodass im Fehlerfall keine
+inkonsistenten Daten in der Datenbank verbleiben.
+\begin{lstlisting}[
+    language=Java,
+    caption={Transaktion zur Joberstellung},
+    label={lst:createTransaction}
+]
+@Transactional
+public Job createJob(CreateJobRequest request) throws IdempotencyException {
+    Job job = JobFactory.createJob(request);
+    try{
+        repository.saveAndFlush(job);
+        return job;
+    } catch (DataIntegrityViolationException e){
+        if(!isConstraintViolation(e)){
+            throw e;
+        }
+        Optional<Job> existingJob = repository.findByIdempotencyKey(request.getIdempotencyKey());
+        if (existingJob.isPresent()){
+            throw new IdempotencyException(existingJob.get());
+        }
+        throw e;
+    }
+}
+\end{lstlisting}
+Eine Besonderheit ergibt sich aus der Eindeutigkeit des \textit{Idempotency-Keys}.
+Wird versucht, einen Job mit einem bereits vorhandenen Schlüssel zu speichern, schlägt die Persistierung aufgrund des entsprechenden
+\texttt{UNIQUE}-Constraints der Datenbank fehl.
+Die daraus resultierende \texttt{DataIntegrityViolationException} wird vom \texttt{JobService} auf eine Verletzung des
+für die Idempotenz relevanten Constraints geprüft.
+Handelt es sich um einen solchen Fall, wird der bereits vorhandene Job über seinen Idempotency-Key aus dem Repository
+geladen und eine \texttt{IdempotencyException} erzeugt, die den vorhandenen Job enthält.\\
+Andere Integritätsverletzungen werden nicht als Idempotenzfall interpretiert und vom Service weitergereicht.
+Sie führen zusammen mit sonstigen unerwarteten Fehlern zur allgemeinen Fehlerbehandlung des Controllers und damit zu einer
+Antwort mit \texttt{500 Internal Server Error}.
 
-
-\subsection{Claiming nud Verarbeitung}
+\subsection{Claiming und Verarbeitung}
 \label{subsec:impl_verarbeitung}
 
 \subsection{Ergebnisspeicherung}

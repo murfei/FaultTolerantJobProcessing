@@ -28,7 +28,7 @@ public class JobController {
 
     @PostMapping("/job")
     public ResponseEntity<CreateJobResponse> createJob(@Valid @RequestBody CreateJobRequest request) {
-        try {
+        try {//TODO: Validator einbauen, der einkommende Anfragen auf richtigkeit validiert
             Job job = retryExecutor.execute(() -> jobService.createJob(request));
             return ResponseEntity
                     .status(HttpStatus.CREATED)

@@ -17,6 +17,7 @@
 \usepackage{amssymb}
 \usepackage{textcomp}
 \usepackage{pifont}
+\usepackage{listings}
 \usepackage{xcolor}
 \usepackage[hidelinks,
     pdftitle={Entwurf und Evaluation eines fehlertoleranten Job-Processing in Java},
@@ -53,4 +54,25 @@
     \textbf{Zusicherung \thezusicherung\ (#1):}%
     \label{#2}%
 }
+\definecolor{codegray}{gray}{0.95}
+\definecolor{commentgray}{gray}{0.45}
+
+\lstdefinestyle{code}{
+    backgroundcolor=\color{codegray},
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=8pt,
+    numberstyle=\tiny\color{commentgray},
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=4,
+    frame=single,
+    columns=fullflexible
+}
+
+\lstset{style=code}
 %\includeonly{chapters/02-grundlagen}
