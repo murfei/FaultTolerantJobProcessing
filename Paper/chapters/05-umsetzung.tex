@@ -312,6 +312,7 @@ Dadurch kann dasselbe Retry-Teilsystem sowohl für die Kommunikation zwischen Cl
 Datenbankzugriffe der Worker verwendet werden, obwohl sich die jeweils behandelten Fehlerarten unterscheiden.
 Die Retry-Logik bleibt dadurch zentral gekapselt, während die konkrete Fehlerbehandlung an den jeweiligen Anwendungskontext angepasst werden kann.
 Die konkrete Implementierung des Retry-Executors sowie die Konfiguration der einzelnen Retry-Policies werden in \cref{sec:implementierung} erläutert. %TODO: Referenz spezifizieren; Prüfen, ob wirklich alles im Implementierungskapitel behandelt wird
+%TODO: hier fehlt glaube ich die Rechtfertigung für exponentielles Backoff
 
 \subsection{Recovery}
 \label{subsec:recoveryarchitektur}
@@ -673,7 +674,7 @@ label={lst:workerRun}
 public void run() {
     while (!Thread.currentThread().isInterrupted()) {
         try {
-            Optional job = workerService.claimNextJob(id);
+            Optional<Job> job = workerService.claimNextJob(id);
             if (job.isEmpty()) {
                 if (!sleep(2000)) {
                     break;
@@ -808,6 +809,106 @@ Zustand beibehält (\ref{zus:atomare_wirkung} \& \ref{zus:idempotenz}).
 
 \subsection{Retries}
 \label{subsec:impl_retries}
+Die im Architekturkapitel vorgestellte Retry-Strategie wird durch ein eigenständiges Retry-Teilsystem umgesetzt, das
+unabhängig von den eigentlichen Fachkomponenten eingesetzt werden kann.
+Kern dieses Teilsystems ist die Klasse \texttt{RetryExecutor}, welche die allgemeine Steuerung von Wiederholungsversuchen übernimmt.
+Die konkrete Entscheidung, ob eine Operation nach einem Fehler erneut ausgeführt werden soll sowie die Berechnung der Wartezeit zwischen zwei
+Versuchen werden dagegen an eine konfigurierbare \texttt{RetryPolicy} delegiert.
+Dadurch bleibt die Retry-Logik zentral gekapselt, während unterschiedliche Komponenten jeweils eine auf ihren Anwendungsfall
+angepasste Policy verwenden können.\\
+Der \texttt{RetryExecutor} besitzt lediglich eine öffentliche Methode \texttt{execute()}, der eine beliebige Operation in Form
+eines \texttt{Callable}-Objekts übergeben wird.
+Dadurch kann derselbe Mechanismus unabhängig davon verwendet werden, ob beispielsweise ein \gls{rest}-Aufruf, ein Datenbankzugriff
+oder eine andere Operation wiederholt werden soll.
+\Cref{lst:retryExecutor} zeigt den wesentlichen Aufbau der Implementierung.
+\begin{lstlisting}[
+language=Java,
+caption={Generischer RetryExecutor},
+label={lst:retryExecutor}
+]
+public <T> T execute(Callable<T> callable) throws Exception {
+    int attempt = 1;
+    while (true) {
+        try {
+            return callable.call();
+        } catch (Exception e) {
+            if (!policy.shouldRetry(e, attempt)) {
+                throw e;
+            }
+            Thread.sleep(policy.nextDelay(attempt));
+            attempt++;
+        }
+    }
+}
+\end{lstlisting}
+Die Methode führt die übergebene Operation zunächst unmittelbar aus.
+Tritt dabei keine Exception auf, wird das Ergebnis direkt an den Aufrufer zurückgegeben.
+Wird dagegen eine Exception ausgelöst, entscheidet die konfigurierte \texttt{RetryPolicy}, ob ein weiterer Ausführungsversuch sinnvoll ist.
+Hierzu erhält sie sowohl die aufgetretene Exception als auch die aktuelle Versuchsnummer.
+Lehnt die Policy einen weiteren Versuch ab, wird die Exception unverändert an den Aufrufer weitergereicht.
+Andernfalls berechnet die Policy zunächst die Dauer des nächsten Backoff-Intervalls und pausiert den Worker für diese Zeit,
+bevor die Operation erneut ausgeführt wird.\\
+Die konkrete Retry-Strategie wird über das Interface \texttt{RetryPolicy} beschrieben.
+Dieses definiert die beiden Methoden \texttt{shouldRetry(...)} und \texttt{nextDelay(...)}.
+Während \texttt{shouldRetry(...)} entscheidet, ob ein Fehler erneut ausgeführt werden soll, bestimmt \texttt{nextDelay(...)}
+die Wartezeit bis zum nächsten Versuch.
+Dadurch werden Fehlerklassifikation und die Steuerung der Wartezeit vollständig vom eigentlichen Retry-Mechanismus getrennt.\\
+Für die Berechnung des Backoff-Intervalls wird entsprechend dem Architekturentwurf ein exponentieller Backoff verwendet.
+Die Verzögerung ergibt sich aus
+\[
+d_n = d_0 \cdot b^{\,n-1},
+\]
+wobei $d_n$ die Wartezeit des aktuellen Wiederholungsversuchs, $d_0$ die initiale Wartezeit, $b$ den Backoff-Faktor und
+$n$ die Nummer des aktuellen Wiederholungsversuchs bezeichnet.
+Mit jedem weiteren Fehlversuch vergrößert sich somit das Warteintervall exponentiell.
+
+Für die unterschiedlichen Einsatzzwecke werden jeweils eigene Implementierungen der \texttt{RetryPolicy} verwendet.
+\Cref{lst:retryPolicy} zeigt exemplarisch die Implementierung der für Datenbankzugriffe verwendeten Policy.
+\begin{lstlisting}[
+language=Java,
+caption={Beispiel einer RetryPolicy},
+label={lst:retryPolicy}
+]
+@Override
+public boolean shouldRetry(Exception e, int attempt) {
+    if (attempt >= maxAttempts) {
+        return false;
+    }
+    return e instanceof DataAccessException;
+}
+
+@Override
+public long nextDelay(int attempt) {
+    return (long) (initialDelay.toMillis()
+            * Math.pow(backoffFactor, attempt - 1));
+}
+\end{lstlisting}
+Die Datenbank-Policy klassifiziert ausschließlich Datenbankzugriffsfehler (\texttt{DataAccessException}) als potenziell
+transient und begrenzt gleichzeitig die maximale Anzahl der Wiederholungsversuche.
+Für die Kommunikation zwischen Client und Backend wird dagegen eine separate Policy eingesetzt, die insbesondere
+Netzwerkfehler, Verbindungsabbrüche sowie als temporär klassifizierte HTTP-Fehler berücksichtigt.
+Obwohl beide Policies unterschiedliche Fehlerarten behandeln, nutzen sie denselben generischen RetryExecutor.
+
+Die Einbindung des Retry-Mechanismus erfolgt unmittelbar an den Stellen, an denen temporäre Infrastrukturfehler auftreten können.
+Die jeweilige Operation wird hierzu als Lambda-Ausdruck an den RetryExecutor übergeben.
+\Cref{lst:retryUsage} zeigt dies exemplarisch für einen Datenbankzugriff im Backend.
+\begin{lstlisting}[
+language=Java,
+caption={Nutzung des RetryExecutors},
+label={lst:retryUsage}
+]
+Job job = retryExecutor.execute(
+    () -> jobService.createJob(request)
+);
+\end{lstlisting}
+Wird Zeile 3 aus \cref{lst:createTransaction} mit diesem Ausdruck ersetzt und die Datenbank ist beispielsweise nicht erreichbar,
+wird der Aufruf von \textit{creatJob(request)} automatisch erneut versucht.\\
+Neben der Joberstellung wird derselbe Mechanismus ebenfalls beim Claiming neuer Jobs sowie beim Abschluss einer Verarbeitung eingesetzt.
+Im Frontend kapselt der RetryExecutor darüber hinaus sämtliche \gls{rest}-Aufrufe an das Backend.
+Durch diese einheitliche Verwendung entsteht ein konsistentes Wiederholungsverhalten über alle Komponenten hinweg, ohne dass
+Retry-Logik mehrfach implementiert werden muss.
+Änderungen an Wiederholungsstrategien beschränken sich dadurch auf die jeweilige RetryPolicy, während die eigentlichen
+Fachkomponenten ausschließlich ihre fachliche Funktionalität implementieren.
 
 \subsection{Recovery}
 \label{subsec:impl_recovery}
