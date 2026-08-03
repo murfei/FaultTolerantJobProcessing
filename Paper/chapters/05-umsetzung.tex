@@ -912,8 +912,68 @@ Fachkomponenten ausschließlich ihre fachliche Funktionalität implementieren.
 
 \subsection{Recovery}
 \label{subsec:impl_recovery}
+Die Wiederherstellung verwaister Jobs wird durch die beiden Komponenten \texttt{RecoveryService} und \texttt{RecoveryExecutor} umgesetzt.
+Während der RecoveryService die periodische Suche nach wiederherzustellenden Jobs übernimmt, implementiert der RecoveryExecutor
+die eigentliche Recovery-Logik innerhalb einer Datenbanktransaktion.\\
+Der \texttt{RecoveryService} wird mithilfe der Spring-Annotation \texttt{@Scheduled} in festen Zeitabständen ausgeführt.
+Im entwickelten System erfolgt ein Recovery-Zyklus alle 30 Sekunden.
+Dabei werden zunächst sämtliche Jobs ermittelt, deren Lease bereits abgelaufen ist und deren Status weiterhin \texttt{RUNNING} lautet.
+Hierzu wird die bereits in \cref{subsec:impl_persistenz} vorgestellte Repository-Abfrage verwendet.
+Die Abfrage liefert ausschließlich die Identifikatoren der betroffenen Jobs zurück und verwendet bewusst keine Sperren.
+Dadurch werden während der Suche keine Datenbankzeilen unnötig blockiert und konkurrierende Worker können ihre Verarbeitung
+ohne zusätzliche Wartezeiten fortsetzen.
+Für jede gefundene Job-ID wird anschließend der \texttt{RecoveryExecutor} aufgerufen.
+\begin{lstlisting}[
+    language=Java,
+    caption={Periodischer Recovery-Zyklus},
+    label={lst:recoveryService}
+]
+@Scheduled(fixedDelay = 30, timeUnit = TimeUnit.SECONDS)
+public void recoverCycle() {
+    List<UUID> ids =
+        repository.findByStatusAndLease_untilBefore(
+            JobStatus.RUNNING, Instant.now());
 
-%--> Jede (auch implizite) Entscheidung begründen
-%Alles Begründen!!! Wieso ist das überhaupt relevant? Welches Problem löse ich, wieso habe ich das so gemacht?
-%Wieso genau diese Fehlerszenarien? Begründen wieso nicht andere oder mehr?
-%Gibt es formale Modelle die die Zusicherungen zu jedem Zeitpunkt checken?
+    for (UUID id : ids) {
+        recoveryExecutor.recoverJob(id);
+    }
+}
+\end{lstlisting}
+Die eigentliche Wiederherstellung erfolgt innerhalb der Methode \texttt{recoverJob()}, die mit \texttt{@Transactional} gekennzeichnet ist.
+Zu Beginn der Transaktion wird der betreffende Job erneut über seine ID geladen und dabei mittels \texttt{SELECT FOR UPDATE} exklusiv gesperrt.
+Die Sperre stellt sicher, dass Recovery und konkurrierende Worker den Zustand desselben Jobs nicht gleichzeitig verändern können.\\
+Da zwischen der Suche nach abgelaufenen Leases und dem Beginn der Recovery-Transaktion bereits Änderungen am Job erfolgt
+sein können, wird dessen aktueller Zustand erneut überprüft.
+Insbesondere kann ein Worker den Job zwischenzeitlich noch erfolgreich abgeschlossen haben.
+Befindet sich der Job daher nicht mehr im Zustand \texttt{RUNNING}, wird die Recovery ohne weitere Änderungen beendet.
+Die erneute Prüfung verhindert, dass bereits erfolgreich abgeschlossene Jobs aufgrund einer zwischenzeitlichen Zustandsänderung
+fälschlicherweise erneut in die Warteschlange aufgenommen werden.\\
+Anschließend wird anhand des \texttt{attempt\_count} entschieden, ob der Job erneut ausgeführt werden darf.
+Wurde die konfigurierte maximale Anzahl an Ausführungsversuchen noch nicht erreicht, wird der Job wieder in den Zustand \texttt{QUEUED} überführt.
+Andernfalls wird er als \texttt{FAILED} markiert.
+Dadurch werden endlose Wiederholungszyklen dauerhaft fehlerhafter Jobs verhindert.\\
+Unabhängig von der aktuellen Versuchsanzahl werden die Attribute \texttt{claimed\_by} und \texttt{lease\_until} zurückgesetzt sowie
+der Änderungszeitpunkt aktualisiert.
+\begin{lstlisting}[
+    language=Java,
+    caption={Transaktionale Wiederherstellung eines Jobs},
+    label={lst:recoverJob}
+]
+@Transactional
+public void recoverJob(UUID id) {
+    Job job = repository.findByIdForUpdate(id).orElse(null);
+
+    if (job == null || job.getStatus() != JobStatus.RUNNING) {
+        return;
+    }
+    if (job.getAttempt_count() < maxAttempts) {
+        job.setStatus(JobStatus.QUEUED);
+    } else {
+        job.setStatus(JobStatus.FAILED);
+    }
+
+    job.setClaimed_by(null);
+    job.setLease_until(null);
+    job.setUpdatedAt(Instant.now());
+}
+\end{lstlisting}
