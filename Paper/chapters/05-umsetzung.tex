@@ -627,11 +627,13 @@ Antwort mit \texttt{500 Internal Server Error}.
 
 \subsection{Claiming und Verarbeitung}
 \label{subsec:impl_verarbeitung}
-Die parallele Verarbeitung der Jobs wird durch den \texttt{WorkerManager} und eine konfigurierbare Anzahl von \texttt{Worker}-Instanzen umgesetzt.
-Der \texttt{WorkerManager} erzeugt hierzu beim Start der Anwendung einen festen Thread-Pool und übergibt jedem darin ausgeführten Thread eine eigene \texttt{Worker}-Instanz.
-Die Anzahl der parallel arbeitenden Worker wird über die Anwendungskonfiguration festgelegt.
-Die Initialisierung des Thread-Pools und das Starten der Worker erfolgt nach Erzeugung des Spring-Kontexts über die mit \texttt{@PostConstruct} annotierte Methode.
+Die parallele Verarbeitung der Jobs wird durch den \texttt{WorkerManager} gesteuert, dessen Verhalten in \cref{lst:workerManager} dargestellt ist.
+Dieser erzeugt beim Start der Anwendung einen Thread-Pool und übergibt jedem darin ausgeführten Thread eine eigene \texttt{Worker}-Instanz.
+Die Anzahl der parallel arbeitenden Worker wird über die Anwendungskonfiguration festgelegt und ist somit an den Systemkontext anpassbar.
 Jeder Worker erhält dabei Zugriff auf den \texttt{WorkerService} sowie auf eine Implementierung des \texttt{Processor}-Interfaces.
+Die Initialisierung des Thread-Pools und das Starten der Worker erfolgt daher nach Erzeugung des Spring-Kontexts über die mit
+\texttt{@PostConstruct} annotierte Methode \textit{start()}, um zu garantieren, dass der \texttt{WorkerService} und der \texttt{Processor}
+bereits durch Spring injiziert wurden.
 \begin{lstlisting}[
 language=Java,
 caption={Initialisierung des Worker-Pools},
@@ -656,10 +658,14 @@ Die eigentliche Verarbeitung erfolgt innerhalb der \texttt{Worker}-Instanzen.
 Jeder Worker besitzt eine eigene \gls{uuid}, die bei seiner Erzeugung generiert wird.
 Diese wird beim Beanspruchen eines Jobs als \textit{claimed\_by} im Job-Store hinterlegt und ermöglicht dadurch die
 eindeutige Zuordnung eines laufenden Jobs zu demjenigen Worker, der ihn aktuell verarbeitet.
-Ein Worker arbeitet anschließend wiederholt Jobs aus dem Job-Store ab.
-Hierzu versucht er zunächst, über den \texttt{WorkerService} einen verfügbaren Job zu beanspruchen.
-Wird kein Job gefunden, wartet der Worker für eine kurze Zeit und führt anschließend eine erneute Abfrage durch.
-Die Schleife wird beendet, sobald der Thread unterbrochen wurde.
+Der \texttt{ExecutorService} ruft automatisch die in \cref{lst:workerRun} dargestellte \textit{run()}-Methode der übergebenen
+\texttt{Worker}-Instanz auf.
+Innerhalb der Methode wird für das Abarbeiten der Jobs aus dem Job-Store gesorgt.
+Hierzu versucht der \texttt{Worker} zunächst, über die Methode \textit{claimNextJob(UUID id)} des \texttt{WorkerService}
+einen verfügbaren Job zu beanspruchen.
+Wird kein Job gefunden, ist das \texttt{Optional}-Objekt leer.
+Der Worker wird daraufhin für eine kurze Zeit pausiert und führt anschließend eine erneute Abfrage durch.
+Beendet wird die Schleife erst, wenn der Thread unterbrochen wird.
 \begin{lstlisting}[
 language=Java,
 caption={Ausführungsschleife eines Workers},
@@ -684,20 +690,26 @@ public void run() {
     }
 }
 \end{lstlisting}
-Die Auswahl und Reservierung eines Jobs wird durch die Methode \texttt{claimNextJob} des \texttt{WorkerService} durchgeführt.
-Sie ist als transaktionale Operation implementiert und umfasst sowohl die Auswahl eines freien Jobs als auch dessen Überführung in den Zustand \textit{Running}.
+Findet \textit{claimNextJob} hingegen einen Job, sperrt die Methode diesen und gibt ihn an die \texttt{Worker}-Instanz zurück.
+Anschließend wird der Job über den \texttt{Processor} verarbeitet und das Ergebnis gespeichert.\\
+Die Implementierung von \textit{claimNextJob} ist in \cref{lst:claimNextJob} veranschaulicht.
+Sie ist als transaktionale Operation implementiert und umfasst sowohl die Auswahl eines freien Jobs als auch
+dessen Überführung in den Zustand \textit{Running}.
 Hierfür greift das Repository auf die in \cref{subsec:impl_persistenz} beschriebene Abfrage mit \texttt{FOR UPDATE SKIP LOCKED} zurück.
 Die Methode fordert dabei zunächst einen Job im Zustand \textit{Queued} an.
 Existiert kein geeigneter Datensatz, wird ein leeres \texttt{Optional} zurückgegeben.
-Andernfalls werden die für die laufende Verarbeitung relevanten Attribute innerhalb derselben Transaktion aktualisiert.
+Andernfalls wird der Datensatz durch das \texttt{JobRepository} gesperrt, die für die laufende Verarbeitung relevanten
+Attribute (vgl. \cref{subsec:transaktionsmodell}) werden innerhalb einer gemeinsamen Transaktion aktualisiert und der \texttt{Job} wird zurückgegeben.
+Besonders wichtig ist neben dem Status die Aktualisierung von \textit{lease\_until} für die Recovery, indem eine festgelegte Dauer auf
+den über \texttt{Instant} angefragten aktuellen Zeitpunkt addiert wird.
 \begin{lstlisting}[
 language=Java,
 caption={Beanspruchen eines Jobs},
 label={lst:claimNextJob}
 ]
 @Transactional
-public Optional claimNextJob(UUID workerId) {
-    Optional result = jobRepository.findByStatus(JobStatus.QUEUED, 1);
+public Optional<Job> claimNextJob(UUID workerId) {
+    Optional<Job> result = jobRepository.findByStatus(JobStatus.QUEUED, 1);
     if (result.isEmpty()) {
         return Optional.empty();
     }
@@ -712,71 +724,27 @@ public Optional claimNextJob(UUID workerId) {
     return Optional.of(job);
 }
 \end{lstlisting}
-Durch die transaktionale Kapselung werden Auswahl und Statusänderung gemeinsam durchgeführt.
+Durch die transaktionale Kapselung werden Auswahl und Statusänderung atomar durchgeführt.
 Nach Abschluss der Methode wird die Transaktion beendet und der Job befindet sich im Job-Store im Zustand \textit{Running}.
 Die eigentliche Verarbeitung findet somit nicht innerhalb dieser Transaktion statt.
-Dadurch bleibt die Datenbankverbindung nur für die zur Reservierung erforderliche Zeit belegt.
-
-Die gleichzeitige Ausführung mehrerer Worker wird durch die Sperrsemantik der Jobauswahl ermöglicht.
-Beansprucht ein Worker einen Datensatz, wird dieser während der Auswahltransaktion gesperrt.
-Weitere Worker überspringen den bereits gesperrten Datensatz aufgrund von \texttt{SKIP LOCKED} und können unmittelbar einen anderen verfügbaren Job auswählen.
-Dadurch können mehrere Worker parallel arbeiten, ohne dass sie bei der Auswahl eines Jobs aufeinander warten müssen.
-Die anschließende Verarbeitung erfolgt damit unabhängig voneinander auf den jeweils erfolgreich beanspruchten Jobs.
-
-Beim Beanspruchen eines Jobs werden neben dem Status auch \textit{claimed\_by}, \textit{attempt\_count} und \textit{lease\_until} aktualisiert.
-Der \textit{attempt\_count} dokumentiert dabei, wie oft ein Job bereits zur Verarbeitung übernommen wurde.
-Die Lease-Zeit begrenzt den Zeitraum, für den ein Job als aktiv bearbeitet betrachtet wird, und bildet damit die Grundlage für die in \cref{subsec:recovery} beschriebene Erkennung verwaister Jobs.
-Die konkrete Behandlung abgelaufener Leases erfolgt jedoch nicht durch den Worker selbst, sondern durch den Recovery-Mechanismus.
-
-Nach erfolgreichem Claiming übergibt der Worker den Job an seine \texttt{Processor}-Instanz.
+Dadurch bleibt die Datenbankverbindung nur für die zur Reservierung erforderliche Zeit belegt.\\
+Nach erfolgreichem Claiming übergibt der Worker den Job zur Verarbeitung an seine \texttt{Processor}-Instanz.
 Die eigentliche Fachlogik wird dadurch von der allgemeinen Worker-Infrastruktur getrennt.
-Das \texttt{Processor}-Interface definiert hierzu lediglich die Methode \texttt{process(Job)}, die einen Job entgegennimmt und ein \texttt{JobResult} zurückliefert.
-\begin{lstlisting}[
-language=Java,
-caption={Abstraktion der Fachlogik durch das Processor-Interface},
-label={lst:processor}
-]
-public interface Processor {
-    JobResult process(Job job) throws Exception;
-}
-\end{lstlisting}
-
+Das \texttt{Processor}-Interface definiert hierzu lediglich die Methode \texttt{process(Job)}, die einen \texttt{Job} entgegennimmt
+und ein \texttt{JobResult} zurückliefert.
 Der Worker selbst enthält damit keine jobspezifische Verarbeitungslogik.
-Stattdessen kann dieselbe Worker-Infrastruktur für unterschiedliche Arten von Hintergrundjobs verwendet werden, indem eine entsprechende \texttt{Processor}-Implementierung bereitgestellt wird.
-Im konkreten System übernimmt beispielsweise die Klasse \texttt{JobProcessor} diese Aufgabe.
-
-\begin{lstlisting}[
-language=Java,
-caption={Implementierung der Job-Fachlogik},
-label={lst:jobProcessor}
-]
-@Component
-public class JobProcessor implements Processor {
-
-    @Override
-    public JobResult process(Job job) throws Exception {
-        // Fachlogik
-        return new JobResult(job, result);
-    }
-}
-\end{lstlisting}
+Stattdessen kann dieselbe Worker-Infrastruktur für unterschiedliche Arten von Hintergrundjobs verwendet werden, indem
+eine entsprechende \texttt{Processor}-Implementierung bereitgestellt wird.
+Im konkreten System übernimmt die Klasse \texttt{JobProcessor} diese Aufgabe.
 Die Verarbeitung eines Jobs findet vollständig außerhalb einer offenen Datenbanktransaktion statt.
-Der \texttt{Processor} kann daher auch länger laufende Berechnungen oder externe E/A-Operationen durchführen, ohne dabei eine Datenbankverbindung oder eine Sperre auf dem Job zu halten.
+Der \texttt{Processor} kann daher auch länger laufende Berechnungen oder externe E/A-Operationen durchführen, ohne dabei
+eine Datenbankverbindung oder eine Sperre auf dem Job zu halten.
 Erzeugt die Fachlogik erfolgreich ein \texttt{JobResult}, wird dieses anschließend an den \texttt{WorkerService} zur Persistierung übergeben.
-Die dabei verwendete Transaktion sowie die Prüfung der Berechtigung des Workers zur Ergebnisübermittlung werden in \cref{subsec:impl_ergebnis} behandelt.
-
-Tritt während der eigentlichen Verarbeitung eine Exception auf, wird vom Worker kein Ergebnis gespeichert.
+Die dabei verwendete Transaktion sowie die Prüfung der Berechtigung des Workers zur Ergebnisübermittlung werden
+in \cref{subsec:impl_ergebnis} behandelt.\\
+Tritt während der eigentlichen Verarbeitung eine Exception auf, bricht die Verarbeitung ab und es wird kein Ergebnis gespeichert.
 Der Job verbleibt zunächst im Zustand \textit{Running}.
-Die weitere Behandlung erfolgt in diesem Fall über den Recovery-Mechanismus, der anhand des gespeicherten Leases erkennen kann, dass der Job nicht innerhalb des vorgesehenen Zeitraums abgeschlossen wurde.
-Dadurch sind Fehler während der Fachlogik von Fehlern bei der Kommunikation mit dem Job-Store getrennt.
-Die Wiederholung von Datenbankoperationen wird dabei durch das in \cref{subsec:impl_retries} beschriebene Retry-Teilsystem übernommen, während die Wiederaufnahme einer durch einen ausgefallenen Worker unterbrochenen Verarbeitung Aufgabe des Recovery-Mechanismus ist.
-
-Der Ablauf eines Workers lässt sich damit auf die drei aufeinanderfolgenden Schritte Claiming, fachliche Verarbeitung und Abschlussquittierung reduzieren.
-Das Claiming überführt den Job atomar von \textit{Queued} nach \textit{Running} und hinterlegt die für die weitere Überwachung benötigten Metadaten.
-Anschließend führt der \texttt{Processor} die eigentliche Fachlogik unabhängig von der Datenbanktransaktion aus.
-Nach erfolgreicher Verarbeitung wird das erzeugte Ergebnis zur gemeinsamen Persistierung mit dem finalen Jobstatus an den \texttt{WorkerService} übergeben.
-Die konkrete Umsetzung dieser Abschlussoperation wird im folgenden Abschnitt beschrieben.
-
+Die weitere Behandlung erfolgt in diesem Fall über den Recovery-Mechanismus.
 %- WorkerManager (@Component) erzeugt zu Beginn einen ThreadPool mit einer festgelegten Anzahl Threads und erzeugt dann
 %für jeden Thread einen Worker mittels @PostConstruct
 
