@@ -438,8 +438,6 @@ Die Implementierung orientiert sich an den im Abschnitt \cref{sec:zusicherungen}
 Da einzelne Zusicherungen durch das Zusammenwirken mehrerer Komponenten und technischer Mechanismen realisiert werden, erfolgt die Darstellung der
 Implementierung nicht anhand der einzelnen Zusicherungen, sondern anhand der zentralen technischen Mechanismen des Systems.
 Die Zuordnung zu den jeweiligen Zusicherungen wird innerhalb der entsprechenden Abschnitte kenntlich gemacht.
-%\parencite[Kap.~5 Abschnitt \glqq Command Message\grqq]{hohpe_enterprise_2005}
-%\parencite[Kap.~6.2]{richardson_microservices_2018}
 
 \subsection{Technologie-Stack}
 \label{subsec:stack} %TODO: hier ggfs. Titel anpassen
@@ -741,15 +739,72 @@ Der \texttt{Processor} kann daher auch länger laufende Berechnungen oder extern
 eine Datenbankverbindung oder eine Sperre auf dem Job zu halten.
 Erzeugt die Fachlogik erfolgreich ein \texttt{JobResult}, wird dieses anschließend an den \texttt{WorkerService} zur Persistierung übergeben.
 Die dabei verwendete Transaktion sowie die Prüfung der Berechtigung des Workers zur Ergebnisübermittlung werden
-in \cref{subsec:impl_ergebnis} behandelt.\\
+in \cref{subsec:impl_abschlussJoberverarbeitung} behandelt.\\
 Tritt während der eigentlichen Verarbeitung eine Exception auf, bricht die Verarbeitung ab und es wird kein Ergebnis gespeichert.
 Der Job verbleibt zunächst im Zustand \textit{Running}.
 Die weitere Behandlung erfolgt in diesem Fall über den Recovery-Mechanismus.
-%- WorkerManager (@Component) erzeugt zu Beginn einen ThreadPool mit einer festgelegten Anzahl Threads und erzeugt dann
-%für jeden Thread einen Worker mittels @PostConstruct
 
-\subsection{Ergebnisspeicherung}
-\label{subsec:impl_ergebnis} %TODO: Titel überdenken
+\subsection{Abschluss einer Jobverarbeitung}
+\label{subsec:impl_abschlussJoberverarbeitung}
+Nach erfolgreicher Ausführung der Fachlogik übergibt der Worker das erzeugte \texttt{JobResult} zusammen mit der Job-ID
+und seiner eigenen Worker-ID an den \texttt{WorkerService}.
+Die in \cref{lst:finishJob} dargestellte Methode \textit{finishJob(...)} übernimmt anschließend die atomare Persistierung
+des Verarbeitungsergebnisses sowie den Abschluss der Jobverarbeitung.\\
+Wie bereits bei der Reservierung eines Jobs erfolgt auch dieser Schritt entsprechend dem Vorgehen aus \cref{subsec:transaktionsmodell}
+atomar innerhalb einer Datenbanktransaktion mittels \texttt{@Transactional}.
+\begin{lstlisting}[
+language=Java,
+caption={Abschluss einer Jobverarbeitung},
+label={lst:finishJob}
+]
+@Transactional
+public Job finishJob(UUID jobId, UUID workerId, JobResult jobResult)
+    throws JobNotFoundException {
+
+    Job job = jobRepository.findByIdForUpdate(jobId)
+            .orElseThrow(JobNotFoundException::new);
+
+    if (job.getStatus() != JobStatus.RUNNING)
+        throw new IllegalStateException();
+
+    if (!workerId.equals(job.getClaimed_by()))
+        throw new IllegalStateException();
+
+    if (job.getLease_until().isBefore(Instant.now()))
+        throw new LeaseExpiredException();
+
+    job.setStatus(JobStatus.SUCCESSFUL);
+    resultRepository.save(jobResult);
+    job.setResult(jobResult);
+    job.setUpdatedAt(Instant.now());
+
+    return job;
+}
+\end{lstlisting}
+Zu Beginn der Methode wird der betreffende Job über \textit{findByIdForUpdate(...)} geladen.
+Die zugrunde liegende SQL-Abfrage verwendet \texttt{FOR UPDATE} und sperrt den Datensatz dadurch exklusiv bis zum Abschluss der Transaktion.
+Dadurch wird verhindert, dass Recovery-Prozesse oder andere konkurrierende Transaktionen den Job während seiner Finalisierung verändern können.
+Das Verhalten ist essenziell, um \ref{zus:idempotenz} garantieren zu können.
+Anschließend wird überprüft, ob sich der Job noch im Zustand \textit{Running} befindet. %TODO: Vereinheitlichung Schreibweise des Status in gesamter Arbeit (Caps oder nicht caps)
+Dadurch wird ausgeschlossen, dass bereits abgeschlossene oder zurückgesetzte Jobs erneut oder unberechtigt beendet werden.
+Danach erfolgt die Prüfung, ob die übergebene Worker-ID mit dem im Job gespeicherten Attribut \textit{claimed\_by} übereinstimmt.
+Nur der Worker, der den Job zuvor erfolgreich beansprucht hat, ist berechtigt, dessen Verarbeitung abzuschließen.
+Dieser Vergleich bildet die technische Umsetzung des im Architekturkapitel beschriebenen Fencing-Mechanismus.
+Hat der Job zwischenzeitlich einen anderen Besitzer erhalten, beispielsweise infolge eines Recovery-Vorgangs, wird die Ergebnisspeicherung abgebrochen.
+Zusätzlich wird geprüft, ob das zum Job gehörende Lease zum Zeitpunkt der Ergebnisspeicherung noch gültig ist.
+Ist das Lease bereits abgelaufen, wird eine \texttt{LeaseExpiredException} ausgelöst.
+Auch in diesem Fall wird kein Ergebnis persistiert, da nicht mehr sichergestellt werden kann, dass der Worker den Job weiterhin exklusiv besitzt.
+Die weitere Behandlung erfolgt anschließend durch den Recovery-Mechanismus.\\
+Erst nachdem sämtliche Prüfungen erfolgreich abgeschlossen wurden, erfolgt die eigentliche Persistierung des Verarbeitungsergebnisses.
+Hierzu wird zunächst der Jobstatus auf \textit{SUCCESSFUL} gesetzt.
+Anschließend wird das \texttt{JobResult} gespeichert und dem entsprechenden Job zugeordnet.
+Schließlich wird noch der Zeitstempel der letzten Änderung aktualisiert.
+Da sämtliche Änderungen innerhalb derselben Datenbanktransaktion erfolgen, wird verhindert, dass ein Zustand entsteht, in dem zwar bereits ein Verarbeitungsergebnis existiert, der Job jedoch weiterhin als \textit{Running} gekennzeichnet ist oder umgekehrt.
+Erst mit dem erfolgreichen Commit der Transaktion gilt die Verarbeitung eines Jobs als vollständig abgeschlossen.
+Schlägt eine der Konsistenzprüfungen fehl oder tritt während der Persistierung eine Exception auf, wird die laufende
+Transaktion automatisch zurückgerollt.
+Bereits durchgeführte Änderungen werden dadurch verworfen, sodass der Job-Store auch im Fehlerfall einen konsistenten
+Zustand beibehält (\ref{zus:atomare_wirkung} \& \ref{zus:idempotenz}).
 
 \subsection{Retries}
 \label{subsec:impl_retries}
