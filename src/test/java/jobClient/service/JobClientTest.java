@@ -55,7 +55,7 @@ public class JobClientTest {
         assertFalse(response.getBody().isEmpty());
         for (JobResponse job : response.getBody()) {
             assertNotEquals(null, job.getIdempotencyKey());
-            assertTrue(Set.of(QUEUED, SUCCESSFUL, FAILED, RUNNING).contains(job.getStatus()));
+            assertTrue(Set.of(QUEUED, SUCCEEDED, FAILED, RUNNING).contains(job.getStatus()));
         }
     }
 

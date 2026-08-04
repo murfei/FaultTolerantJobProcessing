@@ -80,7 +80,7 @@ public class WorkerServiceTest {
         job.setLease_until(Instant.now().plusSeconds(10));
         jobRepository.save(job);
         workerService.finishJob(jobId, workerId, jobResult);
-        assertEquals(JobStatus.SUCCESSFUL, jobRepository.findByIdempotencyKey(idempotencyKey).get().getStatus());
+        assertEquals(JobStatus.SUCCEEDED, jobRepository.findByIdempotencyKey(idempotencyKey).get().getStatus());
         assertEquals(jobResult.getResult(), jobRepository.findByIdempotencyKey(idempotencyKey).get().getResult().getResult());
 
     }
