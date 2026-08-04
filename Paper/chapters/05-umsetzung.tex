@@ -2,7 +2,8 @@
 %! Date = 28.07.2026
 
 
-\chapter{Umsetzung}\label{ch:umsetzung}
+\chapter{Umsetzung}
+\label{ch:umsetzung}
 \textbf{To be done}
 
 
@@ -223,7 +224,7 @@ Der Verarbeitungsablauf gliedert sich hierzu in drei Phasen, die in \cref{fig:tr
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.9\textwidth]{images/transaktionsmodell}
-    \caption{Transaktionsmodell}
+    \caption{Transaktionsmodell} %TODO: hier den Kasten um die Legende herum größer machen
     \label{fig:transaktionsmodell}
 \end{figure}
 Zunächst beansprucht ein Worker innerhalb einer Datenbanktransaktion einen freien Job.
@@ -272,9 +273,9 @@ Die Koordination mehrerer unabhängiger Systeme und damit die Notwendigkeit vert
 Auf Grundlage der in \cref{subsec:retry/backoff} beschriebenen Prinzipien werden Wiederholungsmechanismen gezielt an denjenigen
 Stellen der Architektur eingesetzt, an denen temporäre Infrastrukturfehler auftreten können, ohne dass die eigentliche Fachlogik fehlerhaft ist.
 Ziel ist es im Rahmen von \ref{zus:retries}, kurzfristige Störungen durch Wiederholungsversuche zu kompensieren und dadurch unnötige Recovery-Vorgänge oder
-Benutzerinteraktionen zu vermeiden.\\
-Hierzu unterscheidet die Architektur zwischen der Kommunikation des Clients mit dem Backend und den internen Datenbankzugriffen der Worker
-und der Job-\gls{api}.
+Benutzerinteraktionen zu vermeiden.
+Hierzu unterscheidet die Architektur zwischen der Kommunikation des Clients mit dem Backend und den internen Datenbankzugriffen durch die Worker
+und die Job-\gls{api}.
 Beide Kommunikationswege stellen voneinander unabhängige Fehlerquellen dar und können daher unabhängig voneinander von transienten
 Infrastrukturfehlern betroffen sein.
 
@@ -299,7 +300,7 @@ entgegennimmt und deren Ausführung entsprechend einer konfigurierbaren Retry-Po
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/retryClassDiagramm}
-    \caption{Klassendiagramm der Retry-Komponente}
+    \caption{Klassendiagramm der Retry-Komponente} %TODO: hier heißen beide Policies gleich
     \label{fig:retryClassDiagram}
 \end{figure}
 Der RetryExecutor enthält dabei selbst keine anwendungsspezifischen Entscheidungen darüber, wann eine Wiederholung erfolgen soll.
@@ -307,11 +308,12 @@ Stattdessen fängt er Exceptions von der auszuführenden Operation und gibt sie 
 Die spezifische Policy entscheidet dann, ob ein Retry sinnvoll ist oder nicht, indem sie die Exception klassifiziert und einen
 entsprechenden Wahrheitswert zurückliefert.
 Die Retry-Policies implementieren dabei eigene unterschiedliche Kriterien für Wiederholungsversuche, die sich in den behandelten
-Fehlerarten unterscheiden, sowie das zugehörige Backoff-Verhalten.
+Fehlerarten unterscheiden.
+Außerdem definieren sie auch, wie das Backoff-Verhalten umgesetzt wird.
 Dadurch kann dasselbe Retry-Teilsystem sowohl für die Kommunikation zwischen Client und Backend als auch für interne
 Datenbankzugriffe der Worker verwendet werden, obwohl sich die jeweils behandelten Fehlerarten unterscheiden.
 Die Retry-Logik bleibt dadurch zentral gekapselt, während die konkrete Fehlerbehandlung an den jeweiligen Anwendungskontext angepasst werden kann.
-Die konkrete Implementierung des Retry-Executors sowie die Konfiguration der einzelnen Retry-Policies werden in \cref{sec:implementierung} erläutert. %TODO: Referenz spezifizieren; Prüfen, ob wirklich alles im Implementierungskapitel behandelt wird
+Die konkrete Implementierung vom \texttt{RetryExecutor} sowie die Konfiguration der einzelnen Retry-Policies werden in \cref{subsec:impl_retries} erläutert.
 %TODO: hier fehlt glaube ich die Rechtfertigung für exponentielles Backoff
 
 \subsection{Recovery}
@@ -343,7 +345,7 @@ Durch diesen Mechanismus können insbesondere Worker-Abstürze, JVM-Abstürze, C
 Worker in Bezug auf die Jobausführung behandelt werden (\ref{zus:verarbeitungsgarantie}).
 Die eigentliche Terminierung oder der Neustart fehlerhafter Worker ist dagegen nicht Bestandteil des entwickelten Systems.
 Diese Aufgabe wird bewusst an eine externe Prozessüberwachung oder Orchestrierungsplattform, beispielsweise Kubernetes, delegiert.
-Das entwickelte System stellt lediglich sicher, dass durch den Ausfall eines Workers kein Job dauerhaft verloren geht.
+Das entwickelte System stellt lediglich sicher, dass durch den Ausfall eines Workers kein Job dauerhaft verloren geht oder hängen bleibt.
 
 Die Wiederaufnahme eines Jobs erfolgt in der entwickelten Architektur grundsätzlich nicht durch das Fortsetzen eines
 unterbrochenen Ausführungszustands, sondern durch eine vollständige Neuausführung auf Basis der ursprünglich persistierten Eingabedaten.
@@ -371,8 +373,8 @@ Recovery-Vorgangs nicht ausgeschlossen werden.
 Ein Nebeneffekt dieser Architektur besteht darin, dass ein Job zeitweise von mehreren Workern gleichzeitig bearbeitet werden kann.
 Überschreitet beispielsweise ein Worker seine Lease-Dauer, wird der Job erneut freigegeben, obwohl der ursprüngliche Worker
 seine Verarbeitung möglicherweise noch beendet.
-Die beschriebene Recovery-Strategie versucht damit, die Erfolgswahrscheinlichkeit eines Jobs zu erhöhen.
-Sie verfolgt damit das Ziel einer At-least-Once-Ausführung von Jobs.
+Die beschriebene Recovery-Strategie versucht durch den Retry, die Erfolgswahrscheinlichkeit eines Jobs zu erhöhen.
+Sie verfolgt damit das Ziel einer At-least-Once-Ausführung von Jobs, erzeugt damit aber die Möglichkeit der Mehrfachausführung.
 Die daraus resultierenden Anforderungen an die idempotente Verarbeitung werden im folgenden Abschnitt betrachtet.
 
 \subsection{Idempotente Ergebnisgenerierung}
@@ -386,7 +388,7 @@ mehrfacher Ausführung in jedem Fall immer das gleiche Ergebnis erzeugt.
 Da der Jobstatus sowie die Jobergebnisse in derselben Datenbank verwaltet werden, bietet sich die Umsetzung der ersten
 Option mithilfe von Transaktionen an.
 Um die idempotente Verarbeitung auf diese Weise sicherzustellen, darf ein Worker ein Verarbeitungsergebnis ausschließlich
-dann persistent speichern, wenn er laut Job-Store weiterhin der Besitzer des Jobs ist.
+dann persistent speichern, wenn er laut Job-Store weiterhin der Besitzer des Jobs ist und für den Job noch kein Ergebnis vorliegt.
 Vor der Speicherung wird daher der betroffene Datensatz gesperrt und innerhalb einer transaktional geschützten Operation
 erneut der aktuelle Jobstatus, die Worker-ID sowie die Gültigkeit des Leases überprüft.
 Nur wenn der Job sich weiterhin im Zustand \textit{Running} befindet, die gespeicherte Worker-ID mit der des ausführenden Workers
@@ -395,43 +397,6 @@ Andernfalls wird der Speichervorgang verworfen, da bereits ein anderer Worker di
 Job bereits abgeschlossen wurde.
 Dadurch kann jeder Job höchstens einmal erfolgreich gespeichert werden, selbst wenn mehrere Worker denselben Job parallel ausgeführt haben.
 Das in \cref{subsec:recoveryarchitektur} bereits erwähnte Problem bezüglich Seiteneffekten in externen Systemen bleibt jedoch bestehen.
-%
-%Pro Kapitel eine solche Tabelle um zu erklären welche Architekturentscheidung genau welche Zusicherung erfüllt
-%\begin{table}
-%    \centering
-%    \begin{tabular}{ll}
-%        \toprule
-%        \textbf{Problem} & \textbf{Betroffene Zusicherungen} \\
-%        \midrule
-%        Doppelte Requests & SZ1 SZ3 \\
-%        Mehrere Worker & SZ6 \\
-%        Recovery & SZ9 SZ10 \\
-%        \bottomrule
-%    \end{tabular}
-%    \caption{}
-%    \label{tab:}
-%\end{table}
-%
-%\begin{table}
-%    \centering
-%    \begin{tabular}{ll}
-%        \toprule
-%        \textbf{Zusicherung} & \textbf{DB-Unterstützung} \\
-%        \midrule
-%        Job geht nicht verloren & persistente Job-Tabelle \\
-%        Keine doppelten Jobs & UNIQUE(idempotency\_key) \\
-%        Genau ein Zustand & status ENUM \\
-%        Gültige Übergänge & Anwendung + Transaktionen \\
-%        Exklusive Verarbeitung & claimed\_by + lease\_until + atomares Claiming \\
-%        Kein zweites Ergebnis & 1:1-Beziehung Job <-> JobResult \\
-%        Recovery & lease\_until \\
-%        Retry & retry\_count + next\_retry\_at \\
-%        \bottomrule
-%    \end{tabular}
-%    \caption{}
-%    \label{tab:ende}
-%\end{table}
-
 
 \section{Implementierung}
 \label{sec:implementierung}
@@ -593,7 +558,7 @@ public ResponseEntity<CreateJobResponse> createJob(@Valid @RequestBody CreateJob
 }
 \end{lstlisting}
 Die eigentliche Erstellung und Persistierung des Jobs übernimmt der \texttt{JobService}.
-Hierzu wird zunächst über eine Factory aus dem Request-Objekt eine neue \texttt{Job}-Entität erzeugt.
+Hierzu wird zunächst über eine Factory aus dem Request-\gls{dto} eine neue \texttt{Job}-Entität erzeugt.
 Anschließend wird diese innerhalb einer durch \texttt{@Transactional} gekapselten Serviceoperation über das Repository persistiert.
 
 \subsection{Claiming und Verarbeitung}
@@ -625,13 +590,13 @@ void start() {
     }
 }
 \end{lstlisting}
-Die eigentliche Verarbeitung erfolgt innerhalb der \texttt{Worker}-Instanzen.
+Die Steuerung der eigentlichen Verarbeitung erfolgt innerhalb der \texttt{Worker}-Instanzen.
 Jeder Worker besitzt eine eigene \gls{uuid}, die bei seiner Erzeugung generiert wird.
 Diese wird beim Beanspruchen eines Jobs als \textit{claimed\_by} im Job-Store hinterlegt und ermöglicht dadurch die
 eindeutige Zuordnung eines laufenden Jobs zu demjenigen Worker, der ihn aktuell verarbeitet.
 Der \texttt{ExecutorService} ruft automatisch die in \cref{lst:workerRun} dargestellte \textit{run()}-Methode der übergebenen
 \texttt{Worker}-Instanz auf.
-Innerhalb der Methode wird für das Abarbeiten der Jobs aus dem Job-Store gesorgt.
+Innerhalb der Methode wird für die Verarbeitung der Jobs aus dem Job-Store gesorgt.
 Hierzu versucht der \texttt{Worker} zunächst, über die Methode \textit{claimNextJob(UUID id)} des \texttt{WorkerService}
 einen verfügbaren Job zu beanspruchen.
 Wird kein Job gefunden, ist das \texttt{Optional}-Objekt leer.
@@ -710,18 +675,20 @@ Im konkreten System übernimmt die Klasse \texttt{JobProcessor} diese Aufgabe.
 Die Verarbeitung eines Jobs findet vollständig außerhalb einer offenen Datenbanktransaktion statt.
 Der \texttt{Processor} kann daher auch länger laufende Berechnungen oder externe E/A-Operationen durchführen, ohne dabei
 eine Datenbankverbindung oder eine Sperre auf dem Job zu halten.
-Erzeugt die Fachlogik erfolgreich ein \texttt{JobResult}, wird dieses anschließend an den \texttt{WorkerService} zur Persistierung übergeben.
-Die dabei verwendete Transaktion sowie die Prüfung der Berechtigung des Workers zur Ergebnisübermittlung werden
+Erzeugt die Fachlogik erfolgreich ein \texttt{JobResult}, wird dieses anschließend von der \texttt{Worker}-Instanz
+an den \texttt{WorkerService} zur Persistierung übergeben.
+Die dabei verwendete Transaktion sowie die Prüfung der Berechtigung des Workers zur Ergebnisspeicherung werden
 in \cref{subsec:impl_abschlussJoberverarbeitung} behandelt.\\
 Tritt während der eigentlichen Verarbeitung eine Exception auf, bricht die Verarbeitung ab und es wird kein Ergebnis gespeichert.
 Der Job verbleibt zunächst im Zustand \textit{Running}.
-Die weitere Behandlung erfolgt in diesem Fall über den Recovery-Mechanismus.
+Die weitere Behandlung erfolgt in diesem Fall über den Recovery-Mechanismus, dessen Umsetzung in \cref{subsec:impl_recovery}
+behandelt wird.
 
 \subsection{Abschluss einer Jobverarbeitung}
 \label{subsec:impl_abschlussJoberverarbeitung}
 Nach erfolgreicher Ausführung der Fachlogik übergibt der Worker das erzeugte \texttt{JobResult} zusammen mit der Job-ID
 und seiner eigenen Worker-ID an den \texttt{WorkerService}.
-Die in \cref{lst:finishJob} dargestellte Methode \textit{finishJob(...)} übernimmt anschließend die atomare Persistierung
+Die in \cref{lst:finishJob} dargestellte Methode \textit{finishJob(...)} übernimmt dabei die atomare Persistierung
 des Verarbeitungsergebnisses sowie den Abschluss der Jobverarbeitung.\\
 Wie bereits bei der Reservierung eines Jobs erfolgt auch dieser Schritt entsprechend dem Vorgehen aus \cref{subsec:transaktionsmodell}
 atomar innerhalb einer Datenbanktransaktion mittels \texttt{@Transactional}.
@@ -762,7 +729,7 @@ Anschließend wird überprüft, ob sich der Job noch im Zustand \textit{Running}
 Dadurch wird ausgeschlossen, dass bereits abgeschlossene oder zurückgesetzte Jobs erneut oder unberechtigt beendet werden.
 Danach erfolgt die Prüfung, ob die übergebene Worker-ID mit dem im Job gespeicherten Attribut \textit{claimed\_by} übereinstimmt.
 Nur der Worker, der den Job zuvor erfolgreich beansprucht hat, ist berechtigt, dessen Verarbeitung abzuschließen.
-Dieser Vergleich bildet die technische Umsetzung des im Architekturkapitel beschriebenen Fencing-Mechanismus.
+Dieser Vergleich bildet die technische Umsetzung des im Architekturkapitel beschriebenen Fencing-Mechanismus. %TODO: prüfen ob wirklich Fencing genannt wird, sonst anpassen
 Hat der Job zwischenzeitlich einen anderen Besitzer erhalten, beispielsweise infolge eines Recovery-Vorgangs, wird die Ergebnisspeicherung abgebrochen.
 Zusätzlich wird geprüft, ob das zum Job gehörende Lease zum Zeitpunkt der Ergebnisspeicherung noch gültig ist.
 Ist das Lease bereits abgelaufen, wird eine \texttt{LeaseExpiredException} ausgelöst.
@@ -781,13 +748,8 @@ Zustand beibehält (\ref{zus:atomare_wirkung} \& \ref{zus:idempotenz}).
 
 \subsection{Retries}
 \label{subsec:impl_retries}
-Die im Architekturkapitel vorgestellte Retry-Strategie wird durch ein eigenständiges Retry-Teilsystem umgesetzt, das
-unabhängig von den eigentlichen Fachkomponenten eingesetzt werden kann.
-Kern dieses Teilsystems ist die Klasse \texttt{RetryExecutor}, welche die allgemeine Steuerung von Wiederholungsversuchen übernimmt.
-Die konkrete Entscheidung, ob eine Operation nach einem Fehler erneut ausgeführt werden soll sowie die Berechnung der Wartezeit zwischen zwei
-Versuchen werden dagegen an eine konfigurierbare \texttt{RetryPolicy} delegiert.
-Dadurch bleibt die Retry-Logik zentral gekapselt, während unterschiedliche Komponenten jeweils eine auf ihren Anwendungsfall
-angepasste Policy verwenden können.\\
+Kern des in \cref{subsec:retryStrategie} beschriebenen Retry-Teilsystems ist die Klasse \texttt{RetryExecutor},
+die die allgemeine Steuerung von Wiederholungsversuchen übernimmt.
 Der \texttt{RetryExecutor} besitzt lediglich eine öffentliche Methode \texttt{execute()}, der eine beliebige Operation in Form
 eines \texttt{Callable}-Objekts übergeben wird.
 Dadurch kann derselbe Mechanismus unabhängig davon verwendet werden, ob beispielsweise ein \gls{rest}-Aufruf, ein Datenbankzugriff
@@ -815,10 +777,10 @@ public <T> T execute(Callable<T> callable) throws Exception {
 \end{lstlisting}
 Die Methode führt die übergebene Operation zunächst unmittelbar aus.
 Tritt dabei keine Exception auf, wird das Ergebnis direkt an den Aufrufer zurückgegeben.
-Wird dagegen eine Exception ausgelöst, entscheidet die konfigurierte \texttt{RetryPolicy}, ob ein weiterer Ausführungsversuch sinnvoll ist.
+Wird dagegen eine Exception ausgelöst, entscheidet die spezifische \texttt{RetryPolicy}, ob ein weiterer Ausführungsversuch sinnvoll ist.
 Hierzu erhält sie sowohl die aufgetretene Exception als auch die aktuelle Versuchsnummer.
 Lehnt die Policy einen weiteren Versuch ab, wird die Exception unverändert an den Aufrufer weitergereicht.
-Andernfalls berechnet die Policy zunächst die Dauer des nächsten Backoff-Intervalls und pausiert den Worker für diese Zeit,
+Andernfalls berechnet die Policy zunächst die Dauer des nächsten Backoff-Intervalls und pausiert den Worker anschließend für diese Zeit,
 bevor die Operation erneut ausgeführt wird.\\
 Die konkrete Retry-Strategie wird über das Interface \texttt{RetryPolicy} beschrieben.
 Dieses definiert die beiden Methoden \texttt{shouldRetry(...)} und \texttt{nextDelay(...)}.
@@ -843,7 +805,8 @@ label={lst:retryPolicy}
 ]
 @Override
 public boolean shouldRetry(Exception e, int attempt) {
-    if (attempt >= maxAttempts) {
+    if (attempt >= maxAttempts
+            || e instanceof DataIntegrityViolationException) {
         return false;
     }
     return e instanceof DataAccessException;
@@ -855,8 +818,18 @@ public long nextDelay(int attempt) {
             * Math.pow(backoffFactor, attempt - 1));
 }
 \end{lstlisting}
-Die Datenbank-Policy klassifiziert ausschließlich Datenbankzugriffsfehler (\texttt{DataAccessException}) als potenziell
-transient und begrenzt gleichzeitig die maximale Anzahl der Wiederholungsversuche.
+Die Datenbank-Policy klassifiziert ausschließlich Datenbankzugriffsfehler (\texttt{DataAccessException}), wozu unter anderem
+die Nichterreichbarkeit der Datenbank zählt, als potenziell transient und begrenzt gleichzeitig die maximale Anzahl der
+Wiederholungsversuche.
+Die \texttt{DataIntegrityViolationException} wird dabei explizit ausgeschlossen, obwohl sie eine Unterklasse der
+\texttt{DataAccessException} ist.
+Sie entsteht bei der Verletzung von Datenbank-Constraints und stellt daher keinen transienten, sondern einen permanenten
+Fehler dar, der durch einen erneuten Ausführungsversuch nicht behoben werden kann.
+Darüber hinaus muss diese Ausnahme unverändert an den \texttt{JobController} weitergegeben werden, da sie dort zur Erkennung
+einer Verletzung des \texttt{UNIQUE}-Constraints des Idempotency-Keys verwendet wird (vgl. \cref{subsec:impl_joberstellung}).
+Würde sie bereits vom \texttt{RetryExecutor} behandelt und nach Ausschöpfen der Wiederholungsversuche durch eine andere
+Ausnahme ersetzt, könnte der Controller nicht mehr zwischen einer erfolgreichen Neuerstellung und einer bereits zuvor
+erfolgten Joberstellung unterscheiden.
 Für die Kommunikation zwischen Client und Backend wird dagegen eine separate Policy eingesetzt, die insbesondere
 Netzwerkfehler, Verbindungsabbrüche sowie als temporär klassifizierte HTTP-Fehler berücksichtigt.
 Obwohl beide Policies unterschiedliche Fehlerarten behandeln, nutzen sie denselben generischen RetryExecutor.
@@ -876,24 +849,24 @@ Job job = retryExecutor.execute(
 Wird Zeile 4 aus \cref{lst:endpoint} mit diesem Ausdruck ersetzt und die Datenbank ist beispielsweise nicht erreichbar,
 wird der Aufruf von \textit{creatJob(request)} automatisch erneut versucht.\\
 Neben der Joberstellung wird derselbe Mechanismus ebenfalls beim Claiming neuer Jobs sowie beim Abschluss einer Verarbeitung eingesetzt.
-Im Frontend kapselt der RetryExecutor darüber hinaus sämtliche \gls{rest}-Aufrufe an das Backend.
+Im Frontend kapselt der \texttt{RetryExecutor} darüber hinaus sämtliche \gls{rest}-Aufrufe an das Backend.
 Durch diese einheitliche Verwendung entsteht ein konsistentes Wiederholungsverhalten über alle Komponenten hinweg, ohne dass
 Retry-Logik mehrfach implementiert werden muss.
-Änderungen an Wiederholungsstrategien beschränken sich dadurch auf die jeweilige RetryPolicy, während die eigentlichen
-Fachkomponenten ausschließlich ihre fachliche Funktionalität implementieren.
+Änderungen an Wiederholungsstrategien beschränken sich dadurch auf die jeweilige RetryPolicy.
 
 \subsection{Recovery}
 \label{subsec:impl_recovery}
 Die Wiederherstellung verwaister Jobs wird durch die beiden Komponenten \texttt{RecoveryService} und \texttt{RecoveryExecutor} umgesetzt.
 Während der RecoveryService die periodische Suche nach wiederherzustellenden Jobs übernimmt, implementiert der RecoveryExecutor
 die eigentliche Recovery-Logik innerhalb einer Datenbanktransaktion.\\
-Der \texttt{RecoveryService} wird mithilfe der Spring-Annotation \texttt{@Scheduled} in festen Zeitabständen ausgeführt.
+Die in \cref{lst:recoveryService} dargestellte zentrale Methode des \texttt{RecoveryService} wird mithilfe der
+Spring-Annotation \texttt{@Scheduled} in festen Zeitabständen ausgeführt.
 Im entwickelten System erfolgt ein Recovery-Zyklus alle 30 Sekunden.
 Dabei werden zunächst sämtliche Jobs ermittelt, deren Lease bereits abgelaufen ist und deren Status weiterhin \textit{Running} lautet.
 Hierzu wird die bereits in \cref{subsec:impl_persistenz} vorgestellte Repository-Abfrage verwendet.
 Die Abfrage liefert ausschließlich die Identifikatoren der betroffenen Jobs zurück und verwendet bewusst keine Sperren.
 Dadurch werden während der Suche keine Datenbankzeilen unnötig blockiert und konkurrierende Worker können ihre Verarbeitung
-ohne zusätzliche Wartezeiten fortsetzen.
+gegebenenfalls noch beenden.
 Für jede gefundene Job-ID wird anschließend der \texttt{RecoveryExecutor} aufgerufen.
 \begin{lstlisting}[
     language=Java,
@@ -912,6 +885,7 @@ public void recoverCycle() {
 }
 \end{lstlisting}
 Die eigentliche Wiederherstellung erfolgt innerhalb der Methode \texttt{recoverJob()}, die mit \texttt{@Transactional} gekennzeichnet ist.
+Die Details zeigt \cref{lst:recoverJob}.
 Zu Beginn der Transaktion wird der betreffende Job erneut über seine ID geladen und dabei mittels \texttt{SELECT FOR UPDATE} exklusiv gesperrt.
 Die Sperre stellt sicher, dass Recovery und konkurrierende Worker den Zustand desselben Jobs nicht gleichzeitig verändern können.\\
 Da zwischen der Suche nach abgelaufenen Leases und dem Beginn der Recovery-Transaktion bereits Änderungen am Job erfolgt
