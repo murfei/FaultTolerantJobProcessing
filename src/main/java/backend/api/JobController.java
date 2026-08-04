@@ -1,6 +1,5 @@
 package backend.api;
 
-import backend.Exception.IdempotencyException;
 import backend.infrastructure.JobMapper;
 import backend.recovery.DBRetryPolicy;
 import backend.service.JobService;
