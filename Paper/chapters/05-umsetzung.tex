@@ -64,7 +64,7 @@ Ergänzt wird die Architektur durch einen Recovery-Service, der den Job-Store pe
 Kann ein Worker einen bereits beanspruchten Job aufgrund eines Fehlers oder Absturzes nicht erfolgreich abschließen,
 erkennt der Recovery-Service anhand des abgelaufenen Leases, dass die Bearbeitung nicht abgeschlossen wurde.
 Der Status des betroffenen Jobs wird, sofern der Recovery-Service eine erneute Bearbeitung für sinnvoll erachtet, zurückgesetzt und steht damit einem beliebigen Worker erneut zur Bearbeitung zur Verfügung.
-Auf diese Weise wird verhindert, dass Jobs dauerhaft im Zustand \texttt{RUNNING} verbleiben (\ref{zus:terminierung})
+Auf diese Weise wird verhindert, dass Jobs dauerhaft im Zustand \textit{Running} verbleiben (\ref{zus:terminierung})
 oder infolge eines Worker-Ausfalls verloren gehen (\ref{zus:verarbeitungsgarantie}).
 
 \subsection{Zustandsmodell}
@@ -187,7 +187,7 @@ Existiert der Idempotenzschlüssel noch nicht, liefert die Anfrage den Job als E
 Der Service gibt den erstellten Job an die \gls{rest}-\gls{api} zurück,
 welche dem Client mit dem HTTP-Statuscode \texttt{201 Created} als Bestätigung der erfolgreichen Joberstellung antwortet.\\
 Existiert dagegen bereits ein Job mit demselben Idempotenzschlüssel, wird ein Fehler aufgrund des Unique-Constraints der Datenbank ausgelöst.
-Der Service wirft daraufhin einen Fehler, der von der \gls{rest}-\gls{api} abgefangen wird.
+Dieser wird durch den Service weitergegeben und schließlich vom Controller der \gls{rest}-\gls{api} abgefangen.
 Da sich der gewünschte Job bereits im System befindet und somit der gewünschte Zielzustand erreicht wurde, beantwortet die \gls{api} die Anfrage mit
 dem HTTP-Statuscode \texttt{200 OK}.
 
@@ -465,7 +465,7 @@ Die Verarbeitungsergebnisse werden durch die Entitätsklasse \texttt{JobResult} 
 Umgesetzt wird die 1:1-Beziehung zwischen \texttt{JobResult} und \texttt{Job} über die \texttt{@OneToOne}-Annotation.
 Dabei wird die Fremdschlüsselbeziehung über \texttt{@JoinColumn} in der Tabelle des Ergebnisses umgesetzt.
 Die Beschränkung auf höchstens ein Ergebnis pro Job ist insbesondere für die idempotente Ergebnisspeicherung relevant (\ref{zus:idempotenz}).
-Daher wird auch der Fremdschlüssel mit einem \texttt{UNIQUE}- als auch mit einem \texttt{NOT NULL}-Constraint belegt.
+Daher wird auch der Fremdschlüssel des \texttt{JobResult} mit einem \texttt{UNIQUE}-Constraint belegt.
 
 Der Datenbankzugriff wird über ein Repository-Interface gekapselt.
 Neben den von Spring Data JPA bereitgestellten Standardoperationen werden für das Job-Processing-System spezifische Abfragen
@@ -489,7 +489,7 @@ Dadurch können mehrere Worker gleichzeitig nach verfügbaren Jobs suchen, ohne 
 zu blockieren.
 Die Sortierung nach dem Erstellungszeitpunkt stellt dabei sicher, dass ältere Jobs bevorzugt verarbeitet werden (\ref{zus:terminierung}).\\
 Für den Abschluss einer Verarbeitung und Recovery-Szenarien wird der in \cref{lst:forUpdate} gezeigte Befehl
-zum gezielten Zugriff auf einzelne Jobs bereitgestellt und gleichzeitig eine Sperre für diesen Datensatz gesetzt.
+zum gezielten Zugriff auf einzelne Jobs bereitgestellt, der mit der Auswahl eine Sperre für diesen Datensatz setzt.
 \begin{lstlisting}[
     language=SQL,
     caption={Auswählen eines Jobs zur Bearbeitung},
@@ -530,7 +530,7 @@ und zur Synchronisation konkurrierender Zugriffe (\ref{zus:exklusive_rechte}) be
 \subsection{Joberstellung}
 \label{subsec:impl_joberstellung}
 Die Erstellung eines Jobs beginnt auf Clientseite mit der Zusammenstellung der für die Verarbeitung benötigten Nutzdaten.
-Diese werden als \textit{Payload} in Form eines JSON-Dokuments repräsentiert.
+Diese werden als \textit{Payload} in Form eines JSON-Objekts repräsentiert.
 Zusätzlich erzeugt der Client einen \gls{uuid}-basierten \textit{Idempotency-Key}, der gemeinsam mit der Payload in dem
 \gls{dto} \texttt{CreateJobRequest} zusammengefasst wird.\\
 \Cref{lst:createJob} zeigt, wie das Request-Objekt anschließend über den im Frontend implementierten \texttt{BackendRestClient}
@@ -550,16 +550,20 @@ public ResponseEntity<CreateJobResponse> createJob(CreateJobRequest request) {
 }
 \end{lstlisting}
 Im Backend wird die Anfrage durch den mit Spring Web implementierten \texttt{JobController} entgegengenommen.
-Der entsprechende Endpunkt ist über \texttt{@PostMapping("/job")} definiert und in \cref{lst:endpoint} dargestellt.
+Der entsprechende Endpunkt ist über \texttt{@PostMapping(\dq/job\dq)} definiert und in \cref{lst:endpoint} dargestellt.
 Der HTTP-Body wird durch \texttt{@RequestBody} automatisch in ein \texttt{CreateJobRequest}-Objekt überführt.
 Anschließend delegiert der Controller die eigentliche Joberstellung an den \texttt{JobService}.
 Die Validierung des Request-Objekts erfolgt dabei bereits auf Ebene der \gls{rest}-Schnittstelle.
 %TODO: hier wenn Validierung implementiert ist anpassen
 Nach erfolgreicher Erstellung gibt der Controller den HTTP-Status \texttt{201 Created} zurück.
-Tritt dagegen eine \texttt{IdempotencyException} auf, wird der bereits vorhandene Job mit \texttt{200 OK} zurückgegeben.
-Andere Fehler werden als serverseitige Fehler mit \texttt{500 Internal Server Error} beantwortet.
-Für den Client ist damit unabhängig davon, ob die ursprüngliche Anfrage oder eine erneute Übermittlung verarbeitet wurde,
-erkennbar, dass der angeforderte Job bereits im Job-Store vorhanden ist.
+Schlägt die Persistierung dagegen aufgrund einer Verletzung des \texttt{UNIQUE}-Constraints für den \textit{Idempotency-Key}  %TODO: Vereinheitlichung Schreibweise UNIQUE
+fehl, wird die daraus resultierende \texttt{DataIntegrityViolationException} abgefangen.
+Der Controller prüft, ob tatsächlich eine Verletzung des für den Idempotency-Key definierten Constraints vorliegt.
+Ist dies der Fall, wird der bereits vorhandene Job anhand seines Idempotency-Keys aus dem Job-Store geladen und gemeinsam
+mit dem HTTP-Status \texttt{200 OK} an den Client zurückgegeben.
+Andere Datenbankfehler werden dagegen nicht als Idempotenzfall interpretiert und führen zu einer Antwort mit \texttt{500 Internal Server Error}.
+Für den Client ist damit unabhängig davon, ob ein Job erstmals angelegt oder eine bereits erfolgreich ausgeführte Anfrage
+erneut übermittelt wurde, eindeutig erkennbar, dass der gewünschte Job im System vorhanden ist.
 \begin{lstlisting}[
     language=Java,
     caption={POST Endpoint},
@@ -573,8 +577,11 @@ public ResponseEntity<CreateJobResponse> createJob(@Valid @RequestBody CreateJob
                 .status(HttpStatus.CREATED)
                 .body(new CreateJobResponse(job.getIdempotencyKey(),
                       job.getStatus(), job.getCreatedAt()));
-    } catch (IdempotencyException e){
-        Job job = e.getExistingJob();
+     } catch (DataIntegrityViolationException e){
+        if (!isConstraintViolation(e))
+            throw e;
+        Job job = jobService.getJobById(request.getIdempotencyKey())
+                    .orElseThrow(() -> new IllegalStateException("..."));
         return ResponseEntity.status(HttpStatus.OK)
                 .body(new CreateJobResponse(job.getIdempotencyKey(),
                       job.getStatus(), job.getCreatedAt(),
@@ -587,42 +594,7 @@ public ResponseEntity<CreateJobResponse> createJob(@Valid @RequestBody CreateJob
 \end{lstlisting}
 Die eigentliche Erstellung und Persistierung des Jobs übernimmt der \texttt{JobService}.
 Hierzu wird zunächst über eine Factory aus dem Request-Objekt eine neue \texttt{Job}-Entität erzeugt.
-Anschließend versucht der Service, diese innerhalb einer Transaktion über das Repository zu persistieren.
-\texttt{@Transactional} stellt sicher, dass die Persistierung des Jobs atomar erfolgt, sodass im Fehlerfall keine
-inkonsistenten Daten in der Datenbank verbleiben.
-\begin{lstlisting}[
-    language=Java,
-    caption={Transaktion zur Joberstellung},
-    label={lst:createTransaction}
-]
-@Transactional
-public Job createJob(CreateJobRequest request) throws IdempotencyException {
-    Job job = JobFactory.createJob(request);
-    try{
-        repository.saveAndFlush(job);
-        return job;
-    } catch (DataIntegrityViolationException e){
-        if(!isConstraintViolation(e)){
-            throw e;
-        }
-        Optional<Job> existingJob = repository.findByIdempotencyKey(request.getIdempotencyKey());
-        if (existingJob.isPresent()){
-            throw new IdempotencyException(existingJob.get());
-        }
-        throw e;
-    }
-}
-\end{lstlisting}
-Eine Besonderheit ergibt sich aus der Eindeutigkeit des \textit{Idempotency-Keys}.
-Wird versucht, einen Job mit einem bereits vorhandenen Schlüssel zu speichern, schlägt die Persistierung aufgrund des entsprechenden
-\texttt{UNIQUE}-Constraints der Datenbank fehl.
-Die daraus resultierende \texttt{DataIntegrityViolationException} wird vom \texttt{JobService} auf eine Verletzung des
-für die Idempotenz relevanten Constraints geprüft.
-Handelt es sich um einen solchen Fall, wird der bereits vorhandene Job über seinen Idempotency-Key aus dem Repository
-geladen und eine \texttt{IdempotencyException} erzeugt, die den vorhandenen Job enthält.\\
-Andere Integritätsverletzungen werden nicht als Idempotenzfall interpretiert und vom Service weitergereicht.
-Sie führen zusammen mit sonstigen unerwarteten Fehlern zur allgemeinen Fehlerbehandlung des Controllers und damit zu einer
-Antwort mit \texttt{500 Internal Server Error}.
+Anschließend wird diese innerhalb einer durch \texttt{@Transactional} gekapselten Serviceoperation über das Repository persistiert.
 
 \subsection{Claiming und Verarbeitung}
 \label{subsec:impl_verarbeitung}
@@ -774,7 +746,7 @@ public Job finishJob(UUID jobId, UUID workerId, JobResult jobResult)
     if (job.getLease_until().isBefore(Instant.now()))
         throw new LeaseExpiredException();
 
-    job.setStatus(JobStatus.SUCCESSFUL);
+    job.setStatus(JobStatus.SUCCEEDED);
     resultRepository.save(jobResult);
     job.setResult(jobResult);
     job.setUpdatedAt(Instant.now());
@@ -786,7 +758,7 @@ Zu Beginn der Methode wird der betreffende Job über \textit{findByIdForUpdate(.
 Die zugrunde liegende SQL-Abfrage verwendet \texttt{FOR UPDATE} und sperrt den Datensatz dadurch exklusiv bis zum Abschluss der Transaktion.
 Dadurch wird verhindert, dass Recovery-Prozesse oder andere konkurrierende Transaktionen den Job während seiner Finalisierung verändern können.
 Das Verhalten ist essenziell, um \ref{zus:idempotenz} garantieren zu können.
-Anschließend wird überprüft, ob sich der Job noch im Zustand \textit{Running} befindet. %TODO: Vereinheitlichung Schreibweise des Status in gesamter Arbeit (Caps oder nicht caps)
+Anschließend wird überprüft, ob sich der Job noch im Zustand \textit{Running} befindet.
 Dadurch wird ausgeschlossen, dass bereits abgeschlossene oder zurückgesetzte Jobs erneut oder unberechtigt beendet werden.
 Danach erfolgt die Prüfung, ob die übergebene Worker-ID mit dem im Job gespeicherten Attribut \textit{claimed\_by} übereinstimmt.
 Nur der Worker, der den Job zuvor erfolgreich beansprucht hat, ist berechtigt, dessen Verarbeitung abzuschließen.
@@ -797,7 +769,7 @@ Ist das Lease bereits abgelaufen, wird eine \texttt{LeaseExpiredException} ausge
 Auch in diesem Fall wird kein Ergebnis persistiert, da nicht mehr sichergestellt werden kann, dass der Worker den Job weiterhin exklusiv besitzt.
 Die weitere Behandlung erfolgt anschließend durch den Recovery-Mechanismus.\\
 Erst nachdem sämtliche Prüfungen erfolgreich abgeschlossen wurden, erfolgt die eigentliche Persistierung des Verarbeitungsergebnisses.
-Hierzu wird zunächst der Jobstatus auf \textit{SUCCESSFUL} gesetzt.
+Hierzu wird zunächst der Jobstatus auf \textit{Succeeded} gesetzt.
 Anschließend wird das \texttt{JobResult} gespeichert und dem entsprechenden Job zugeordnet.
 Schließlich wird noch der Zeitstempel der letzten Änderung aktualisiert.
 Da sämtliche Änderungen innerhalb derselben Datenbanktransaktion erfolgen, wird verhindert, dass ein Zustand entsteht, in dem zwar bereits ein Verarbeitungsergebnis existiert, der Job jedoch weiterhin als \textit{Running} gekennzeichnet ist oder umgekehrt.
@@ -901,7 +873,7 @@ Job job = retryExecutor.execute(
     () -> jobService.createJob(request)
 );
 \end{lstlisting}
-Wird Zeile 3 aus \cref{lst:createTransaction} mit diesem Ausdruck ersetzt und die Datenbank ist beispielsweise nicht erreichbar,
+Wird Zeile 4 aus \cref{lst:endpoint} mit diesem Ausdruck ersetzt und die Datenbank ist beispielsweise nicht erreichbar,
 wird der Aufruf von \textit{creatJob(request)} automatisch erneut versucht.\\
 Neben der Joberstellung wird derselbe Mechanismus ebenfalls beim Claiming neuer Jobs sowie beim Abschluss einer Verarbeitung eingesetzt.
 Im Frontend kapselt der RetryExecutor darüber hinaus sämtliche \gls{rest}-Aufrufe an das Backend.
@@ -917,7 +889,7 @@ Während der RecoveryService die periodische Suche nach wiederherzustellenden Jo
 die eigentliche Recovery-Logik innerhalb einer Datenbanktransaktion.\\
 Der \texttt{RecoveryService} wird mithilfe der Spring-Annotation \texttt{@Scheduled} in festen Zeitabständen ausgeführt.
 Im entwickelten System erfolgt ein Recovery-Zyklus alle 30 Sekunden.
-Dabei werden zunächst sämtliche Jobs ermittelt, deren Lease bereits abgelaufen ist und deren Status weiterhin \texttt{RUNNING} lautet.
+Dabei werden zunächst sämtliche Jobs ermittelt, deren Lease bereits abgelaufen ist und deren Status weiterhin \textit{Running} lautet.
 Hierzu wird die bereits in \cref{subsec:impl_persistenz} vorgestellte Repository-Abfrage verwendet.
 Die Abfrage liefert ausschließlich die Identifikatoren der betroffenen Jobs zurück und verwendet bewusst keine Sperren.
 Dadurch werden während der Suche keine Datenbankzeilen unnötig blockiert und konkurrierende Worker können ihre Verarbeitung
@@ -945,12 +917,12 @@ Die Sperre stellt sicher, dass Recovery und konkurrierende Worker den Zustand de
 Da zwischen der Suche nach abgelaufenen Leases und dem Beginn der Recovery-Transaktion bereits Änderungen am Job erfolgt
 sein können, wird dessen aktueller Zustand erneut überprüft.
 Insbesondere kann ein Worker den Job zwischenzeitlich noch erfolgreich abgeschlossen haben.
-Befindet sich der Job daher nicht mehr im Zustand \texttt{RUNNING}, wird die Recovery ohne weitere Änderungen beendet.
+Befindet sich der Job daher nicht mehr im Zustand \textit{Running}, wird die Recovery ohne weitere Änderungen beendet.
 Die erneute Prüfung verhindert, dass bereits erfolgreich abgeschlossene Jobs aufgrund einer zwischenzeitlichen Zustandsänderung
 fälschlicherweise erneut in die Warteschlange aufgenommen werden.\\
 Anschließend wird anhand des \texttt{attempt\_count} entschieden, ob der Job erneut ausgeführt werden darf.
-Wurde die konfigurierte maximale Anzahl an Ausführungsversuchen noch nicht erreicht, wird der Job wieder in den Zustand \texttt{QUEUED} überführt.
-Andernfalls wird er als \texttt{FAILED} markiert.
+Wurde die konfigurierte maximale Anzahl an Ausführungsversuchen noch nicht erreicht, wird der Job wieder in den Zustand \textit{Queued} überführt.
+Andernfalls wird er als \textit{Failed} markiert.
 Dadurch werden endlose Wiederholungszyklen dauerhaft fehlerhafter Jobs verhindert.\\
 Unabhängig von der aktuellen Versuchsanzahl werden die Attribute \texttt{claimed\_by} und \texttt{lease\_until} zurückgesetzt sowie
 der Änderungszeitpunkt aktualisiert.
@@ -977,3 +949,5 @@ public void recoverJob(UUID id) {
     job.setUpdatedAt(Instant.now());
 }
 \end{lstlisting}
+%TODO: Z-5: Finalität von Endzuständen -> Nennen wodurch das sichergestellt wird. Es werden vom Worker nur Queued Jobs in Running versetzt und auch der Recovery-Service
+%arbeitet ausschließlich auf Running Jobs

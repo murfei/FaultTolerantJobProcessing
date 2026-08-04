@@ -35,7 +35,8 @@ public class JobController {
                     .status(HttpStatus.CREATED)
                     .body(new CreateJobResponse(job.getIdempotencyKey(), job.getStatus(), job.getCreatedAt()));
         } catch (DataIntegrityViolationException e){
-            if (!isConstraintViolation(e)) throw e;
+            if (!isConstraintViolation(e))
+                throw e;
             Job job = jobService.getJobById(request.getIdempotencyKey()).orElseThrow(() ->
                     new IllegalStateException("Unique Constraint Violation aber Job nicht gefunden.")
             );
