@@ -2,6 +2,7 @@ package backend.recovery;
 
 import common.retry.RetryPolicy;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.Duration;
 
@@ -19,7 +20,7 @@ public class DBRetryPolicy implements RetryPolicy {
 
     @Override
     public boolean shouldRetry(Exception e, int attempt) {
-        if (attempt >= maxAttempts) {
+        if (attempt >= maxAttempts || e instanceof DataIntegrityViolationException) {
             return false;
         }
 

@@ -7,6 +7,8 @@ import backend.service.JobService;
 import backend.domain.Job;
 import common.retry.RetryExecutor;
 import jakarta.validation.Valid;
+import org.h2.jdbc.JdbcSQLIntegrityConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,8 +35,11 @@ public class JobController {
             return ResponseEntity
                     .status(HttpStatus.CREATED)
                     .body(new CreateJobResponse(job.getIdempotencyKey(), job.getStatus(), job.getCreatedAt()));
-        } catch (IdempotencyException e){
-            Job job = e.getExistingJob();
+        } catch (DataIntegrityViolationException e){
+            if (!isConstraintViolation(e)) throw e;
+            Job job = jobService.getJobById(request.getIdempotencyKey()).orElseThrow(() ->
+                    new IllegalStateException("Unique Constraint Violation aber Job nicht gefunden.")
+            );
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new CreateJobResponse(job.getIdempotencyKey(), job.getStatus(), job.getCreatedAt(), "Job already exists"));
         } catch (Exception e) {
@@ -60,5 +65,8 @@ public class JobController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
+    }
+    private boolean isConstraintViolation(DataIntegrityViolationException e) {
+        return e.getMostSpecificCause() instanceof JdbcSQLIntegrityConstraintViolationException;
     }
 }
