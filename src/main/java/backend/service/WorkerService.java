@@ -50,7 +50,7 @@ public class WorkerService {
     }
 
     @Transactional
-    public Job finishJob(UUID jobId, UUID workerId, JobResult jobResult) throws JobNotFoundException{ //TODO: hier muss jobResult zu resultData geändert werden und dann innerhalb dieser methode ein jobresult erzeugt und gespeichert werden
+    public Job finishJob(UUID jobId, UUID workerId, JobResult jobResult) throws JobNotFoundException{
 
         Job job = jobRepository.findByIdForUpdate(jobId).orElseThrow(JobNotFoundException::new);
 

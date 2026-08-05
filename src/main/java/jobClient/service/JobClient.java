@@ -5,8 +5,6 @@ import jobClient.rest.BackendRestClient;
 import common.retry.RetryExecutor;
 import jobClient.retry.RestMessageRetryPolicy;
 import org.springframework.http.ResponseEntity;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ObjectNode;
 
 import java.time.Duration;
 import java.util.List;
@@ -33,18 +31,10 @@ public class JobClient {
         this.client = client;
     }
 
-    public ResponseEntity<CreateJobResponse> createJob() {
-        //TODO Parameter ergänzen und Payload an Fachlogik anpassen --> Vorsicht bei JobClientTest wenn hier die payload geändert wird
-        ObjectMapper mapper = new ObjectMapper();
-        ObjectNode jsonObjekt = mapper.createObjectNode();
-        jsonObjekt.put("name", "Max Mustermann");
-        jsonObjekt.put("alter", 30);
-        jsonObjekt.put("aktiv", true);
-        jsonObjekt.putPOJO("hobbys", new String[]{"Laufen", "Zocken"});
-
+    public ResponseEntity<CreateJobResponse> createJob(String payload) {
         try {
             return retryExecutor.execute(() ->
-                    client.createJob(new CreateJobRequest(UUID.randomUUID(), mapper.writeValueAsString(jsonObjekt)))
+                    client.createJob(new CreateJobRequest(UUID.randomUUID(), payload))
             );
         } catch (Exception e) {
             System.out.println("Der Job konnte nicht erfolgreich zugestellt werden. Der letzte Fehler war: " + e.getMessage());
@@ -77,7 +67,7 @@ public class JobClient {
         while(true) {
             Scanner input = new Scanner(System.in);
             input.next();
-            client.createJob();
+            client.createJob("Empty Job");
         }
     }
 }

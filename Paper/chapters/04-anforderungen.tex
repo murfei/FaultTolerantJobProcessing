@@ -11,7 +11,8 @@ und als verbindlicher Maßstab für die Umsetzung und die Evaluation dienen.
 
 \section{Systemkontext}
 \label{sec:systemkontext}
-Im Rahmen dieser Arbeit wird ein datenbankgestütztes Background-Job-Processing-System entwickelt, dessen grundlegende Systemstruktur in \cref{fig:contextView} dargestellt ist.
+Im Rahmen dieser Arbeit wird ein datenbankgestütztes Background-Job-Processing-System entwickelt, dessen grundlegende
+Systemstruktur in \cref{fig:contextView} dargestellt ist.
 Über eine \gls{rest}-Schnittstelle können Aufträge durch einen Service oder ein Frontend erzeugt werden, die zunächst im Backend validiert
 und anschließend in einem relationalen Job-Store persistent gespeichert werden.
 Unabhängig vom ursprünglichen Aufruf übernehmen mehrere Worker-Prozesse anschließend die asynchrone Verarbeitung der gespeicherten Jobs.
@@ -21,11 +22,11 @@ Unabhängig vom ursprünglichen Aufruf übernehmen mehrere Worker-Prozesse ansch
     \caption{Systemkontext}
     \label{fig:contextView}
 \end{figure}
-Zur Evaluation der entwickelten Architektur wird exemplarisch ein Anwendungsszenario aus dem Umfeld der Verarbeitung technischer Wartungsdokumente betrachtet. %TODO prüfen, obs dabei bleibt
-Die konkrete fachliche Verarbeitung dient dabei ausschließlich als Demonstrations- und Evaluationsszenario, während der Schwerpunkt dieser Arbeit auf dem Entwurf
-der zugrunde liegenden Architektur für eine zuverlässige Hintergrundverarbeitung liegt.
-Ziel ist somit nicht die Entwicklung einer domänenspezifischen Fachanwendung, sondern einer allgemein einsetzbaren Architektur, deren Konzepte unabhängig vom
-gewählten Anwendungskontext auf andere Background-Job-Processing-Systeme übertragbar sind.
+Da der Schwerpunkt der Arbeit auf den Mechanismen des Job-Processings und nicht auf einer konkreten Fachanwendung liegt,
+wird die Fachlogik zum Zweck der Evaluation stark vereinfacht.
+Diese simuliert durch eine definierte Wartezeit einen lang laufenden Verarbeitungsschritt und erzeugt schließlich ein Dummy-Ergebnis.
+Ziel ist somit nicht die Entwicklung einer domänenspezifischen Fachanwendung, sondern einer allgemein einsetzbaren Architektur,
+deren Konzepte unabhängig vom gewählten Anwendungskontext auf andere Background-Job-Processing-Systeme übertragbar sind.
 
 Das betrachtete System vereint die wesentlichen Herausforderungen datenbankgestützter Background-Job-Processing-Systeme.
 Hierzu zählen insbesondere die zuverlässige und verlustfreie Persistierung eingehender Aufträge, die koordinierte Verarbeitung durch
@@ -257,56 +258,3 @@ Schließlich muss das System sicherstellen, dass Jobs nicht unendlich im System 
     Das System garantiert, dass jeder persistierte Job nach endlicher Zeit in einen der Endzustände übergeht.
     Kein Job verbleibt unendlich in einem aktiven bzw. ausstehenden Status.
 \end{quote}
-
-%\subsection{Zuverlässige Annahme von Jobs}
-%Da Jobs zeitlich entkoppelt verarbeitet werden, bildet ihre persistente Speicherung die Grundlage sämtlicher weiterer Verarbeitungsschritte.
-%Bereits bei der Annahme muss daher sichergestellt werden, dass dem Client ausschließlich solche Jobs als erfolgreich bestätigt werden,
-%die dauerhaft gespeichert wurden.
-%Gleichzeitig können durch Kommunikationsfehler oder Wiederholungsmechanismen identische Anfragen mehrfach beim System eintreffen.
-%Daraus ergeben sich die folgenden Zusicherungen:
-%\begin{description}
-%\item[Z1: Persistenz bestätigter Jobs]
-%Jeder Job, dessen Annahme gegenüber dem Client bestätigt wurde, ist dauerhaft im System vorhanden und geht nicht verloren.
-%
-%\item[Z2: Korrekte Annahmebestätigung]
-%Eine erfolgreiche Annahmebestätigung erfolgt ausschließlich dann, wenn der Job erfolgreich persistiert wurde.
-%
-%\item[Z3: Idempotente Annahme]
-%Zu jedem logischen Auftrag existiert höchstens ein persistierter Job.
-%\end{description}
-%
-%\subsection{Konsistenz der Verarbeitung}
-%Mehrere parallel arbeitende Worker sowie mögliche Wiederholungen infolge von Teilausfällen haben Auswirkungen auf die Konsistenz der Verarbeitung.
-%Unabhängig davon, wie häufig ein Job erneut ausgeführt oder von unterschiedlichen Komponenten verarbeitet wird, muss der interne Zustand
-%des Systems jederzeit widerspruchsfrei bleiben.
-%Außerdem muss das System die Zustände der Jobs kennen, damit ausschließlich ausstehende und nicht derzeit ausgeführte Jobs verarbeitet werden.
-%Um fachliche Fehler in den Daten aufgrund von parallelen Arbeitseinheiten und Teilausfällen zu vermeiden, ergeben sich folgende Zusicherungen:
-%\begin{description}
-%\item[Z4: Eindeutiger Verarbeitungszustand]
-%Jeder Job befindet sich zu jedem Zeitpunkt in genau einem gültigen Verarbeitungszustand.
-%
-%\item[Z5: Gültige Zustandsübergänge]
-%Statusübergänge erfolgen ausschließlich entsprechend der definierten Übergänge.
-%
-%\item[Z6: Exklusive Verarbeitung]
-%Ein Job wird zu keinem Zeitpunkt gleichzeitig von mehreren Workern verarbeitet.
-%
-%\item[Z7: Atomare Wirkung]
-%Nach außen sind ausschließlich vollständig abgeschlossene Ergebnisse sichtbar.
-%
-%\item[Z8: Erfolgseinmaligkeit]
-%Zu jedem Job wird höchstens ein fachliches Endergebnis dauerhaft persistiert.
-%\end{description}
-%
-%\subsection{Fortsetzung der Verarbeitung}
-%Das betrachtete Fehlermodell umfasst Ausfälle einzelner Worker sowie transiente Infrastrukturstörungen.
-%Solche Fehler dürfen zwar die Bearbeitung eines Jobs unterbrechen, jedoch nicht dauerhaft verhindern.
-%Das System muss daher sicherstellen, dass begonnene Verarbeitungen abgeschlossen werden können.
-%Hieraus ergeben sich folgende Zusicherungen:
-%\begin{description}
-%\item[Z9: Wiederherstellbarkeit]
-%Ein begonnener Job geht aufgrund eines Teilausfalls nicht dauerhaft verloren.
-%
-%\item[Z10: Terminierung]
-%Jeder erfolgreich angenommene Job erreicht nach endlicher Zeit einen Endzustand (\texttt{SUCCEEDED} oder \texttt{FAILED}).
-%\end{description}

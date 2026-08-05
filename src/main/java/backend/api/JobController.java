@@ -4,6 +4,7 @@ import backend.infrastructure.JobMapper;
 import backend.recovery.DBRetryPolicy;
 import backend.service.JobService;
 import backend.domain.Job;
+import backend.service.PayloadValidator;
 import common.retry.RetryExecutor;
 import jakarta.validation.Valid;
 import org.h2.jdbc.JdbcSQLIntegrityConstraintViolationException;
@@ -21,15 +22,21 @@ public class JobController {
 
     private final JobService jobService;
     private final RetryExecutor retryExecutor;
+    private final PayloadValidator validator;
 
-    public JobController(JobService jobService) {
+    public JobController(JobService jobService, PayloadValidator validator) {
         this.jobService = jobService;
         this.retryExecutor = new RetryExecutor(new DBRetryPolicy());
+        this.validator = validator;
     }
 
     @PostMapping("/job")
     public ResponseEntity<CreateJobResponse> createJob(@Valid @RequestBody CreateJobRequest request) {
-        try {//TODO: Validator einbauen, der einkommende Anfragen auf richtigkeit validiert
+        if (!validator.isValid(request.getPayload())){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new CreateJobResponse(null, null, null, "Invalid Payload"));
+        }
+        try { //TODO: Validator im Paper ergänzen
             Job job = retryExecutor.execute(() -> jobService.createJob(request));
             return ResponseEntity
                     .status(HttpStatus.CREATED)
