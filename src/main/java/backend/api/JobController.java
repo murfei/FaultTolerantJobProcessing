@@ -7,12 +7,12 @@ import backend.domain.Job;
 import backend.service.PayloadValidator;
 import common.retry.RetryExecutor;
 import jakarta.validation.Valid;
-import org.h2.jdbc.JdbcSQLIntegrityConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,7 +32,7 @@ public class JobController {
 
     @PostMapping("/job")
     public ResponseEntity<CreateJobResponse> createJob(@Valid @RequestBody CreateJobRequest request) {
-        if (!validator.isValid(request.getPayload())){
+        if (!validator.isValid(request.getPayload())) {
             return ResponseEntity.badRequest().build();
         }
         try {
@@ -45,7 +45,7 @@ public class JobController {
                 throw e;
             Job job = jobService.getJobById(request.getIdempotencyKey())
                                 .orElseThrow(IllegalStateException::new);
-            return ResponseEntity.ok(new CreateJobResponse(job, "Job already exists"));
+            return ResponseEntity.ok(new CreateJobResponse(job));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
@@ -71,6 +71,12 @@ public class JobController {
         }
     }
     private boolean isConstraintViolation(DataIntegrityViolationException e) {
-        return e.getMostSpecificCause() instanceof JdbcSQLIntegrityConstraintViolationException;
+        Throwable cause = e.getMostSpecificCause();
+
+        if (cause instanceof SQLException sqlException) {
+            return "23505".equals(sqlException.getSQLState());
+        }
+
+        return false;
     }
 }

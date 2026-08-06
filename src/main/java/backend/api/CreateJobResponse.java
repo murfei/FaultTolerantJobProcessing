@@ -14,20 +14,10 @@ public class CreateJobResponse {
 
     private final Instant createdAt;
 
-    private final String message;
-
     public CreateJobResponse(Job job) {
         this.idempotencyKey = job.getIdempotencyKey();
         this.status = job.getStatus();
         this.createdAt = job.getCreatedAt();
-        message = null;
-    }
-
-    public CreateJobResponse(Job job, String message) {
-        this.idempotencyKey = job.getIdempotencyKey();
-        this.status = job.getStatus();
-        this.createdAt = job.getCreatedAt();
-        this.message = message;
     }
 
     public UUID getIdempotencyKey() {
@@ -40,9 +30,5 @@ public class CreateJobResponse {
 
     public Instant getCreatedAt() {
         return createdAt;
-    }
-
-    public String getMessage() {
-        return message;
     }
 }
