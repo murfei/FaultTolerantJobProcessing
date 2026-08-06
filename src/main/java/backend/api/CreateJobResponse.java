@@ -1,5 +1,6 @@
 package backend.api;
 
+import backend.domain.Job;
 import backend.domain.JobStatus;
 
 import java.time.Instant;
@@ -15,17 +16,17 @@ public class CreateJobResponse {
 
     private final String message;
 
-    public CreateJobResponse(UUID idempotencyKey, JobStatus status, Instant createdAt) {
-        this.idempotencyKey = idempotencyKey;
-        this.status = status;
-        this.createdAt = createdAt;
+    public CreateJobResponse(Job job) {
+        this.idempotencyKey = job.getIdempotencyKey();
+        this.status = job.getStatus();
+        this.createdAt = job.getCreatedAt();
         message = null;
     }
 
-    public CreateJobResponse(UUID idempotencyKey, JobStatus status, Instant createdAt, String message) {
-        this.idempotencyKey = idempotencyKey;
-        this.status = status;
-        this.createdAt = createdAt;
+    public CreateJobResponse(Job job, String message) {
+        this.idempotencyKey = job.getIdempotencyKey();
+        this.status = job.getStatus();
+        this.createdAt = job.getCreatedAt();
         this.message = message;
     }
 

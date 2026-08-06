@@ -33,24 +33,21 @@ public class JobController {
     @PostMapping("/job")
     public ResponseEntity<CreateJobResponse> createJob(@Valid @RequestBody CreateJobRequest request) {
         if (!validator.isValid(request.getPayload())){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new CreateJobResponse(null, null, null, "Invalid Payload"));
+            return ResponseEntity.badRequest().build();
         }
-        try { //TODO: Validator im Paper ergänzen
+        try {
             Job job = retryExecutor.execute(() -> jobService.createJob(request));
             return ResponseEntity
                     .status(HttpStatus.CREATED)
-                    .body(new CreateJobResponse(job.getIdempotencyKey(), job.getStatus(), job.getCreatedAt()));
+                    .body(new CreateJobResponse(job));
         } catch (DataIntegrityViolationException e){
             if (!isConstraintViolation(e))
                 throw e;
-            Job job = jobService.getJobById(request.getIdempotencyKey()).orElseThrow(() ->
-                    new IllegalStateException("Unique Constraint Violation aber Job nicht gefunden.")
-            );
-            return ResponseEntity.status(HttpStatus.OK)
-                    .body(new CreateJobResponse(job.getIdempotencyKey(), job.getStatus(), job.getCreatedAt(), "Job already exists"));
+            Job job = jobService.getJobById(request.getIdempotencyKey())
+                                .orElseThrow(IllegalStateException::new);
+            return ResponseEntity.ok(new CreateJobResponse(job, "Job already exists"));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new CreateJobResponse(null, null, null, e.getMessage()));
+            return ResponseEntity.internalServerError().build();
         }
     }
 
