@@ -1,5 +1,5 @@
 %! Author = murfe
-%! Date = 22.07.2026
+%! Date = 06.08.2026
 
 \chapter{Grundlagen}
 \label{ch:grundlagen}
@@ -8,8 +8,7 @@ Architektur erforderlich sind.
 Zunächst werden die grundlegenden Konzepte der Hintergrundverarbeitung sowie die Anforderungen an zuverlässige
 Background-Job-Processing-Systeme erläutert.
 Darauf aufbauend werden die für diese Arbeit relevanten Mechanismen zur Gewährleistung von Konsistenz bei paralleler
-Verarbeitung sowie Konzepte zur Fehlertoleranz,
-Wiederherstellung und idempotenten Verarbeitung eingeführt.
+Verarbeitung sowie Konzepte zur Fehlertoleranz, Wiederherstellung und idempotenten Verarbeitung eingeführt.
 Die dargestellten Grundlagen bilden die Basis für den in \cref{sec:architektur} vorgestellten Architekturentwurf und dessen
 anschließende Implementierung und Evaluation.
 
@@ -43,7 +42,7 @@ Der Aufrufer initiiert die Arbeit, blockiert jedoch nicht und kann auch während
 arbeiten \parencite[Kap.~3.1.1]{richardson_microservices_2018}.
 
 Zur praktischen Umsetzung asynchroner Verarbeitung werden häufig Puffer eingesetzt.
-Dieses Prinzip wird als Queueing bezeichnet.
+Dieses Prinzip wird als \textit{Queueing} bezeichnet.
 Dadurch können Nachrichtenverluste aufgrund von Überlastung reduziert und Lastspitzen ausgeglichen werden, indem der Puffer
 erhaltene Anfragen zur späteren Ausführung zwischenspeichert \parencite[Kap.~11, Abschnitt \glqq Message brokers\grqq]{kleppmann_designing_2017}.
 Das grundlegende Prinzip ist in \cref{fig:queueing} schemenhaft dargestellt.
@@ -58,11 +57,9 @@ Form eines Message Brokers.
 Ein Produzent sendet eine Nachricht an einen Zwischenspeicher und wartet in der Regel lediglich auf das Acknowledgment, dass die
 Nachricht zwischengespeichert wurde, nicht jedoch auf die Verarbeitung oder das Ergebnis
 \parencite[Kap.~11, Abschnitt \glqq Messaging Systems\grqq]{kleppmann_designing_2017}.
-Die so erreichte Entkopplung hat gleichzeitig den Vorteil, dass die Verarbeitung der Anfrage unabhängig von der Verbindung
-zwischen Produzent und Konsument wird.
-Im Gegensatz dazu kann bei synchronen Systemen bei Verbindungsabbrüchen oder Timeouts unklar bleiben, ob eine Anfrage den
-Server erreicht hat oder bereits verarbeitet wurde.
-Genau dieses Problem adressieren Message Broker:
+Die so erreichte Entkopplung ermöglicht es, Anfragen unabhängig von ihrer späteren Verarbeitung zunächst zwischenzuspeichern.
+Produzent und Konsument müssen daher weder gleichzeitig aktiv sein noch während der gesamten Verarbeitung miteinander kommunizieren.
+Auf dieser Entkopplung basieren auch Message-Broker-Systeme.
 Falls ein Konsument temporär nicht verfügbar ist oder während der Verarbeitung ausfällt, können Message Broker trotzdem für
 die At-Least-Once-Semantik (vlg. \cref{subsec:semantiken}) sorgen \parencite[Kap.~11, Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
 Des Weiteren müssen Verarbeitungskapazitäten in Folge von Queueing nicht auf die maximal zu erwartende Last ausgelegt werden,
@@ -71,6 +68,7 @@ Kurzzeitige Lastspitzen werden dabei durch die Zwischenspeicherung der Aufgaben 
 \parencite{microsoft_corporation_hrsg_queue-based_2026}.
 Die synchrone Request-Response-Kommunikation bietet demgegenüber den Vorteil einer unmittelbaren Rückmeldung über Erfolg oder
 Fehler einer Operation, setzt jedoch voraus, dass Client und Server während der gesamten Interaktion verfügbar sind
+und die Kommunikation bis zur Übermittlung der Antwort aufrechterhalten wird
 \parencite[Kap.~3.4]{richardson_microservices_2018}.
 
 Die asynchrone Verarbeitung bildet damit die Grundlage für die Hintergrundverarbeitung, indem die Entkopplung genutzt wird, um

@@ -32,9 +32,8 @@ public class JobController {
 
     @PostMapping("/job")
     public ResponseEntity<CreateJobResponse> createJob(@Valid @RequestBody CreateJobRequest request) {
-        if (!validator.isValid(request.getPayload())) {
+        if (!validator.isValid(request.getPayload()))
             return ResponseEntity.badRequest().build();
-        }
         try {
             Job job = retryExecutor.execute(() -> jobService.createJob(request));
             return ResponseEntity

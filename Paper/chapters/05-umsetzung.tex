@@ -342,8 +342,16 @@ Dieser überprüft den Job-Store in regelmäßigen Abständen auf potenziell ver
 Hierzu werden sämtliche Jobs betrachtet, die sich weiterhin im Zustand \textit{Running} befinden, deren Lease jedoch bereits abgelaufen ist.
 Ein abgelaufenes Lease wird dabei als Indikator dafür verwendet, dass die ursprüngliche Verarbeitung nicht innerhalb
 der vorgesehenen Zeit abgeschlossen werden konnte.
-%Die Architektur verzichtet bewusst auf einen Heartbeat-Mechanismus und nutzt stattdessen ausschließlich zeitbasierte Leases, da diese ohne zusätzliche Kommunikation zwischen
-%Worker und Job-Store auskommen und den Implementierungsaufwand reduzieren. TODO: hier nochmal wegen Heartbeat überelgen, ob das nicht doch noch implementiert wird
+Die Architektur verzichtet im Rahmen der Prototypentwicklung bewusst auf einen Heartbeat-Mechanismus und nutzt stattdessen
+zeitbasierte Leases, da diese ohne zusätzliche Kommunikation zwischen Worker und Job-Store auskommen und den Implementierungsaufwand reduzieren.
+Als Alternative ist der Einsatz eines Heartbeat-Mechanismus aber denkbar.
+Durch regelmäßige Verlängerungen der Leases könnte dieser verhindern, dass lang laufende, aber weiterhin aktive Verarbeitungen
+fälschlicherweise als ausgefallen eingestuft und erneut zur Bearbeitung freigegeben werden, wodurch der noch arbeitende
+Worker das Ergebnis nicht mehr speichern darf.
+Ein solches Verhalten könnte bei sehr aufwendigen Jobs verhindern, dass diese jemals erfolgreich beendet werden.
+Dem steht jedoch eine höhere Anzahl periodischer Schreibzugriffe auf den Job-Store gegenüber, wodurch die Datenbank zusätzlich belastet wird.
+Da der Heartbeat-Mechanismus für den im Rahmen dieser Arbeit entwickelten Prototypen und dessen Zielsetzung
+keinen nennenswerten Mehrwert bietet, werden lediglich zeitbasierte Leases genutzt.\\
 %\begin{figure}[h]
 %    \centering
 %    \includegraphics[width=0.5\textwidth]{images/recoverySequenz}
@@ -533,14 +541,17 @@ public ResponseEntity<CreateJobResponse> createJob(CreateJobRequest request) {
 \end{lstlisting}
 Im Backend wird die Anfrage durch den mit Spring Web implementierten \texttt{JobController} entgegengenommen.
 Der entsprechende Endpunkt ist über \texttt{@PostMapping(\dq/job\dq)} definiert und in \cref{lst:endpoint} dargestellt.
-Der HTTP-Body wird durch \texttt{@RequestBody} automatisch in ein \texttt{CreateJobRequest}-Objekt überführt.
+Der HTTP-Body wird durch \texttt{@RequestBody} automatisch in ein \texttt{CreateJobRequest}-Objekt überführt und in
+zwei Schritten validiert.
+Zunächst prüft Spring auf Ebene der \gls{rest}-Schnittstelle mithilfe von \texttt{@Valid}, ob die durch Bean-Validation-Annotationen
+wie \texttt{@NotNull} oder \texttt{@NotBlank} definierten syntaktischen Anforderungen erfüllt sind.
+Anschließend erfolgt eine fachliche Validierung der Eingangsdaten durch einen separaten Validator.
+Schlägt eine der beiden Validierungen fehl, beantwortet der Controller die Anfrage mit dem HTTP-Status \texttt{400 Bad Request}.
 Anschließend delegiert der Controller die eigentliche Joberstellung an den \texttt{JobService}.
-Die Validierung des Request-Objekts erfolgt dabei bereits auf Ebene der \gls{rest}-Schnittstelle.
-%TODO: hier wenn Validierung implementiert ist anpassen
 Nach erfolgreicher Erstellung gibt der Controller den HTTP-Status \texttt{201 Created} zurück.
 Schlägt die Persistierung dagegen aufgrund einer Verletzung des \texttt{UNIQUE}-Constraints für den \textit{Idempotency-Key}
 fehl, wird die daraus resultierende \texttt{DataIntegrityViolationException} abgefangen.
-Der Controller prüft, ob tatsächlich eine Verletzung des für den Idempotency-Key definierten Constraints vorliegt.
+Der Controller prüft, ob tatsächlich eine Verletzung des \texttt{UNIQUE}-Constraints vorliegt.
 Ist dies der Fall, wird der bereits vorhandene Job anhand seines Idempotency-Keys aus dem Job-Store geladen und gemeinsam
 mit dem HTTP-Status \texttt{200 OK} an den Client zurückgegeben.
 Andere Datenbankfehler werden dagegen nicht als Idempotenzfall interpretiert und führen zu einer Antwort mit \texttt{500 Internal Server Error}.
@@ -553,30 +564,28 @@ erneut übermittelt wurde, eindeutig erkennbar, dass der gewünschte Job im Syst
 ]
 @PostMapping("/job")
 public ResponseEntity<CreateJobResponse> createJob(@Valid @RequestBody CreateJobRequest request) {
+    if (!validator.isValid(request.getPayload()))
+            return ResponseEntity.badRequest().build();
     try {
         Job job = jobService.createJob(request);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(new CreateJobResponse(job.getIdempotencyKey(),
-                      job.getStatus(), job.getCreatedAt()));
-     } catch (DataIntegrityViolationException e){
+                .body(new CreateJobResponse(job));
+    } catch (DataIntegrityViolationException e){
         if (!isConstraintViolation(e))
             throw e;
         Job job = jobService.getJobById(request.getIdempotencyKey())
-                    .orElseThrow(() -> new IllegalStateException("..."));
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(new CreateJobResponse(job.getIdempotencyKey(),
-                      job.getStatus(), job.getCreatedAt(),
-                      "Job already exists"));
+                            .orElseThrow(IllegalStateException::new);
+        return ResponseEntity.ok(new CreateJobResponse(job));
     } catch (Exception e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new CreateJobResponse(null, null, null, e.getMessage()));
+        return ResponseEntity.internalServerError().build();
     }
 }
 \end{lstlisting}
 Die eigentliche Erstellung und Persistierung des Jobs übernimmt der \texttt{JobService}.
 Hierzu wird zunächst über eine Factory aus dem Request-\gls{dto} eine neue \texttt{Job}-Entität erzeugt.
-Anschließend wird diese innerhalb einer durch \texttt{@Transactional} gekapselten Serviceoperation über das Repository persistiert.
+Anschließend wird diese innerhalb einer durch \texttt{@Transactional} gekapselten Serviceoperation atomar persistiert
+und an den Controller zurückgegeben.
 
 \subsection{Claiming und Verarbeitung}
 \label{subsec:impl_verarbeitung}
@@ -864,7 +873,7 @@ Job job = retryExecutor.execute(
     () -> jobService.createJob(request)
 );
 \end{lstlisting}
-Wird Zeile 4 aus \cref{lst:endpoint} mit diesem Ausdruck ersetzt und die Datenbank ist beispielsweise nicht erreichbar,
+Wird Zeile 6 aus \cref{lst:endpoint} mit diesem Ausdruck ersetzt und die Datenbank ist beispielsweise nicht erreichbar,
 wird der Aufruf von \textit{creatJob(request)} automatisch erneut versucht.\\
 Neben der Joberstellung wird derselbe Mechanismus ebenfalls beim Claiming neuer Jobs sowie beim Abschluss einer Verarbeitung eingesetzt.
 Im Frontend kapselt der \texttt{RetryExecutor} darüber hinaus sämtliche \gls{rest}-Aufrufe an das Backend.

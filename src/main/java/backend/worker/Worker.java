@@ -38,7 +38,7 @@ public class Worker implements Runnable {
                     continue;
                 }
                 System.out.println("Thread: " + Thread.currentThread().threadId() + " working on job: " + job.get().getId());
-                JobResult result = processor.process(job.get());       //TODO: Überlegen ob Heartbeat sinnvoll ist, oder zumindest als Alternative in Paper erwähnen
+                JobResult result = processor.process(job.get());
                 retryExecutor.execute(() -> workerService.finishJob(job.get().getId(), id, result));
                 System.out.println("Thread: " + Thread.currentThread().threadId() + " finished job: " + job.get().getId());
             } catch (Exception e) {
