@@ -33,10 +33,13 @@ public class JobControllerTest {
 
     @Test
     void createJobTest(){
+        //invalid JSON
         ResponseEntity<CreateJobResponse> response = controller.createJob(new CreateJobRequest(UUID.randomUUID(), "Test"));
         assertEquals(400, response.getStatusCode().value());
+        //valid request
         response = controller.createJob(request);
         assertEquals(201, response.getStatusCode().value());
+        //idempotency case
         response = controller.createJob(request);
         assertEquals(200, response.getStatusCode().value());
     }
