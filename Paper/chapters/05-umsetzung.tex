@@ -430,9 +430,39 @@ Da einzelne Zusicherungen durch das Zusammenwirken mehrerer Komponenten und tech
 Implementierung nicht anhand der einzelnen Zusicherungen, sondern anhand der zentralen technischen Mechanismen des Systems.
 Die Zuordnung zu den jeweiligen Zusicherungen wird innerhalb der entsprechenden Abschnitte kenntlich gemacht.
 
-\subsection{Technologie-Stack}
-\label{subsec:stack} %TODO: hier ggfs. Titel anpassen
--JPA --> einfache Handhabung viel Automatisierung --> NativeQueries ermöglichen trotzdem viel Kontrolle beim Zugriff
+\subsection{Auswahl verwendeter Technologien}
+\label{subsec:technologien}
+Die Implementierung des entwickelten Background-Job-Processing-Systems erfolgt vollständig in Java.
+Als Entwicklungsplattform wird das Spring-Framework eingesetzt, da dieses eine umfangreiche Infrastruktur für den Aufbau
+transaktionsbasierter Client-Server-Anwendungen bereitstellt und gleichzeitig viele der im Architekturentwurf vorgesehenen
+Mechanismen direkt unterstützt.
+Darüber hinaus zählt Spring zu einem weit verbreiteten Frameworks für die Entwicklung von Unternehmensanwendungen und
+findet breite Anwendung in der industriellen Praxis.
+Dadurch entsteht eine realitätsnahe Entwicklungsumgebung, die gleichzeitig einen hohen Grad an Automatisierung bietet.\\
+Für die Bereitstellung der \gls{rest}-Schnittstelle wird Spring Web verwendet.
+Die Abbildung der HTTP-Endpunkte sowie die Serialisierung und Deserialisierung von JSON-Nachrichten erfolgen dadurch
+deklarativ über Annotationen.
+Die Persistenzschicht basiert auf Spring Data JPA.
+Durch die objektorientierte Abbildung relationaler Datenbanken sowie die Abstraktion reduziert JPA den
+Implementierungsaufwand für Standardoperationen erheblich.
+Gleichzeitig bleibt über native Queries die Möglichkeit erhalten, Operationen feingranular zu steuern sowie gezielt auf
+datenbankspezifische Funktionen und optimierte SQL-Anweisungen zurückzugreifen.
+Die benötigten transaktionalen Eigenschaften werden mithilfe von Spring Transactions über \texttt{@Transactional}
+umgesetzt.\\
+Als Job-Store wird PostgreSQL eingesetzt.
+Die Datenbank bietet die für das entwickelte System benötigten Mechanismen zur transaktionalen Verarbeitung und
+Synchronisation konkurrierender Zugriffe.
+Insbesondere die Unterstützung von \texttt{SELECT ... FOR UPDATE SKIP LOCKED} ermöglicht für einen pull-basierten Ansatz
+eine effiziente Koordination mehrere Worker in einer Job Queue, ohne dass Worker sich gegenseitig blockieren und
+Wartesituationen entstehen.\\
+Die Kommunikation zwischen Frontend und Backend erfolgt über den von Spring bereitgestellten \texttt{RestClient}.
+Die Verarbeitung der Jobs wird innerhalb des Backends durch einen konfigurierbaren Thread-Pool realisiert, der auf dem
+\texttt{ExecutorService} der Java-Concurrency-Bibliothek basiert.
+Dadurch kann die Anzahl gleichzeitig aktiver Worker unabhängig von der übrigen Systemarchitektur konfiguriert werden.
+
+Die Auswahl der Technologien orientiert sich somit an den Anforderungen des entwickelten Job-Processing-Systems.
+Die bereitgestellten Framework-Funktionen reduzieren den Implementierungsaufwand für Infrastrukturaufgaben und ermöglichen
+es, den Fokus auf die Entwicklung und Evaluation der im Architekturentwurf beschriebenen Mechanismen zu legen.
 
 \subsection{Persistenz und Datenbankzugriff}
 \label{subsec:impl_persistenz}
