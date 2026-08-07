@@ -1,15 +1,33 @@
 %! Author = murfe
-%! Date = 05.08.2026
-
+%! Date = 07.08.2026
 
 \chapter{Umsetzung}
 \label{ch:umsetzung}
-\textbf{To be done}
+Dieses Kapitel befasst sich mit dem Entwurf und der technische Umsetzung des in \cref{ch:anforderungen} definierten Systems.\\
+Der Aufbau des Kapitels gliedert sich dabei in zwei Abschnitte:
+Im ersten Teil wird die Architektur des Systems entwickelt und die fundamentalen Systementscheidungen begründet.
+Aufbauend auf diesem theoretischen Fundament dokumentiert der zweite Teil die konkrete Implementierung des Prototyps auf
+Basis des Java- und Spring-Ökosystems.
 
-
-\section{Architektur und Design}\label{sec:architektur} %TODO: Hier oder in der ersten subsection auf jeden Fall beschreiben, was welches Kapitel macht bzw welches Kapitel
-%                                                               welche Teilaspekte löst, damit der rote Faden klar bleibt
-\textbf{To be done (Einleitung)}
+\section{Architektur und Design}
+\label{sec:architektur}
+In diesem Kapitel wird die Architektur des entwickelten Job-Processing-Systems beschrieben.
+Das primäre Ziel besteht darin, die in \cref{ch:anforderungen} erhobenen Anforderungen und Zusicherungen durch geeignete
+Entwurfsentscheidungen und den gezielten Einsatz von Entwurfsmustern zu erfüllen.\\
+Zur strukturierten Darstellung der einzelnen Systemkomponenten gliedert sich das Kapitel in folgende Teilaspekte:
+\cref{subsec:architekturentwurf} führt zunächst in die abstrakte Gesamtsystemarchitektur ein, begründet die Wahl einer relationalen
+PostgreSQL-Datenbank als zentralen Job-Store und stellt die Interaktion zwischen den einzelnen Komponenten dar.
+Darauf aufbauend beschreibt \cref{subsec:zustandsmodell} das Zustandsmodell, welches unter anderem als Grundlage für die
+Koordination der Jobs und die Recovery dient.
+Das zugehörige Datenbankschema wird in \cref{subsec:datenbankentwurf} vorgestellt, während \cref{subsec:joberstellung}
+die Mechanismen zur idempotenten Annahme neuer Jobs über \gls{rest} erläutert.
+In \cref{subsec:transaktionsmodell} wird das Transaktions- und Sperrmodell betrachtet, das eine exklusive
+Verarbeitung bei gleichzeitig kurzen Datenbanktransaktionen ermöglicht.
+Abschließend widmen sich \cref{subsec:retryStrategie} und \cref{subsec:recoveryarchitektur} den Fehlertoleranzmechanismen.
+Während die Retry-Strategie transiente Infrastrukturfehler auf Komponentenebene kompensiert, behandelt der Recovery-Service
+den Ausfall von Workern und verhindert das Verbleiben verwaister Jobs.
+\cref{subsec:idempotenteErgebnisgenerierung} schließt den Entwurf ab, indem das \textit{Fencing}-Prinzip zur Vermeidung
+von Mehrfachverarbeitungen im Fehlerfall dargelegt wird.
 
 \subsection{Architekturentwurf}
 \label{subsec:architekturentwurf}
@@ -425,10 +443,19 @@ Das in \cref{subsec:recoveryarchitektur} bereits erwähnte Problem bezüglich Se
 
 \section{Implementierung}
 \label{sec:implementierung}
-Die Implementierung orientiert sich an den im Abschnitt \cref{sec:zusicherungen} definierten Zusicherungen.
-Da einzelne Zusicherungen durch das Zusammenwirken mehrerer Komponenten und technischer Mechanismen realisiert werden, erfolgt die Darstellung der
-Implementierung nicht anhand der einzelnen Zusicherungen, sondern anhand der zentralen technischen Mechanismen des Systems.
-Die Zuordnung zu den jeweiligen Zusicherungen wird innerhalb der entsprechenden Abschnitte kenntlich gemacht.
+Die Implementierung des Systems orientiert sich unmittelbar an dem in \cref{sec:architektur} erarbeiteten Systementwurf
+zur Umsetzung der definierten Zusicherungen.
+Da einzelne Garantien, wie die atomare Verarbeitung oder die Idempotenz, erst durch das Zusammenwirken mehrerer
+Komponenten realisiert werden, erfolgt die Darstellung der Implementierung anhand der zentralen Bausteine und Mechanismen des Systems.\\
+Das Kapitel gliedert sich wie folgt:
+\cref{subsec:technologien} begründet zunächst die Auswahl der verwendeten Technologien.
+In \cref{subsec:impl_persistenz} wird die datenbankseitige Abbildung der Entitäten sowie die Kapselung der SQL-Zugriffe im Repository behandelt.
+\cref{subsec:impl_joberstellung} erläutert den Aufbau und Ablauf der Joberstellung, woraufhin
+\cref{subsec:impl_verarbeitung} die Komponenten zur Verarbeitung der Jobs beschreibt.
+Der atomare Abschluss von Jobs und die Absicherung gegen fehlerhafte Doppelverarbeitungen mittels \textit{Fencing} wird in
+\cref{subsec:impl_abschlussJoberverarbeitung} dargelegt.
+Schließlich widmen sich \cref{subsec:impl_retries} der konkreten Umsetzung des Retry-Mechanismus und \cref{subsec:impl_recovery}
+der Wiederherstellung verwaister Jobs.
 
 \subsection{Auswahl verwendeter Technologien}
 \label{subsec:technologien}
