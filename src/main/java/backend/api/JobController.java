@@ -1,16 +1,18 @@
 package backend.api;
 
-import backend.Exception.IdempotencyException;
 import backend.infrastructure.JobMapper;
 import backend.recovery.DBRetryPolicy;
 import backend.service.JobService;
 import backend.domain.Job;
+import backend.service.PayloadValidator;
 import common.retry.RetryExecutor;
 import jakarta.validation.Valid;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,25 +22,31 @@ public class JobController {
 
     private final JobService jobService;
     private final RetryExecutor retryExecutor;
+    private final PayloadValidator validator;
 
-    public JobController(JobService jobService) {
+    public JobController(JobService jobService, PayloadValidator validator) {
         this.jobService = jobService;
         this.retryExecutor = new RetryExecutor(new DBRetryPolicy());
+        this.validator = validator;
     }
 
     @PostMapping("/job")
     public ResponseEntity<CreateJobResponse> createJob(@Valid @RequestBody CreateJobRequest request) {
+        if (!validator.isValid(request.getPayload()))
+            return ResponseEntity.badRequest().build();
         try {
             Job job = retryExecutor.execute(() -> jobService.createJob(request));
             return ResponseEntity
                     .status(HttpStatus.CREATED)
-                    .body(new CreateJobResponse(job.getIdempotencyKey(), job.getStatus(), job.getCreatedAt()));
-        } catch (IdempotencyException e){
-            Job job = e.getExistingJob();
-            return ResponseEntity.status(HttpStatus.OK)
-                    .body(new CreateJobResponse(job.getIdempotencyKey(), job.getStatus(), job.getCreatedAt(), "Job already exists"));
+                    .body(new CreateJobResponse(job));
+        } catch (DataIntegrityViolationException e){
+            if (!isConstraintViolation(e))
+                throw e;
+            Job job = jobService.getJobById(request.getIdempotencyKey())
+                                .orElseThrow(IllegalStateException::new);
+            return ResponseEntity.ok(new CreateJobResponse(job));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new CreateJobResponse(null, null, null, e.getMessage()));
+            return ResponseEntity.internalServerError().build();
         }
     }
 
@@ -60,5 +68,14 @@ public class JobController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
+    }
+    private boolean isConstraintViolation(DataIntegrityViolationException e) {
+        Throwable cause = e.getMostSpecificCause();
+
+        if (cause instanceof SQLException sqlException) {
+            return "23505".equals(sqlException.getSQLState());
+        }
+
+        return false;
     }
 }

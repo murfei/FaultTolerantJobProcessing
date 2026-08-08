@@ -2,16 +2,17 @@
 %! Date = 28.07.2026
 \chapter{Anforderungen}
 \label{ch:anforderungen}
-Dieses Kapitel legt die Anforderungen an das im Rahmen der Arbeit entwickelte Background-Job-Processing-System fest und schafft damit die Grundlage für
-den späteren Architekturentwurf sowie dessen Evaluation.
+Dieses Kapitel legt die Anforderungen an das im Rahmen der Arbeit entwickelte Background-Job-Processing-System fest und
+schafft damit die Grundlage für den späteren Architekturentwurf sowie dessen Evaluation.
 Zunächst wird der Systemkontext beschrieben, um die beteiligten Komponenten, Schnittstellen und Verantwortlichkeiten einzuordnen.
 Anschließend wird das betrachtete Fehlermodell abgegrenzt und damit festgelegt, welche Störungen und Randbedingungen für den Entwurf relevant sind.
-Darauf aufbauend werden präzise Systemzusicherungen formuliert, die das gewünschte Verhalten unabhängig von konkreten Implementierungsdetails beschreiben
-und als verbindlicher Maßstab für die Umsetzung und die Evaluation dienen.
+Darauf aufbauend werden im Rahmen von \ref{item:tz1} präzise Systemzusicherungen formuliert, die das gewünschte Verhalten
+unabhängig von konkreten Implementierungsdetails beschreiben und als verbindlicher Maßstab für die Umsetzung und die Evaluation dienen.
 
 \section{Systemkontext}
 \label{sec:systemkontext}
-Im Rahmen dieser Arbeit wird ein datenbankgestütztes Background-Job-Processing-System entwickelt, dessen grundlegende Systemstruktur in \cref{fig:contextView} dargestellt ist.
+Im Rahmen dieser Arbeit wird ein datenbankgestütztes Background-Job-Processing-System entwickelt, dessen grundlegende
+Systemstruktur in \cref{fig:contextView} dargestellt ist.
 Über eine \gls{rest}-Schnittstelle können Aufträge durch einen Service oder ein Frontend erzeugt werden, die zunächst im Backend validiert
 und anschließend in einem relationalen Job-Store persistent gespeichert werden.
 Unabhängig vom ursprünglichen Aufruf übernehmen mehrere Worker-Prozesse anschließend die asynchrone Verarbeitung der gespeicherten Jobs.
@@ -21,12 +22,11 @@ Unabhängig vom ursprünglichen Aufruf übernehmen mehrere Worker-Prozesse ansch
     \caption{Systemkontext}
     \label{fig:contextView}
 \end{figure}
-Zur Evaluation der entwickelten Architektur wird exemplarisch ein Anwendungsszenario aus dem Umfeld der Verarbeitung technischer Wartungsdokumente betrachtet. %TODO prüfen, obs dabei bleibt
-Die konkrete fachliche Verarbeitung dient dabei ausschließlich als Demonstrations- und Evaluationsszenario, während der Schwerpunkt dieser Arbeit auf dem Entwurf
-der zugrunde liegenden Architektur für eine zuverlässige Hintergrundverarbeitung liegt.
-Ziel ist somit nicht die Entwicklung einer domänenspezifischen Fachanwendung, sondern einer allgemein einsetzbaren Architektur, deren Konzepte unabhängig vom
-gewählten Anwendungskontext auf andere Background-Job-Processing-Systeme übertragbar sind.
-
+Da der Schwerpunkt der Arbeit auf den Mechanismen des Job-Processings und nicht auf einer konkreten Fachanwendung liegt,
+wird die Fachlogik zum Zweck der Evaluation stark vereinfacht.
+Diese simuliert durch eine definierte Wartezeit einen lang laufenden Verarbeitungsschritt und erzeugt schließlich ein Dummy-Ergebnis.
+Ziel ist somit nicht die Entwicklung einer domänenspezifischen Fachanwendung, sondern einer allgemein einsetzbaren Architektur,
+deren Konzepte unabhängig vom gewählten Anwendungskontext auf andere Background-Job-Processing-Systeme übertragbar sind.\\
 Das betrachtete System vereint die wesentlichen Herausforderungen datenbankgestützter Background-Job-Processing-Systeme.
 Hierzu zählen insbesondere die zuverlässige und verlustfreie Persistierung eingehender Aufträge, die koordinierte Verarbeitung durch
 mehrere parallel arbeitende Worker sowie die Wiederaufnahme unterbrochener Verarbeitungen nach Teilausfällen.
@@ -47,8 +47,7 @@ Ziel dieser Arbeit ist der Entwurf einer fehlertoleranten Architektur für ein d
 Betrachtet werden daher ausschließlich Fehlerklassen, die während des regulären Betriebs auftreten können und deren Auswirkungen durch Mechanismen der
 Anwendungsarchitektur beherrscht werden können.
 Fehler, deren Behandlung zusätzliche Infrastruktur oder organisatorische Maßnahmen wie Backups, Replikation oder physische Redundanz erfordern,
-liegen außerhalb des Betrachtungsumfangs dieser Arbeit.
-
+liegen außerhalb des Betrachtungsumfangs dieser Arbeit.\\
 Die Abgrenzung der betrachteten Fehler ist in \cref{fig:fehlermodell} zusammengefasst.
 Innerhalb des Systementwurfs werden im Wesentlichen vier Kategorien von Fehlern behandelt.
 An erster Stelle stehen Ausfälle einzelner Systemkomponenten sowie transiente Infrastruktur- und Kommunikationsstörungen.
@@ -87,13 +86,11 @@ um die Notwendigkeit von manuellem Eingreifen zu reduzieren.
 \\Als direkte Folge solcher Infrastrukturprobleme und der darauf reagierenden Wiederholungsmechanismen der Clients entstehen doppelte Requests.
 Ein Client sendet eine Anfrage erneut, weil eine Bestätigung aufgrund eines Timeouts ausblieb.
 Die Architektur soll im Rahmen der Zuverlässigkeit eine Exactly-Once-Semantik als Ziel haben und muss daher im beschriebenen
-Szenario durch Duplikaterkennung verhindern, dass identische Jobs mehrfach im Job-Store persistiert werden.
-
+Szenario durch Duplikaterkennung verhindern, dass identische Jobs mehrfach im Job-Store persistiert werden.\\
 Eng damit verknüpft ist die doppelte Ausführung von Jobs.
 Bei der Wiederaufnahme eines zuvor abgebrochenen Jobs kann nach einem Fehler oft nicht eindeutig festgestellt werden, ob die vorherige Verarbeitung
 bereits Seiteneffekte erzielt hat.
-Die Architektur muss daher zwingend sicherstellen, dass wiederholte Ausführungen keine inkonsistenten Ergebnisse verursachen.
-
+Die Architektur muss daher zwingend sicherstellen, dass wiederholte Ausführungen keine inkonsistenten Ergebnisse verursachen.\\
 Des Weiteren werden konkurrierende Zugriffe betrachtet.
 Sobald Parallelverarbeitung mittels mehrerer, autonom agierender Worker eingesetzt wird,
 entsteht unweigerlich die Möglichkeit gleichzeitiger Zugriffe auf geteilte Datenstrukturen wie den zentralen Job-Store.
@@ -104,14 +101,12 @@ Dem gegenüber stehen Fehler, die bewusst außerhalb des Betrachtungsumfangs die
 Ein physischer Datenbankverlust sowie ein Totalausfall der Infrastruktur können nicht durch die Softwarearchitektur des Job-Processing-Systems gelöst werden.
 Ein Verlust der Persistenzschicht oder ein Ausfall des gesamten Rechenzentrums infolge von großflächigen Stromausfällen oder Bränden am Serverstandort
 erfordert stattdessen infrastrukturelle Maßnahmen wie geografische Redundanz, kontinuierliche Backups und umfassende Disaster-Recovery-Konzepte
-\parencite[Kap.~9]{newman_building_2026}.
-
+\parencite[Kap.~9]{newman_building_2026}.\\
 Ebenso werden Cyberangriffe im Rahmen dieser Arbeit ausgeschlossen.
 Obwohl Angriffe wie SQL-Injections oder Denial-of-Service-Szenarien direkte Auswirkungen auf die Zuverlässigkeit eines Systems haben können, betreffen sie
 primär das Qualitätsmerkmal der Sicherheit.
 Ihre Abwehr erfordert spezialisierte Mechanismen wie strikte Eingabevalidierung, Ratenbegrenzungen, Authentifizierung und Angriffserkennungssysteme.
-Der Fokus dieser Arbeit liegt stattdessen auf der Gewährleistung von Fehlertoleranz bei regulärem Systembetrieb.
-
+Der Fokus dieser Arbeit liegt stattdessen auf der Gewährleistung von Fehlertoleranz bei regulärem Systembetrieb.\\
 Schließlich werden auch byzantinische Fehler ausgeschlossen.
 Dies sind Fehler, bei denen kompromittierte oder defekte Komponenten willkürlich falsche oder manipulierte Informationen erzeugen und verbreiten
 \parencite[Kap.~8 Abschnitt \glqq Byzantine Faults\grqq]{kleppmann_designing_2017}.
@@ -257,56 +252,3 @@ Schließlich muss das System sicherstellen, dass Jobs nicht unendlich im System 
     Das System garantiert, dass jeder persistierte Job nach endlicher Zeit in einen der Endzustände übergeht.
     Kein Job verbleibt unendlich in einem aktiven bzw. ausstehenden Status.
 \end{quote}
-
-%\subsection{Zuverlässige Annahme von Jobs}
-%Da Jobs zeitlich entkoppelt verarbeitet werden, bildet ihre persistente Speicherung die Grundlage sämtlicher weiterer Verarbeitungsschritte.
-%Bereits bei der Annahme muss daher sichergestellt werden, dass dem Client ausschließlich solche Jobs als erfolgreich bestätigt werden,
-%die dauerhaft gespeichert wurden.
-%Gleichzeitig können durch Kommunikationsfehler oder Wiederholungsmechanismen identische Anfragen mehrfach beim System eintreffen.
-%Daraus ergeben sich die folgenden Zusicherungen:
-%\begin{description}
-%\item[Z1: Persistenz bestätigter Jobs]
-%Jeder Job, dessen Annahme gegenüber dem Client bestätigt wurde, ist dauerhaft im System vorhanden und geht nicht verloren.
-%
-%\item[Z2: Korrekte Annahmebestätigung]
-%Eine erfolgreiche Annahmebestätigung erfolgt ausschließlich dann, wenn der Job erfolgreich persistiert wurde.
-%
-%\item[Z3: Idempotente Annahme]
-%Zu jedem logischen Auftrag existiert höchstens ein persistierter Job.
-%\end{description}
-%
-%\subsection{Konsistenz der Verarbeitung}
-%Mehrere parallel arbeitende Worker sowie mögliche Wiederholungen infolge von Teilausfällen haben Auswirkungen auf die Konsistenz der Verarbeitung.
-%Unabhängig davon, wie häufig ein Job erneut ausgeführt oder von unterschiedlichen Komponenten verarbeitet wird, muss der interne Zustand
-%des Systems jederzeit widerspruchsfrei bleiben.
-%Außerdem muss das System die Zustände der Jobs kennen, damit ausschließlich ausstehende und nicht derzeit ausgeführte Jobs verarbeitet werden.
-%Um fachliche Fehler in den Daten aufgrund von parallelen Arbeitseinheiten und Teilausfällen zu vermeiden, ergeben sich folgende Zusicherungen:
-%\begin{description}
-%\item[Z4: Eindeutiger Verarbeitungszustand]
-%Jeder Job befindet sich zu jedem Zeitpunkt in genau einem gültigen Verarbeitungszustand.
-%
-%\item[Z5: Gültige Zustandsübergänge]
-%Statusübergänge erfolgen ausschließlich entsprechend der definierten Übergänge.
-%
-%\item[Z6: Exklusive Verarbeitung]
-%Ein Job wird zu keinem Zeitpunkt gleichzeitig von mehreren Workern verarbeitet.
-%
-%\item[Z7: Atomare Wirkung]
-%Nach außen sind ausschließlich vollständig abgeschlossene Ergebnisse sichtbar.
-%
-%\item[Z8: Erfolgseinmaligkeit]
-%Zu jedem Job wird höchstens ein fachliches Endergebnis dauerhaft persistiert.
-%\end{description}
-%
-%\subsection{Fortsetzung der Verarbeitung}
-%Das betrachtete Fehlermodell umfasst Ausfälle einzelner Worker sowie transiente Infrastrukturstörungen.
-%Solche Fehler dürfen zwar die Bearbeitung eines Jobs unterbrechen, jedoch nicht dauerhaft verhindern.
-%Das System muss daher sicherstellen, dass begonnene Verarbeitungen abgeschlossen werden können.
-%Hieraus ergeben sich folgende Zusicherungen:
-%\begin{description}
-%\item[Z9: Wiederherstellbarkeit]
-%Ein begonnener Job geht aufgrund eines Teilausfalls nicht dauerhaft verloren.
-%
-%\item[Z10: Terminierung]
-%Jeder erfolgreich angenommene Job erreicht nach endlicher Zeit einen Endzustand (\texttt{SUCCEEDED} oder \texttt{FAILED}).
-%\end{description}

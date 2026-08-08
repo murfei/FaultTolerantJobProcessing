@@ -14,6 +14,7 @@ public class JobResult {
     @Id
     private UUID jobId;
 
+    //Erzeugt keine 2. ID, sondern sorgt dafür, dass der Primary-Key (jobId) gleichzeitig ein Foreign-Key auf die ID des Jobs ist
     @MapsId
     @OneToOne
     @JoinColumn(name = "job_id", nullable = false, unique = true)

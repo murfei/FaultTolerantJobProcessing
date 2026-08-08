@@ -52,3 +52,11 @@ vermeidung komplexität verteilter Transaktionen durch Nutzung lokaler ACID-Tran
 
 Einschränkung \ref{zus:verarbeitungsgarantie} nur bis zu einem bestimmten Grad --> Kein Job kann verloren gehen, aber ein job wird nicht unendlich oft
 recovered da sonst Konflikt mit \ref{zus:terminierung}
+
+- viel fine tuning möglich, was zum einen die Konfiguration der Parameter für Retries angeht (backoff factor, initial delay, maxAttempts)
+und zum anderen die genaue Klassifikation der Fehler in transient und permanent, hier vor allem nur zu Vorführungszwecken exemplarisch implementiert
+
+Die vorgestellte Architektur garantiert die Konsistenz der Jobverwaltung und der Ergebnispersistenz.
+Seiteneffekte innerhalb der eigentlichen Fachlogik liegen dagegen außerhalb des Verantwortungsbereichs des Frameworks.
+Soll die Verarbeitung externer Ressourcen ebenfalls fehlertolerant erfolgen, muss die Fachlogik selbst geeignete Mechanismen wie Transaktionen,
+Kompensationsoperationen oder idempotente Operationen einsetzen.

@@ -52,7 +52,6 @@ public class BackendRestClientTest {
         int length = client.getAllJobs().getBody().size();
         response = client.createJob(request);
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("Job already exists", response.getBody().getMessage());
         assertEquals(JobStatus.QUEUED, response.getBody().getStatus());
         assertEquals(length, client.getAllJobs().getBody().size());
     }

@@ -14,7 +14,7 @@ import java.util.UUID;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-public class TestRepository {
+public class RepositoryTest {
 
     @Autowired
     private JobRepository jobRepository;

@@ -55,7 +55,7 @@ public class BackendRestClient {
     }
 
     private boolean checkRetriable(HttpStatusCode status) {
-        return status.is5xxServerError() //TODO: 501 macht kein Sinn zu retrien
+        return status.is5xxServerError()
                 || status.value() == 408
                 || status.value() == 429;
     }

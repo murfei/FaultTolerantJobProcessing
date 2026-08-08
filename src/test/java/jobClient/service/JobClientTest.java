@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 import java.util.List;
@@ -24,15 +26,23 @@ import static backend.domain.JobStatus.*;
 public class JobClientTest {
   private static JobClient client;
   private MockWebServer server;
+  private static String payload;
 
   @BeforeAll
     static void setup() {
       client = new JobClient();
+      ObjectMapper mapper = new ObjectMapper();
+      ObjectNode jsonObjekt = mapper.createObjectNode();
+      jsonObjekt.put("name", "Max Mustermann");
+      jsonObjekt.put("alter", 30);
+      jsonObjekt.put("aktiv", true);
+      jsonObjekt.putPOJO("hobbys", new String[]{"Laufen", "Zocken"});
+      payload = mapper.writeValueAsString(jsonObjekt);
     }
 
     @Test
     void testCreate(){
-        ResponseEntity<CreateJobResponse> response = client.createJob();
+        ResponseEntity<CreateJobResponse> response = client.createJob(payload);
         assert response.getStatusCode().is2xxSuccessful();
         assert response.getBody().getIdempotencyKey() != null;
         assert response.getBody().getStatus() == QUEUED;
@@ -40,7 +50,7 @@ public class JobClientTest {
 
     @Test
     void testGet(){
-        UUID id = client.createJob().getBody().getIdempotencyKey();
+        UUID id = client.createJob(payload).getBody().getIdempotencyKey();
 
         ResponseEntity<JobResponse> response = client.getJob(id);
         assertTrue(response.getStatusCode().is2xxSuccessful());
@@ -55,7 +65,7 @@ public class JobClientTest {
         assertFalse(response.getBody().isEmpty());
         for (JobResponse job : response.getBody()) {
             assertNotEquals(null, job.getIdempotencyKey());
-            assertTrue(Set.of(QUEUED, SUCCESSFUL, FAILED, RUNNING).contains(job.getStatus()));
+            assertTrue(Set.of(QUEUED, SUCCEEDED, FAILED, RUNNING).contains(job.getStatus()));
         }
     }
 
@@ -104,7 +114,7 @@ public class JobClientTest {
         ResponseEntity<List<JobResponse>> response= client.getAllJobs();
         assertEquals(4, server.getRequestCount());
         assertEquals(1, response.getBody().size());
-        assertEquals(JobStatus.QUEUED, response.getBody().get(0).getStatus());
+        assertEquals(JobStatus.QUEUED, response.getBody().getFirst().getStatus());
         server.shutdown();
     }
 

@@ -11,11 +11,9 @@ Zahlreiche Geschäftsprozesse, darunter die Generierung von Reports, der Import 
 Datenmengen, periodische Abrechnungsläufe oder das Versenden asynchroner
 Benachrichtigungen, erfordern eine Verarbeitung, die entkoppelt vom synchronen
 Request-Response-Zyklus stattfindet.
-Insbesondere in industrienahen und
-sicherheitskritischen Anwendungen, etwa im Bereich der luftfahrttechnischen
-Wartungsdokumentation, müssen solche Prozesse nicht nur funktional korrekt ablaufen,
+Insbesondere in industrienahen und sicherheitskritischen Anwendungen müssen solche Prozesse nicht nur funktional korrekt ablaufen,
 sondern darüber hinaus zuverlässig, nachvollziehbar und fehlertolerant sein.
-Aber auch in nicht-kritischen Systemen ist Zuverlässigkeit von Bedeutung für die Nutzerfreundlichkeit der Anwendung, als auch um Produktivitäts- und
+Aber auch in nicht-kritischen Systemen ist Zuverlässigkeit von Bedeutung für die Nutzerfreundlichkeit der Anwendung als auch um Produktivitäts- und
 Gewinneinbußen in Produktivsystemen in Folge von Fehlern zu vermeiden \parencite[Kap.~1 Abschnitt \glqq How Important Is Reliability?\grqq]{kleppmann_designing_2017}.
 
 \section{Problemstellung}
@@ -38,8 +36,8 @@ tatsächlich erforderlich sind.
 Die beschriebene Problematik ist von hoher praktischer und industrieller Relevanz.
 Nahezu jedes Backend-System, das über einfache \gls{crud}-Operationen hinausgeht, muss Aufgaben zuverlässig im Hintergrund verarbeiten und dabei
 konsistente Datenbestände gewährleisten \parencite[Kap. 4]{richardson_microservices_2018}.
-Fehler in diesem Bereich führen zu Datenverlust, inkonsistenten Geschäftszuständen sowie unnötigem manuellem Eingriff und können insbesondere in regulierten Domänen
-wie der Luftfahrt Compliance-Verstöße nach sich ziehen.
+Fehler in diesem Bereich führen zu Datenverlust, inkonsistenten Geschäftszuständen sowie unnötigem manuellem Eingriff und
+können insbesondere in regulierten Domänen, wie beispielsweise der Luftfahrt, Compliance-Verstöße nach sich ziehen.
 Auch im Kontext von Cloud-nativen Architekturen ist dieses Thema relevant.
 Horizontale Skalierung, Container-Neustarts und kurzzeitige Netzwerkunterbrechungen gehören dort zum regulären Betriebsverhalten und müssen bereits beim Entwurf
 eines Systems berücksichtigt werden.
@@ -78,12 +76,10 @@ Dabei soll herausgearbeitet werden, welche Architekturmechanismen erforderlich s
 zuverlässig und korrekt verarbeitet werden und definierte Konsistenzzusicherungen eingehalten werden.
 
 Konkret verfolgt die Arbeit folgende Teilziele:
-\begin{enumerate}[label=TZ\arabic*:, ref=TZ\arabic*] %TODO: irgendwie noch retries mit einbringen?
+\begin{enumerate}[label=TZ\arabic*:, ref=TZ\arabic*]
     \item \label{item:tz1} Definition von Zusicherungen: Es sollen präzise Korrektheitsbedingungen
-    formuliert werden, die das System zu jedem Zeitpunkt einhalten muss,
-    unabhängig davon, welche Fehler auftreten.
+    formuliert werden, die das System einhalten muss, unabhängig davon, welche Fehler auftreten.
     Dazu zählt insbesondere, dass kein Job doppelt erfolgreich abgeschlossen wird und dass kein Job dauerhaft verloren geht.
-    %TODO: hier ggfs. die Punkte nochmal prüfen und schärfen
     \item \label{item:tz2} Architekturentwurf: Es soll eine Architektur entworfen werden, die die hergeleiteten Zusicherungen umsetzt.
     Architekturentscheidungen sollen explizit dokumentiert und begründet werden.
     \item \label{item:tz3} Prototypische Implementierung: Die entworfene Architektur soll als
