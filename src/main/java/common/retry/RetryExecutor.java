@@ -19,6 +19,7 @@ public class RetryExecutor {
                 return callable.call();
             } catch (Exception e) {
                 if(!policy.shouldRetry(e, attempt)){
+                    System.out.println("Policy decided not to retry.");
                     throw e;
                 }
                 System.out.println("Last attempt failed with cause: " + e.getMessage());
