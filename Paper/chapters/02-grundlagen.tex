@@ -555,3 +555,11 @@ die Architekturentscheidungen begründet darlegt und das System bezüglich der a
 Gleichzeitig wird durch die Kombination aus einem Statusmodell und der PostgreSQL-Funktionalität \texttt{FOR UPDATE SKIP LOCKED}
 untersucht, wie die Koordination direkt auf der Datenbankebene orchestriert werden kann, ohne einen separaten Message Broker
 einzusetzen und somit die Systemkomplexität niedrig zu halten.
+
+
+%TODO Feedback: Gibt es keine wissenschaftlichen Arbeiten zu transaktionalem Messaging, Saga-Pattern, Exactly-Once-Semantik in
+%verteilten Systemen o. ä.? Ich würde entweder den Abschnitt umbenennen (z. B. "Stand der Technik" statt "Stand der Forschung")
+%oder gezielt 2–3 peer-reviewed Papers zu Themen wie transactional outbox / reliable messaging / job scheduling consistency ergänzen,
+%um die Forschungslücke in 2.4.3 wissenschaftlich robuster zu begründen. Aktuell begründest du die Lücke im Wesentlichen mit "bestehende
+%Frameworks sind Blackboxes" – das ist eine Beobachtung über Tools, keine Lücke in der Forschung. Das ist der Punkt, den ich
+%am ehesten hinterfragen würde.
