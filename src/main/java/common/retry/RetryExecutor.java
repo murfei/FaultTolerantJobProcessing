@@ -14,17 +14,17 @@ public class RetryExecutor {
         int attempt = 1;
         while (true){
             try {
+                System.out.println("Starting attempt: " + attempt + " for callable: " + callable.getClass().getName());
                 return callable.call();
             } catch (Exception e) {
                 if(!policy.shouldRetry(e, attempt)){
-                    System.out.println("Policy decided not to retry.");
+                    System.out.println("Policy decided not to retry call of callable: " + callable.getClass().getName());
+                    System.out.println("Last attempt failed with cause: " + e.getMessage());
                     throw e;
                 }
-                System.out.println("Last attempt failed with cause: " + e.getMessage());
                 System.out.println("Waiting " + policy.nextDelay(attempt) + "ms for retry...");
                 Thread.sleep(policy.nextDelay(attempt));
                 attempt++;
-                System.out.println("Retrying now in attempt: " + attempt);
             }
         }
     }

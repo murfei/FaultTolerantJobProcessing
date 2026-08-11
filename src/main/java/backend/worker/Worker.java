@@ -42,7 +42,7 @@ public class Worker implements Runnable {
                 retryExecutor.execute(() -> workerService.finishJob(job.get().getId(), id, result));
                 System.out.println("Thread: " + Thread.currentThread().threadId() + " finished job: " + job.get().getId());
             } catch (Exception e) {
-                e.printStackTrace();
+                System.out.println("Thread: " + Thread.currentThread().threadId() + " failed with error: " + e.getMessage());
             }
         }
     }

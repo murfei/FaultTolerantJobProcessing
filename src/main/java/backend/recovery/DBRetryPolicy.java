@@ -3,6 +3,7 @@ package backend.recovery;
 import common.retry.RetryPolicy;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.CannotCreateTransactionException;
 
 import java.time.Duration;
 
@@ -23,8 +24,7 @@ public class DBRetryPolicy implements RetryPolicy {
         if (attempt >= maxAttempts || e instanceof DataIntegrityViolationException) {
             return false;
         }
-
-        return e instanceof DataAccessException;
+        return e instanceof DataAccessException || e instanceof CannotCreateTransactionException;
     }
 
     @Override
