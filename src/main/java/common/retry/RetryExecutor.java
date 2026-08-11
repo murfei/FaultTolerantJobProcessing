@@ -1,7 +1,5 @@
 package common.retry;
 
-import jobClient.retry.RestMessageRetryPolicy;
-
 import java.util.concurrent.Callable;
 
 public class RetryExecutor {
