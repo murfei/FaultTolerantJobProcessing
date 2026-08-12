@@ -12,7 +12,7 @@ import java.time.Instant;
 public class JobProcessor implements Processor {
     @Override
     public JobResult process(Job job) throws Exception {
-        simulateProcessing(10_000);
+        simulateProcessing(5_000);
 
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode jsonObjekt = mapper.createObjectNode();

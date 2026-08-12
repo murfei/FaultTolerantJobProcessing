@@ -47,6 +47,7 @@ public class BackendRestClientTest {
         ObjectNode jsonObjekt = mapper.createObjectNode();
         jsonObjekt.put("payload", "Test");
         CreateJobRequest request = new CreateJobRequest(UUID.randomUUID(), mapper.writeValueAsString(jsonObjekt));
+        System.out.println(request.getPayload());
         ResponseEntity<CreateJobResponse> response = client.createJob(request);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         int length = client.getAllJobs().getBody().size();

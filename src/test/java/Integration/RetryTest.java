@@ -110,4 +110,6 @@ public class RetryTest {
 
         dbProxy.setConnectionCut(false); // aufräumen für nachfolgende Tests
     }
+
+    //TODO: testRetryNotAppliedOnConstraintViolatio
 }

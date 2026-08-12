@@ -22,7 +22,7 @@ public class RecoveryService {
         this.recoveryExecutor = recoveryExecutor;
     }
 
-    @Scheduled(fixedDelay = 30, timeUnit = TimeUnit.SECONDS)
+    @Scheduled(fixedDelayString = "${recovery.intervall}", timeUnit = TimeUnit.SECONDS)
     public void recoverCycle() {
         List<UUID> ids = repository.findByStatusAndLease_untilBefore(JobStatus.RUNNING, Instant.now());
         for (UUID id : ids) {

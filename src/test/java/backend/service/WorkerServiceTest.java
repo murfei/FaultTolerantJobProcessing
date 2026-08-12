@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -34,7 +35,7 @@ public class WorkerServiceTest {
     private JobRepository jobRepository;
 
     @Test
-    void JobLifecycleTest() throws JobNotFoundException, IdempotencyException {
+    void JobLifecycleTest() throws JobNotFoundException {
         UUID idempotencyKey = UUID.randomUUID();
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode jsonObjekt = mapper.createObjectNode();
@@ -80,8 +81,13 @@ public class WorkerServiceTest {
         job.setLease_until(Instant.now().plusSeconds(10));
         jobRepository.save(job);
         workerService.finishJob(jobId, workerId, jobResult);
-        assertEquals(JobStatus.SUCCEEDED, jobRepository.findByIdempotencyKey(idempotencyKey).get().getStatus());
-        assertEquals(jobResult.getResult(), jobRepository.findByIdempotencyKey(idempotencyKey).get().getResult().getResult());
+        Job savedJob = jobRepository.findByIdempotencyKey(idempotencyKey).get();
+        assertEquals(JobStatus.SUCCEEDED, savedJob.getStatus());
+
+        mapper = new ObjectMapper();
+        JsonNode expectedJson = mapper.readTree(jobResult.getResult());
+        JsonNode actualJson = mapper.readTree(savedJob.getResult().getResult());
+        assertEquals(expectedJson, actualJson);
 
     }
 }
