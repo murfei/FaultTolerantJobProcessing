@@ -1,8 +1,20 @@
 package common.retry;
 
-public interface RetryPolicy {
+import java.time.Duration;
 
-    boolean shouldRetry(Exception e, int attempt);
+public abstract class RetryPolicy {
 
-    long nextDelay(int attempt);
+    protected final int maxAttempts;
+    protected final Duration initialDelay;
+    protected final double backoffFactor;
+
+    public RetryPolicy(int maxAttempts, Duration initialDelay, double backoffFactor) {
+        this.maxAttempts = maxAttempts;
+        this.initialDelay = initialDelay;
+        this.backoffFactor = backoffFactor;
+    }
+
+    public abstract boolean shouldRetry(Exception e, int attempt);
+
+    public abstract long nextDelay(int attempt);
 }
