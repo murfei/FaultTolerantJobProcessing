@@ -1,5 +1,5 @@
 %! Author = murfe
-%! Date = 08.06.2026
+%! Date = 13.08.2026
 
 % Packages
 \usepackage[T1]{fontenc}
@@ -15,7 +15,7 @@
 \usepackage{enumitem}
 \usepackage{csquotes}
 \usepackage{booktabs}
-\usepackage{tabularx}
+\usepackage{xltabular}
 \usepackage{amssymb}
 \usepackage{textcomp}
 \usepackage{pifont}
@@ -26,16 +26,24 @@
     pdfauthor={Max Urfei}
 ]{hyperref}
 \usepackage[nameinlink, noabbrev]{cleveref}
+\usepackage{longtable}
+\usepackage{array}
+
 \crefname{chapter}{Kapitel}{Kapitel}
 \crefname{section}{Kapitel}{Kapitel}
 \crefname{subsection}{Kapitel}{Kapitel}
 \crefname{figure}{Abbildung}{Abbildungen}
+\crefname{table}{Tabelle}{Tabelle}
 
 \usetikzlibrary{calc}
 \makeglossaries
 \setcounter{tocdepth}{3} %Heading-depth which will be displayed in the table of content
 \setcounter{secnumdepth}{3}
+
 \setuptoc{lof}{totoc}
+\setuptoc{lot}{totoc}
+\setuptoc{lol}{totoc}
+
 \RedeclareSectionCommand[
     beforeskip= -1sp,
     afterskip= 2.3ex plus .2ex
@@ -77,4 +85,6 @@
 }
 
 \lstset{style=code}
-%\includeonly{chapters/02-grundlagen}
+
+\newcommand{\notiz}[1]{\textcolor{red}{\textbf{[TODO: #1]}}} %TODO: entfernen
+%\includeonly{chapters/03-methodik.tex, chapters/06-evaluation.tex}

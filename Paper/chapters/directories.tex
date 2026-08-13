@@ -1,18 +1,24 @@
 %! Author = murfe
-%! Date = 08.06.2026
+%! Date = 13.08.2026
 
 % Inhaltsverzeichnis
 \tableofcontents
-\clearpage
 
 % Abkürzungsverzeichnis
 \printglossary[type=\acronymtype,title=Abkürzungsverzeichnis]
 \clearpage
 
-% Abbildungsverzeichnis
-\listoffigures
-\clearpage
+\begingroup
+  \let\clearpage\relax
+  \let\cleardoublepage\relax
 
-% Listingverzeichnis TODO: brauche ich ein Listing-Verzeichnis bzw. ist das sinnvoll?
-%\listoflistings
-%\clearpage
+% Abbildungsverzeichnis
+  \listoffigures
+  \vspace{2em}
+
+% Tabellenverzeichnis
+  \listoftables
+\endgroup
+
+% Listingverzeichnis
+\lstlistoflistings %TODO: ggfs. umbenennen

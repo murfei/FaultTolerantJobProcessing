@@ -59,7 +59,7 @@ Betrachtet werden daher ausschließlich Fehlerklassen, die während des regulär
 Anwendungsarchitektur beherrscht werden können.
 Fehler, deren Behandlung zusätzliche Infrastruktur oder organisatorische Maßnahmen wie Backups, Replikation oder physische Redundanz erfordern,
 liegen außerhalb des Betrachtungsumfangs dieser Arbeit.\\
-Die Abgrenzung der betrachteten Fehler ist in \cref{fig:fehlermodell} zusammengefasst.
+Die Abgrenzung der betrachteten Fehler ist in \cref{tab:fehlermodell} zusammengefasst.
 Innerhalb des Systementwurfs werden im Wesentlichen vier Kategorien von Fehlern behandelt.
 An erster Stelle stehen Ausfälle einzelner Systemkomponenten sowie transiente Infrastruktur- und Kommunikationsstörungen.
 Hierzu zählen insbesondere das unerwartete Beenden eines Worker-Prozesses, Container-Neustarts, JVM-Abstürze, durch das Betriebssystem terminierte Prozesse,
@@ -75,7 +75,7 @@ Da diese Störungen in verteilten Umgebungen regelmäßig auftreten können \par
 muss die Systemarchitektur in der Lage sein, diese autonom zu überbrücken.
 Unter dem Aspekt der Fehlertoleranz sollen zur Behandlung transienter Fehler daher automatische Retries eingesetzt werden,
 um die Notwendigkeit von manuellem Eingreifen zu reduzieren.
-\begin{figure}[h]
+\begin{table}[h]
     \centering
     \begin{xltabular}{\textwidth}{lcX}
         \toprule
@@ -92,8 +92,8 @@ um die Notwendigkeit von manuellem Eingreifen zu reduzieren.
         \bottomrule
     \end{xltabular}
     \caption{Übersicht betrachteter Fehlerklassen}
-    \label{fig:fehlermodell}
-\end{figure}
+    \label{tab:fehlermodell}
+\end{table}
 \\Als direkte Folge solcher Infrastrukturprobleme und der darauf reagierenden Wiederholungsmechanismen der Clients entstehen doppelte Requests.
 Ein Client sendet eine Anfrage erneut, weil eine Bestätigung aufgrund eines Timeouts ausblieb.
 Die Architektur soll im Rahmen der Zuverlässigkeit eine Exactly-Once-Semantik als Ziel haben und muss daher im beschriebenen
@@ -133,9 +133,9 @@ bilden daher zusammen mit der Systembeschreibung aus \cref{sec:systemkontext} di
 \section{Zusicherungen}
 \label{sec:zusicherungen}
 Die sich aus dem in \cref{sec:systemkontext} beschriebenen Systemkontext und dem in \cref{sec:abgrenzungFehlermodell} definierten Fehlermodell
-ergebenden zentralen Anforderungen an das zu entwickelnde Background-Job-Processing-System sind in \cref{fig:traceability_anforderungen}
+ergebenden zentralen Anforderungen an das zu entwickelnde Background-Job-Processing-System sind in \cref{tab:traceability_anforderungen}
 zusammengefasst.
-\begin{figure}[h]
+\begin{table}[h]
     \centering
     \small
     \setcounter{anforderung}{0}
@@ -160,8 +160,8 @@ zusammengefasst.
         \bottomrule
     \end{xltabular}
     \caption{Systemanforderungen}
-    \label{fig:traceability_anforderungen}
-\end{figure}
+    \label{tab:traceability_anforderungen}
+\end{table}
 Auf Basis dieser Anforderungen lassen sich Eigenschaften ableiten,
 die das entwickelte Background-Job-Processing-System zu jedem Zeitpunkt gewährleisten muss, um die fehlerfreie Funktion des Systems
 bezogen auf die Zielsetzung der Arbeit sicherzustellen.
