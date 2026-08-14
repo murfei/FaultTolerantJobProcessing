@@ -520,6 +520,7 @@ definiert, die unmittelbar die Anforderungen an die konkurrierende Verarbeitung 
 Für die Auswahl eines Jobs zur Verarbeitung wird beispielsweise die in \cref{lst:claiming} dargestellte native SQL-Abfrage definiert.
 \begin{lstlisting}[
     language=SQL,
+    style=sql,
     caption={Claiming eines Jobs im \texttt{JobRepository}},
     label={lst:claiming}
 ]
@@ -539,6 +540,7 @@ Für den Abschluss einer Verarbeitung und Recovery-Szenarien wird der in \cref{l
 zum gezielten Zugriff auf einzelne Jobs bereitgestellt, der mit der Auswahl eine Sperre für diesen Datensatz setzt.
 \begin{lstlisting}[
     language=SQL,
+    style=sql,
     caption={Auswählen eines Jobs zur Bearbeitung},
     label={lst:forUpdate}
 ]
@@ -553,6 +555,7 @@ identifiziert werden können.
 Damit bildet die Abfrage aus \cref{lst:joberstellung-service} die Grundlage für die Erkennung verwaister Jobs durch den Recovery-Mechanismus.
 \begin{lstlisting}[
     language=SQL,
+    style=sql,
     caption={Finden verwaister Jobs},
     label={lst:joberstellung-service}
 ]
@@ -585,6 +588,7 @@ an die \gls{rest}-Schnittstelle des Backends übertragen wird.
 Die Anfrage wird als HTTP-POST-Request an den Endpunkt \texttt{/job} gesendet und enthält das zuvor erzeugte Request-Objekt im HTTP-Body.
 \begin{lstlisting}[
     language=Java,
+    style=java,
     caption={POST eines Jobs},
     label={lst:createJob}
 ]
@@ -616,6 +620,7 @@ Für den Client ist damit unabhängig davon, ob ein Job erstmals angelegt oder e
 erneut übermittelt wurde, eindeutig erkennbar, dass der gewünschte Job im System vorhanden ist.
 \begin{lstlisting}[
     language=Java,
+    style=java,
     caption={POST Endpoint},
     label={lst:endpoint}
 ]
@@ -655,6 +660,7 @@ Die Initialisierung des Thread-Pools und das Starten der Worker erfolgt daher na
 bereits durch Spring injiziert wurden.
 \begin{lstlisting}[
 language=Java,
+    style=java,
 caption={Initialisierung des Worker-Pools},
 label={lst:workerManager}
 ]
@@ -687,6 +693,7 @@ Der Worker wird daraufhin für eine kurze Zeit pausiert und führt anschließend
 Beendet wird die Schleife erst, wenn der Thread unterbrochen wird.
 \begin{lstlisting}[
 language=Java,
+    style=java,
 caption={Ausführungsschleife eines Workers},
 label={lst:workerRun}
 ]
@@ -723,6 +730,7 @@ Besonders wichtig ist neben dem Status die Aktualisierung von \textit{lease\_unt
 den über \texttt{Instant} angefragten aktuellen Zeitpunkt addiert wird.
 \begin{lstlisting}[
 language=Java,
+    style=java,
 caption={Beanspruchen eines Jobs},
 label={lst:claimNextJob}
 ]
@@ -777,6 +785,7 @@ Wie bereits bei der Reservierung eines Jobs erfolgt auch dieser Schritt entsprec
 \cref{subsec:transaktionsmodell} atomar innerhalb einer Datenbanktransaktion mittels \texttt{@Transactional}.
 \begin{lstlisting}[
 language=Java,
+    style=java,
 caption={Abschluss einer Jobverarbeitung},
 label={lst:finishJob}
 ]
@@ -841,6 +850,7 @@ oder eine andere Operation wiederholt werden soll.
 \Cref{lst:retryExecutor} zeigt den wesentlichen Aufbau der Implementierung.
 \begin{lstlisting}[
 language=Java,
+    style=java,
 caption={Generischer RetryExecutor},
 label={lst:retryExecutor}
 ]
@@ -884,6 +894,7 @@ Für die unterschiedlichen Einsatzzwecke werden jeweils eigene Implementierungen
 \Cref{lst:retryPolicy} zeigt exemplarisch die Implementierung der für Datenbankzugriffe verwendeten Policy.
 \begin{lstlisting}[
 language=Java,
+    style=java,
 caption={Beispiel einer RetryPolicy},
 label={lst:retryPolicy}
 ]
@@ -923,6 +934,7 @@ Die jeweilige Operation wird hierzu als Lambda-Ausdruck an den RetryExecutor üb
 \Cref{lst:retryUsage} zeigt dies exemplarisch für einen Datenbankzugriff im Backend.
 \begin{lstlisting}[
 language=Java,
+    style=java,
 caption={Nutzung des RetryExecutors},
 label={lst:retryUsage}
 ]
@@ -954,6 +966,7 @@ gegebenenfalls noch beenden.
 Für jede gefundene Job-ID wird anschließend der \texttt{RecoveryExecutor} aufgerufen.
 \begin{lstlisting}[
     language=Java,
+    style=java,
     caption={Periodischer Recovery-Zyklus},
     label={lst:recoveryService}
 ]
@@ -986,6 +999,7 @@ Unabhängig von der aktuellen Versuchsanzahl werden die Attribute \texttt{claime
 der Änderungszeitpunkt aktualisiert.
 \begin{lstlisting}[
     language=Java,
+    style=java,
     caption={Transaktionale Wiederherstellung eines Jobs},
     label={lst:recoverJob}
 ]

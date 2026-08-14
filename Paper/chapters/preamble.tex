@@ -1,5 +1,5 @@
 %! Author = murfe
-%! Date = 13.08.2026
+%! Date = 14.08.2026
 
 % Packages
 \usepackage[T1]{fontenc}
@@ -64,6 +64,12 @@
     \textbf{Zusicherung \thezusicherung\ (#1):}%
     \label{#2}%
 }
+
+\definecolor{javapurple}{rgb}{0.5, 0, 0.35}       % Für Schlüsselwörter (keywords)
+\definecolor{javablue}{rgb}{0.16, 0.0, 0.85}      % Für Strings
+\definecolor{javaannotation}{rgb}{0.71, 0.39, 0}  % Für Annotationen (@PostMapping etc.)
+\definecolor{javaclass}{rgb}{0, 0.4, 0.6}         % Teal / Dunkelblau für Klassen & Interfaces
+
 \definecolor{codegray}{gray}{0.95}
 \definecolor{commentgray}{gray}{0.45}
 
@@ -81,10 +87,35 @@
     showtabs=false,
     tabsize=4,
     frame=single,
-    columns=fullflexible
+    columns=fullflexible,
+%   Syntax Highlighting
+    keywordstyle=\color{javapurple}\bfseries,
+    stringstyle=\color{javablue},
 }
 
-\lstset{style=code}
+%   Spezifischer Stil für Java
+\lstdefinestyle{java}{
+    style=code,
+    language=Java,
+%   Annotationen
+    emph={@Value, @Transactional, @PostMapping, @Valid, @RequestBody, @GetMapping, @Autowired, @Override, @Service,
+    @Component, @Controller, @Repository, @PostConstruct, @Scheduled},
+    emphstyle=\color{javaannotation}\bfseries,
+%   Klassen & Typen
+    emph={[2]ResponseEntity, CreateJobResponse, CreateJobRequest, Job, HttpStatus, Exception, DataIntegrityViolationException,
+    IllegalStateException, String, WorkerManager, WorkerService, Worker, Processor, Executors, Thread, Optional, JobResult, UUID,
+    JobStatus, Instant, JobNotFoundException, Callable, DataAccessException, Math, TimeUnit, List},
+    emphstyle={[2]\color{javaclass}\bfseries}
+}
+
+%   Spezifischer Stil für SQL
+\lstdefinestyle{sql}{
+    style=code,
+    language=SQL,
+%   fehlende SQL-Schlüsselwörter
+    morekeywords={FOR, SKIP, LOCKED}
+}
+
 
 \newcommand{\notiz}[1]{\textcolor{red}{\textbf{[TODO: #1]}}} %TODO: entfernen
 %\includeonly{chapters/03-methodik.tex, chapters/06-evaluation.tex}
