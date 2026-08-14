@@ -15,7 +15,7 @@ anschließende Implementierung und Evaluation.
 \section{Grundlagen der Hintergrundverarbeitung}
 \label{sec:hintergrundverarbeitung}
 Hintergrundverarbeitung dient dazu, zeitintensive oder ressourcenintensive Aufgaben vom synchronen Request-Response-Zyklus zu entkoppeln.
-Gleichzeitig entstehen daraus jedoch auch einige Herausforderungen: In verteilten Umgebungen sind Teilausfälle,
+Gleichzeitig entstehen daraus jedoch auch einige Herausforderungen: In verteilten Umgebungen sind Teilausfälle, %TODO: Hier kommen direkt Nachteile, aber nicht wieso man das überhaupt erst macht --> kurz einen Satz dazu
 Timeouts und kurzzeitige Unterbrechungen üblich, sodass ohne entsprechende Mechanismen nicht davon ausgegangen werden kann,
 dass eine angestoßene Verarbeitung vollständig und genau einmal ausgeführt wird.
 Insbesondere kann bei Kommunikationsabbrüchen oder Wiederholungsversuchen unklar bleiben, ob eine Operation bereits verarbeitet
@@ -23,14 +23,16 @@ wurde oder ob sie erneut angestoßen werden muss \parencite[Kap.~8]{kleppmann_de
 Vor diesem Hintergrund werden in den folgenden Abschnitten grundlegende Konzepte vorgestellt, die eine Entkopplung der
 Verarbeitung ermöglichen und die Basis für robuste Hintergrundverarbeitung bilden.
 
-\subsection{Asynchrone Verarbeitung und Queueing}
+\subsection{Asynchrone Verarbeitung und Queueing} %TODO: Hier die Referenzierungsstellen (in der gesamten Arbeit!!!) nochmal
+                                                    % überarbeiten und mit spezifischerem a) und b) Berweis versehen
 \label{subsec:asynchroneVerarbeitung}
 In Backend-Systemen lässt sich Kommunikation und Verarbeitung bezüglich der zeitlichen Kopplung zwischen synchronem und
 asynchronem Verhalten unterscheiden.
 Der Unterschied der Funktionsweise wird in \cref{fig:syncVsAsync} deutlich.
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/synchronVsAsynchron}
+    \includegraphics[width=0.8\textwidth]{images/synchronVsAsynchron} %TODO: Unterschriften sollten selbstlesend sein in der gesamten Arbeit nochmal überarbeiten!
+                                                                      % Latex bietet die Möglichkeit zwei verschiedener Unterschriften, eine vor Ort und eine fürs Verzeichnis
     \caption{Vergleich synchroner und asynchroner Kommunikation}
     \label{fig:syncVsAsync}
 \end{figure}
@@ -45,10 +47,16 @@ Dieses Prinzip wird als \textit{Queueing} bezeichnet.
 Dadurch können Nachrichtenverluste aufgrund von Überlastung reduziert und Lastspitzen ausgeglichen werden, indem der Puffer
 erhaltene Anfragen zur späteren Ausführung zwischenspeichert \parencite[Kap.~11, Abschnitt \glqq Message brokers\grqq]{kleppmann_designing_2017}.
 Das grundlegende Prinzip ist in \cref{fig:queueing} schemenhaft dargestellt.
+%\begin{figure}[h]
+%    \centering
+%    \includegraphics[width=0.8\textwidth]{images/queueing}
+%    \caption{Queueing}
+%    \label{fig:queueing}
+%\end{figure}
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/queueing}
-    \caption{Queueing}
+    \includegraphics[width=0.8\textwidth]{images/queue-based-load-leveling-pattern}
+    \caption{Queueing \parencite{microsoft_corporation_hrsg_queue-based_2026}}
     \label{fig:queueing}
 \end{figure}
 Ein solcher Puffer kann verschiedene Ausprägungen annehmen, beispielsweise als In-Memory beim Empfänger, als Datenbank oder in
@@ -389,7 +397,7 @@ Fehlerzustand überführt \parencite[Kap.~3 Abschnitt \glqq How Many Retries Are
 \Cref{fig:retry} visualisiert das oben beschriebene Vorgehen.
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\textwidth]{images/retryBackoff}
+    \includegraphics[width=0.8\textwidth]{images/retryBackoff}
     \caption{Verhalten bei transienten Fehlern}
     \label{fig:retry}
 \end{figure}
@@ -490,6 +498,12 @@ Verarbeitung trotz unvermeidbarer Mehrfachausführungen und Duplikate.
 
 \section{Stand der Forschung}
 \label{sec:forschungsstand}
+%TODO: "Die Wahl eines datenbankbasierten Job-Stores stellt dabei einen
+%bewussten Architektur-Trade-off dar. Im Vergleich zu In-Memory-basierten Messaging-
+%Systemen entstehen durch den permanenten Zugriff auf einen externen persistenten
+%Datenspeicher zusätzliche Latenzen und ein geringerer maximaler Nachrichtendurchsatz. "
+%--> Redis nochmal angucken: ist eine nosql in-Memory Datenbank; das was ich geschrieben habe ist bedingt durch PostgreSQL nicht durch einen datenbankbasierten Job-Store,
+%Hier ggfs. Nochmal Redis aufgreifen
 Die Verarbeitung von Hintergrundaufgaben ist ein etabliertes Problemfeld verteilter Systeme.
 Entsprechend existieren zahlreiche Frameworks und Architekturmuster, die eine asynchrone Hintergrundausführung von Aufgaben ermöglichen.
 Die Ansätze unterscheiden sich insbesondere hinsichtlich der verwendeten Infrastruktur, der Persistenzmechanismen sowie

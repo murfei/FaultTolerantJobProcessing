@@ -1,10 +1,10 @@
 %! Author = murfe
-%! Date = 22.07.2026
+%! Date = 14.08.2026
 %TODO: ggfs noch Abschnitte zu den Referenzen hinzufügen
 \chapter{Einleitung}
 \label{ch:einleitung}
 \section{Motivation}
-\label{sec:motivation}
+\label{sec:motivation} %TODO: Höhere Metaebene --> Was hat das für Auswirkungen wenn Jobs verloren gehen oder das system ausfällt --> z.B. Wenn Analysen dadurch ausbleiben kann es richtig teuer werden
 In modernen Softwaresystemen stellt die Verarbeitung von Hintergrundjobs einen
 zentralen Bestandteil vieler Backend-Architekturen dar \parencite[Kap. 10]{kleppmann_designing_2017}.
 Zahlreiche Geschäftsprozesse, darunter die Generierung von Reports, der Import großer
@@ -17,7 +17,7 @@ Aber auch in nicht-kritischen Systemen ist Zuverlässigkeit von Bedeutung für d
 Gewinneinbußen in Produktivsystemen in Folge von Fehlern zu vermeiden \parencite[Kap.~1 Abschnitt \glqq How Important Is Reliability?\grqq]{kleppmann_designing_2017}.
 
 \section{Problemstellung}
-\label{sec:problemstellung}
+\label{sec:problemstellung} %TODO: Thunerdering Herds Problem aufgreifen
 In der Praxis können bei der Verarbeitung von Hintergrundjobs jederzeit Teilausfälle auftreten.
 Prozesse können während der Verarbeitung unerwartet terminieren, Datenbankverbindungen können kurzzeitig unterbrochen werden, identische
 Anfragen infolge von clientseitigen Wiederholungsversuchen mehrfach an das System übermittelt werden oder
@@ -47,7 +47,7 @@ Obwohl die zugrundeliegenden Konzepte wie Fehlertoleranz, Recovery, Idempotenz, 
 beschrieben werden, fehlen Arbeiten, die diese Aspekte zu einer durchgängigen datenbankbasierten Architektur für Background-Job-Processing
 zusammenführen und deren Verhalten unter definierten Fehlerszenarien systematisch evaluieren.
 Ebenso implementieren bestehende Frameworks diese Mechanismen häufig als interne Abstraktionen, wodurch deren Zusammenspiel und Auswirkungen
-auf die Zuverlässigkeit des Gesamtsystems für Entwickler nur eingeschränkt nachvollziehbar sind.
+auf die Zuverlässigkeit des Gesamtsystems für Entwickler nur eingeschränkt nachvollziehbar sind. %TODO: --> hier fällt das mit den Datenbanken einfach vom Himmel --> sehr nischig, vorher unbedingt mehr motivieren
 
 Daraus ergibt sich die dieser Arbeit zugrundeliegende Hauptforschungsfrage:\\
 Welche Architekturmechanismen und Entwurfsentscheidungen sind notwendig, um in

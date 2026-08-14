@@ -29,9 +29,10 @@ den Ausfall von Workern und verhindert das Verbleiben verwaister Jobs.
 \cref{subsec:idempotenteErgebnisgenerierung} schließt den Entwurf ab, indem das \textit{Fencing}-Prinzip zur Vermeidung
 von Mehrfachverarbeitungen im Fehlerfall dargelegt wird.
 
-\subsection{Architekturentwurf}
+\subsection{Architekturentwurf} %TODO: Bis jetzt felt bie mir irgendwie der Weg von Datenbank zu relational zu PostgreSQL --> ich mache das weil ich z.B. ACID-Garantien nutzen möchte weil diese viel für mich übernehmen.
+                                % bei fällt das im Moment noch einfach vom Himmel, dass ich Postgres nutze. Das muss auf jeden Fall!!! vernünftig begründet/hergeleitet werden
 \label{subsec:architekturentwurf}
-In \cref{subsec:backgroundJobs} wurde bereits dargelegt, dass das Queue-Based Load Leveling Pattern eine geeignete Option ist,
+In \cref{subsec:backgroundJobs} wurde bereits dargelegt, dass das Queue-Based Load Leveling Pattern eine geeignete Option ist, %TODO: "geeignet" hier sehr wertend. Das macht Kapitel 2 eigentlich noch nicht. Hier anders formulieren, vllt in die Richtung: die Vorteile und die Nachteile existieren
 die ausstehenden Jobs innerhalb eines Backend-Job-Processing-Systems zwischenzuspeichern.
 Eine verbreitete Variante, dieses Pattern für Nachrichten, oder wie im Fall dieser Arbeit für Jobs, umzusetzen,
 ist die Implementierung mithilfe dedizierter Message Broker \parencite[Kap.~11 Abschnitt \glqq Message brokers\grqq]{kleppmann_designing_2017}.
@@ -46,6 +47,8 @@ einer relationalen Datenbank als Grundlage für die Umsetzung der definierten Zu
 Die Wahl eines datenbankbasierten Job-Stores stellt dabei einen bewussten Architektur-Trade-off dar.
 Im Vergleich zu In-Memory-basierten Messaging-Systemen entstehen durch den permanenten Zugriff auf einen externen persistenten Datenspeicher
 zusätzliche Latenzen und ein geringerer maximaler Nachrichtendurchsatz.
+%TODO: --> Redis nochmal angucken: ist eine nosql in-Memory Datenbank; das was ich geschrieben habe ist bedingt durch PostgreSQL weil es auf sekundärspeicher schreibt
+% nicht durch die Nutzung eines datenbankbasierten Job-Store. Hier die Begründung wieso ich diesen Tradeoff eingehe nochmal entsprechend überarbeiten
 Demgegenüber ermöglicht die relationale Datenbank jedoch eine dauerhafte Speicherung sämtlicher Jobs sowie atomare Zustandsübergänge und
 eine konsistente Wiederherstellung des Systemzustands nach Fehlern.
 Zusätzlich bietet eine relationale Datenbank mehr Sicherheiten vor verloren gegangenen Jobs, als typische In-Memory Message Broker,
@@ -103,7 +106,7 @@ außerhalb einer Datenbanktransaktion erfolgt.
 Dadurch werden konkurrierende Zugriffe auf den Job-Store reduziert und Datenbankressourcen geschont, was sich positiv
 auf die Skalierbarkeit des Systems auswirkt.\\
 Die in diesem System definierten Zustände sowie die zulässigen Zustandsübergänge sind in \cref{fig:statusmodell} dargestellt.
-\begin{figure}[h]
+\begin{figure}[h] %TODO: Hier ggfs. einen Zustandsautomaten nach UML Glasklar anstatt des jetzigen DEAs
     \centering
     \includegraphics[width=0.8\textwidth]{images/statusmodell}
     \caption{Zustandsmodell eines Jobs}
