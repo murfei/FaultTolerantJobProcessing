@@ -1,12 +1,16 @@
 %! Author = murfe
 %! Date = 28.07.2026
 
-\chapter{Diskussion}\label{ch:diskussion}
+%TODO: Diskussion und Fazit ggfs. Zusammenlegen. Sollte gemeinsam nicht viel mehr als 2 Seiten sein
+\chapter{Diskussion}
+\label{ch:diskussion}
 \textbf{To be done}
 
-\section{Gewonnene Erkenntnisse}\label{sec:erkenntnisse}
+\section{Gewonnene Erkenntnisse}
+\label{sec:erkenntnisse}
 
-\section{Einschränkungen und Grenzen der Arbeit}\label{sec:einschraenkungen}
+\section{Einschränkungen und Grenzen der Arbeit}
+\label{sec:einschraenkungen}
 \textbf{Ausschließlich Notizen}\\
 Diese Arbeit betrachtet die Fehlertoleranz ab dem Zeitpunkt, zu dem ein Job persistent im Job-Store vorliegt;
 die zuverlässige Auftragserzeugung/Client-Kommunikation (z.B. Outbox, Messaging) ist nicht Gegenstand.
@@ -60,3 +64,29 @@ Die vorgestellte Architektur garantiert die Konsistenz der Jobverwaltung und der
 Seiteneffekte innerhalb der eigentlichen Fachlogik liegen dagegen außerhalb des Verantwortungsbereichs des Frameworks.
 Soll die Verarbeitung externer Ressourcen ebenfalls fehlertolerant erfolgen, muss die Fachlogik selbst geeignete Mechanismen wie Transaktionen,
 Kompensationsoperationen oder idempotente Operationen einsetzen.
+
+
+Einschränkungen:
+\begin{itemize}
+\item
+Prototyp statt produktives System
+\item
+PostgreSQL als konkretes Datenbanksystem
+\item
+begrenzte Anzahl an Workern
+\item
+künstlich injizierte Fehler
+\item
+keine byzantinischen Fehler
+\item
+kein Heartbeat
+\item
+simulierte Fachlogik
+\item
+kontrollierte Testumgebung
+\item
+Race Conditions werden durch künstliche Verzögerungen wahrscheinlicher gemacht
+\item
+Ergebnisse können nicht unmittelbar auf beliebige verteilte Systeme übertragen werden
+\end{itemize}
+
