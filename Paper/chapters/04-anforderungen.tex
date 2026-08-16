@@ -135,7 +135,7 @@ bilden daher zusammen mit der Systembeschreibung aus \cref{sec:systemkontext} di
 Die sich aus dem in \cref{sec:systemkontext} beschriebenen Systemkontext und dem in \cref{sec:abgrenzungFehlermodell} definierten Fehlermodell
 ergebenden zentralen Anforderungen an das zu entwickelnde Background-Job-Processing-System sind in \cref{tab:traceability_anforderungen}
 zusammengefasst.
-\begin{table}[h]
+\begin{table}[h] %TODO: prüfen, dass die Tabelle nicht in nächstes Kapitel rutscht
     \centering
     \small
     \setcounter{anforderung}{0}
@@ -188,7 +188,7 @@ Daraus leitet sich die erste Systemzusicherung ab:
     Ein Auftrag ist für Worker-Prozesse entweder vollständig und in einem gültigen Initialzustand sichtbar oder existiert nicht.
 \end{quote}
 Wie in \cref{sec:abgrenzungFehlermodell} dargelegt, führen transiente Kommunikationsstörungen (wie Netzwerk-Timeouts)
-auf Client-Seite zu Wiederholungsversuchen.
+auf Client-Seite zu Wiederholungsversuchen.%TODO: Hier nochmal Referenz prüfen ob nicht eher auf Grundlagenkapitel verwiesen wird
 Um zu verhindern, dass derselbe logische Auftrag infolge dieser Wiederholungen mehrfach erfasst und somit mehrfach ausgeführt
 wird (\ref{req:duplikate}), muss das System eine idempotente Auftragserfassung implementieren:
 \begin{quote}
