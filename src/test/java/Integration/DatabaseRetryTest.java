@@ -2,9 +2,11 @@ package Integration;
 
 import backend.Application;
 import backend.domain.Job;
+import backend.service.JobService;
 import com.zaxxer.hikari.HikariDataSource;
 import jobClient.dto.CreateJobRequest;
 import jobClient.dto.CreateJobResponse;
+import jobClient.service.JobClient;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.ToxiproxyContainer;
@@ -26,6 +29,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @Testcontainers
 @SpringBootTest(classes = Application.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -68,6 +74,8 @@ public class DatabaseRetryTest {
     TestRestTemplate restTemplate;
     @Autowired
     DataSource dataSource;
+    @MockitoSpyBean
+    JobService jobService;
 
     @Test
     void jobCreationRecoversAfterTransientDbOutage(){
@@ -79,20 +87,22 @@ public class DatabaseRetryTest {
         if (dataSource instanceof HikariDataSource hikari) {
             hikari.getHikariPoolMXBean().softEvictConnections();
         }
+        System.out.println("Datenbankverbindung unterbrochen");
         // DB-Verbindung wiederherstellen
         // Asynchron, da die Wiederherstellung erst nach dem ersten Zugriffsversuch geschehen darf
         CompletableFuture.runAsync(() -> {
             try {
                 Thread.sleep(4000);
                 dbProxy.setConnectionCut(false);
+                System.out.println("Datenbankverbindung wiederhergestellt");
             } catch (InterruptedException ignored) {}
         });
         //eigentlicher create-Aufruf der Rest-API
         ResponseEntity<CreateJobResponse> response =
                 restTemplate.postForEntity("/api/jobs/job", request, CreateJobResponse.class);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        ResponseEntity<Job> jobResponse = restTemplate.getForEntity("/api/jobs/job/{id}", Job.class, idempotencyKey);
-        assertEquals(idempotencyKey, jobResponse.getBody().getIdempotencyKey());
+        assertEquals(idempotencyKey, response.getBody().getIdempotencyKey());
+        System.out.println("Response: " + response.getStatusCode() + " \nCreated at " + response.getBody().getCreatedAt());
     }
 
     @Test
@@ -111,5 +121,17 @@ public class DatabaseRetryTest {
         dbProxy.setConnectionCut(false); // aufräumen für nachfolgende Tests
     }
 
-    //TODO: testRetryNotAppliedOnConstraintViolatio
+    @Test
+    void testRetryNotAppliedOnConstraintViolation(){
+        UUID idempotencyKey = UUID.randomUUID();
+        CreateJobRequest request = new CreateJobRequest(idempotencyKey, "{\"name\":\"Test\"}");
+
+        ResponseEntity<CreateJobResponse> response =
+                restTemplate.postForEntity("/api/jobs/job", request, CreateJobResponse.class);
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        System.out.println("Job created");
+        response = restTemplate.postForEntity("/api/jobs/job", request, CreateJobResponse.class);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(jobService, times(2)).createJob(any(backend.api.CreateJobRequest.class));
+    }
 }
