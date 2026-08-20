@@ -68,7 +68,6 @@ public class RealWorkerCrash {
         // Worker Prozess starten
         worker1 = startInstance(jarPath);
         System.out.println("Worker1 gestartet");
-
         Job job = jobService.createJob(new CreateJobRequest(idempotencyKey, "{\"payload\":\"Test\"}"));
         System.out.println("Job erstellt");
 
@@ -78,17 +77,17 @@ public class RealWorkerCrash {
                 .until(() -> jobService.getJobById(idempotencyKey)
                         .map(j -> j.getStatus() == JobStatus.RUNNING)
                         .orElse(false));
-        System.out.println("Job beansprucht");
+        System.out.println("Job beansprucht durch Worker mit ID: " + jobService.getJobById(idempotencyKey).get().getClaimed_by());
 
         // Harter Kill des Prozesses
         worker1.destroyForcibly();
-        System.out.println("Worker1 gestoppt");
+        System.out.println("Worker1 abgebrochen");
         assertTrue(worker1.waitFor(10, TimeUnit.SECONDS), "Prozess wurde nicht rechtzeitig beendet");
 
         // Kontrolle, dass Job tatsächlich Running ist
         Job orphaned = jobService.getJobById(idempotencyKey).orElseThrow();
         assertEquals(JobStatus.RUNNING, orphaned.getStatus());
-        System.out.println(orphaned.getStatus());
+        System.out.println("Status des von Worker1 bearbeiteten Jobs: " + orphaned.getStatus());
 
         // Neuen Worker starten
         worker2 = startInstance(jarPath);

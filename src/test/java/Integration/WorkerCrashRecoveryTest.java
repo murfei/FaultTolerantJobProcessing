@@ -19,9 +19,11 @@ import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(classes = Application.class)
@@ -58,11 +60,12 @@ public class WorkerCrashRecoveryTest {
         job.setClaimed_by(concurrentWorker);
         job.setLease_until(Instant.now().minusSeconds(10));
         job.setAttempt_count(1);
+        resultRepository.deleteAll();
+        jobRepository.deleteAll();
     }
 
     @Test
     void recoveryComponentTest() throws InterruptedException {
-        int countResults = resultRepository.findAll().size();
         //verwaisten Job persistieren
         jobRepository.save(job);
         //RecoveryService aktivieren
@@ -73,32 +76,37 @@ public class WorkerCrashRecoveryTest {
         assertEquals(JobStatus.QUEUED, recoveredJob.getStatus());
         assertNull(recoveredJob.getClaimed_by());
         assertNull(recoveredJob.getLease_until());
+        long countResults = resultRepository.count();
 
-        //Testen, ob freier Worker den Job wieder aufnimmt
-        Thread.sleep(2000);
-        recoveredJob = jobRepository.findByIdempotencyKey(jobId).get();
-        assertNotEquals(JobStatus.QUEUED, recoveredJob.getStatus());
+        //Warten, dass freier Worker den Job wieder aufnimmt
+        await().atMost(Duration.ofSeconds(15))
+                .pollInterval(Duration.ofMillis(200))
+                .until(() -> jobRepository.findByIdempotencyKey(jobId)
+                        .map(j -> j.getStatus() == JobStatus.RUNNING)
+                        .orElse(false));
 
         //Testen, dass der Job nicht mehr von einem simulierten alten Worker fertiggestellt werden kann
-        Job recoveredJobForChangeTest = recoveredJob;
-        assertThrows(IllegalStateException.class, () -> workerService.finishJob(recoveredJobForChangeTest.getId(),
-                concurrentWorker, new JobResult(recoveredJobForChangeTest, "Unberechtigter Worker")));
+        assertThrows(IllegalStateException.class, () -> workerService.finishJob(recoveredJob.getId(),
+                concurrentWorker, new JobResult(recoveredJob, "Unberechtigter Worker")));
 
         //Auf Fertigstellung warten
-        Thread.sleep(10_000);
-        recoveredJob = jobRepository.findByIdempotencyKey(jobId).get();
+        await().atMost(Duration.ofSeconds(15))
+                .pollInterval(Duration.ofMillis(200))
+                .until(() -> jobRepository.findByIdempotencyKey(jobId)
+                        .map(j -> j.getStatus() == JobStatus.SUCCEEDED)
+                        .orElse(false));
 
+        Job finishedJob = jobRepository.findByIdempotencyKey(jobId).orElseThrow(IllegalStateException::new);
         //Fertigstellung prüfen
-        assertEquals(JobStatus.SUCCEEDED, recoveredJob.getStatus());
-        assertEquals(2, recoveredJob.getAttempt_count());
-        assertNotNull(recoveredJob.getResult());
+        assertEquals(JobStatus.SUCCEEDED, finishedJob.getStatus());
+        assertEquals(2, finishedJob.getAttempt_count());
+        assertNotNull(finishedJob.getResult());
 
         //Erneute Prüfung, dass keine Doppelspeicherung möglich ist, falls der alte Worker nur zu langsam war und doch
         //das Speichern versucht
-        Job finalRecoveredJob = recoveredJob;
-        assertThrows(IllegalStateException.class, () -> workerService.finishJob(finalRecoveredJob.getId(),
-                concurrentWorker, new JobResult(finalRecoveredJob, "Unberechtigter Worker")));
-        assertEquals(countResults+1, resultRepository.findAll().size());
+        assertThrows(IllegalStateException.class, () -> workerService.finishJob(finishedJob.getId(),
+                concurrentWorker, new JobResult(finishedJob, "Unberechtigter Worker")));
+        assertEquals(countResults+1, resultRepository.count());
     }
 
     @Test

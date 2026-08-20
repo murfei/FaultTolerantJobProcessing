@@ -64,6 +64,7 @@ public class JoberstellungTest {
 
     @Test
     void duplicateRequestTest() {
+        long countBefore = jobRepository.count();
         AtomicInteger callCount = new AtomicInteger();
         ClientHttpRequestInterceptor dropFirstResponse = (request, body, execution) -> {
             ClientHttpResponse response = execution.execute(request, body);
@@ -84,7 +85,7 @@ public class JoberstellungTest {
         assertNotNull(response.getBody());
         assertEquals(2, callCount.get());
         long count = jobRepository.count();
-        assertEquals(1, count);
+        assertEquals(countBefore + 1, count);
         System.out.println("Anzahl Jobs nach dem Test: " + count);
     }
 }
