@@ -14,10 +14,12 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doThrow;
 
@@ -51,14 +53,17 @@ public class JobTerminationTest {
 
         Job failureJob = jobService.createJob(new CreateJobRequest(idempotencyKey, "{\"payload\":\"Test\"}"));
         assertEquals(JobStatus.QUEUED, failureJob.getStatus());
+        Instant start = Instant.now();
         await().atMost(Duration.ofSeconds(60))
                 .pollInterval(Duration.ofSeconds(1))
                 .until(() -> jobService.getJobById(idempotencyKey)
                         .map(j -> j.getStatus() == JobStatus.FAILED)
                         .orElse(false));
+        Instant end = Instant.now();
         failureJob = jobService.getJobById(idempotencyKey).orElseThrow();
         assertEquals(maxAttempts, failureJob.getAttempt_count());
         assertEquals(JobStatus.FAILED, failureJob.getStatus());
+        assertTrue(end.isBefore(start.plusSeconds(maxAttempts * (1 + 2L)))); //Zeit <= maxAttempts * (Lease + max(recoveryIntervall(1),WorkerIdleTimeout(2))
     }
 
     private void configureMockProcessor(UUID idempotencyKey) throws Exception {
