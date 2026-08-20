@@ -13,6 +13,7 @@ public class PayloadValidator {
             mapper.readTree(payload);
             return true;
         } catch (Exception e) {
+            System.out.println("PayloadValidator: Payload is not valid");
             return false;
         }
     }
