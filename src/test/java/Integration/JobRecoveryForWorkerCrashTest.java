@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Testcontainers
 @SpringBootTest(classes = Application.class, properties = "worker.count=0")
 @ActiveProfiles("test")
-public class RealWorkerCrash {
+public class JobRecoveryForWorkerCrashTest {
 
     @Container
     static PostgreSQLContainer<?> postgres =
@@ -69,6 +69,7 @@ public class RealWorkerCrash {
         worker1 = startInstance(jarPath);
         System.out.println("Worker1 gestartet");
         Job job = jobService.createJob(new CreateJobRequest(idempotencyKey, "{\"payload\":\"Test\"}"));
+        assertEquals(JobStatus.QUEUED, job.getStatus());
         System.out.println("Job erstellt");
 
         // Warten, dass worker1 den Job beansprucht hat

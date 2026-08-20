@@ -35,7 +35,7 @@ public class RecoveryExecutor {
             System.out.println("Recovery: Job " + id + " recovered and put back into queue");
         } else {
             job.setStatus(JobStatus.FAILED);
-            System.out.println("Recovery: Job " + id + " failed");
+            System.out.println("Recovery: Job " + id + " failed due to too many failed attempts");
         }
         job.setClaimed_by(null);
         job.setLease_until(null);
