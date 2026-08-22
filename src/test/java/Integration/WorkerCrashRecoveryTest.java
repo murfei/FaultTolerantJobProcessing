@@ -6,15 +6,18 @@ import backend.domain.Job;
 import backend.domain.JobResult;
 import backend.domain.JobStatus;
 import backend.infrastructure.JobFactory;
+import backend.infrastructure.TestHook;
 import backend.repository.JobRepository;
 import backend.repository.JobResultRepository;
 import backend.service.RecoveryService;
 import backend.service.WorkerService;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -25,6 +28,7 @@ import java.util.concurrent.*;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.doThrow;
 
 @SpringBootTest(classes = Application.class)
 @ActiveProfiles("test")
@@ -43,6 +47,11 @@ public class WorkerCrashRecoveryTest {
     private RecoveryService recoveryService;
     @Autowired
     private WorkerService workerService;
+    @Autowired
+    private EntityManager entityManager;
+
+    @MockitoBean
+    private TestHook testHook;
 
     @BeforeAll
     static void setup() {
@@ -65,12 +74,11 @@ public class WorkerCrashRecoveryTest {
         job.setClaimed_by(concurrentWorker);
         job.setLease_until(Instant.now().minusSeconds(10));
         job.setAttempt_count(1);
+        jobRepository.save(job);
     }
 
     @Test
     void recoveryComponentTest() throws InterruptedException {
-        //verwaisten Job persistieren
-        jobRepository.save(job);
         //RecoveryService aktivieren
         recoveryService.recoverCycle();
 
@@ -114,7 +122,6 @@ public class WorkerCrashRecoveryTest {
 
     @Test
     void jobStatusFailedAfterToManyAttempsTest(@Value( "${job.max-attempts}") int maxAttempts){
-        jobRepository.save(job);
         for (int i = 1; i < maxAttempts; i++) {
             recoveryService.recoverCycle();
             job = jobRepository.findByIdempotencyKey(jobId).get();
@@ -127,5 +134,27 @@ public class WorkerCrashRecoveryTest {
         recoveryService.recoverCycle();
         Job recoveredJob = jobRepository.findByIdempotencyKey(jobId).get();
         assertEquals(JobStatus.FAILED, recoveredJob.getStatus());
+    }
+
+    @Test
+    void atomicSaveTest(){
+        job.setLease_until(Instant.now().plusSeconds(10));
+        jobRepository.save(job);
+        JobResult result = new JobResult(job, "{\"result\":\"Test\"}");
+
+        doThrow(new RuntimeException("Simulierter Fehler"))
+                .when(testHook)
+                .afterStatusChange();
+
+        assertThrows(RuntimeException.class, () -> workerService.finishJob(job.getId(), concurrentWorker, result));
+        System.out.println("Testhook hat Fehler geworfen");
+        entityManager.clear();
+
+        Job persistedJob = jobRepository.findById(job.getId()).orElseThrow();
+        assertEquals(JobStatus.RUNNING, persistedJob.getStatus());
+        assertNull(persistedJob.getResult());
+        assertFalse(resultRepository.existsById(job.getId()));
+        System.out.println("Job:\nIdempotenz-Key: " + persistedJob.getIdempotencyKey() + "\nStatus: " + persistedJob.getStatus()
+                + "\nErgebnis: " + persistedJob.getResult());
     }
 }

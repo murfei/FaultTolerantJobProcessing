@@ -5,6 +5,7 @@ import backend.Exception.LeaseExpiredException;
 import backend.domain.Job;
 import backend.domain.JobResult;
 import backend.domain.JobStatus;
+import backend.infrastructure.TestHook;
 import backend.repository.JobRepository;
 import backend.repository.JobResultRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,11 +24,14 @@ public class WorkerService {
 
     private final JobRepository jobRepository;
     private final JobResultRepository resultRepository;
+    private final TestHook testHook;
 
-    public WorkerService(JobRepository repository, JobResultRepository resultRepository, @Value( "${job.max-duration}") int maximumJobDuration) {
+    public WorkerService(JobRepository repository, JobResultRepository resultRepository, TestHook testHook,
+                         @Value( "${job.max-duration}") int maximumJobDuration) {
         this.jobRepository = repository;
         this.resultRepository = resultRepository;
         this.maximumJobDuration = maximumJobDuration;
+        this.testHook = testHook;
     }
 
     @Transactional
@@ -65,6 +69,7 @@ public class WorkerService {
             throw new LeaseExpiredException();
 
         job.setStatus(JobStatus.SUCCEEDED);
+        testHook.afterStatusChange();
         resultRepository.save(jobResult);
         job.setResult(jobResult);
         job.setUpdatedAt(Instant.now());
