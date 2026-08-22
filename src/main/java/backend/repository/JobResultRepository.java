@@ -8,4 +8,5 @@ import java.util.UUID;
 
 @Repository
 public interface JobResultRepository extends JpaRepository<JobResult, UUID> {
+    long findByJobId(UUID jobId);
 }

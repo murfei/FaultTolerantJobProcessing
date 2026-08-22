@@ -28,6 +28,7 @@ public class RecoveryExecutor {
             return;
         }
         if (job.getStatus() != JobStatus.RUNNING) {
+            System.out.println("Recovery: Job hat nicht den Status RUNNING sondern " + job.getStatus() + ", skipping recovery");
             return;
         }
         if (job.getAttempt_count() < maxAttempts) {

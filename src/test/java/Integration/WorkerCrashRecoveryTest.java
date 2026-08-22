@@ -10,8 +10,7 @@ import backend.repository.JobRepository;
 import backend.repository.JobResultRepository;
 import backend.service.RecoveryService;
 import backend.service.WorkerService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,6 +21,7 @@ import tools.jackson.databind.node.ObjectNode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.*;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @ActiveProfiles("test")
 public class WorkerCrashRecoveryTest {
 
-    String payload;
+    static String payload;
     UUID jobId;
     Job job;
     UUID concurrentWorker;
@@ -44,15 +44,20 @@ public class WorkerCrashRecoveryTest {
     @Autowired
     private WorkerService workerService;
 
-    @BeforeEach
-    void init() {
+    @BeforeAll
+    static void setup() {
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode jsonObjekt = mapper.createObjectNode();
         jsonObjekt.put("payload", "Test");
         payload = mapper.writeValueAsString(jsonObjekt);
+    }
 
-         concurrentWorker = UUID.randomUUID();
+    @BeforeEach
+    void init() {
+        resultRepository.deleteAllInBatch();
+        jobRepository.deleteAllInBatch();
 
+        concurrentWorker = UUID.randomUUID();
         //verwaisten Job erstellen
         jobId = UUID.randomUUID();
         job = JobFactory.createJob(new CreateJobRequest(jobId, payload));
@@ -60,8 +65,6 @@ public class WorkerCrashRecoveryTest {
         job.setClaimed_by(concurrentWorker);
         job.setLease_until(Instant.now().minusSeconds(10));
         job.setAttempt_count(1);
-        resultRepository.deleteAll();
-        jobRepository.deleteAll();
     }
 
     @Test

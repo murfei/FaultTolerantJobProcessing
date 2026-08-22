@@ -54,9 +54,10 @@ public class WorkerService {
 
         Job job = jobRepository.findByIdForUpdate(jobId).orElseThrow(JobNotFoundException::new);
 
-        if (job.getStatus() != JobStatus.RUNNING)
+        if (job.getStatus() != JobStatus.RUNNING) {
+            System.out.println("WorkerService: Job hat nicht den Status RUNNING sondern " + job.getStatus() + ", obwohl Worker Ergebnis speichern wollte");
             throw new IllegalStateException("Job hat nicht den Status RUNNING, obwohl Worker Ergebnis speichern wollte");
-
+        }
         if (!workerId.equals(job.getClaimed_by()))
             throw new IllegalStateException("Worker hat keine Berechtigung, diesen Job zu bearbeiten");
 
@@ -67,6 +68,7 @@ public class WorkerService {
         resultRepository.save(jobResult);
         job.setResult(jobResult);
         job.setUpdatedAt(Instant.now());
+        System.out.println("Job " + jobId + " finished successfully");
         return job;
     }
 }
