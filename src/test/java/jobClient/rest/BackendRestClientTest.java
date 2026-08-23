@@ -2,13 +2,17 @@ package jobClient.rest;
 
 import backend.Application;
 import backend.domain.JobStatus;
+import backend.repository.JobRepository;
 import jobClient.dto.CreateJobRequest;
 import jobClient.dto.CreateJobResponse;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -20,18 +24,28 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 @SpringBootTest(classes = Application.class, webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 @ActiveProfiles("test")
+@DirtiesContext
 public class BackendRestClientTest {
 
     private static BackendRestClient client;
+    private static ObjectMapper mapper;
+
+    @Autowired
+    private JobRepository jobRepository;
 
     @BeforeAll
     static void setup(){
         client = new BackendRestClient("http://localhost:8080/api/jobs");
+        mapper = new ObjectMapper();
+    }
+
+    @AfterEach
+    void tearDown(){
+        jobRepository.deleteAllInBatch();
     }
 
     @Test
     void creatTest(){
-        ObjectMapper mapper = new ObjectMapper();
         ObjectNode jsonObjekt = mapper.createObjectNode();
         jsonObjekt.put("payload", "Test");
         CreateJobRequest request = new CreateJobRequest(UUID.randomUUID(), mapper.writeValueAsString(jsonObjekt));
@@ -43,7 +57,6 @@ public class BackendRestClientTest {
 
     @Test
     void idempotencyTest(){
-        ObjectMapper mapper = new ObjectMapper();
         ObjectNode jsonObjekt = mapper.createObjectNode();
         jsonObjekt.put("payload", "Test");
         CreateJobRequest request = new CreateJobRequest(UUID.randomUUID(), mapper.writeValueAsString(jsonObjekt));

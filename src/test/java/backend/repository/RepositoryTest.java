@@ -2,6 +2,7 @@ package backend.repository;
 
 import backend.domain.Job;
 import backend.domain.JobStatus;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -20,6 +21,11 @@ public class RepositoryTest {
 
     @Autowired
     private JobRepository jobRepository;
+
+    @AfterEach
+    void tearDown() {
+        jobRepository.deleteAllInBatch();
+    }
 
     @Test
     void createJobs() {

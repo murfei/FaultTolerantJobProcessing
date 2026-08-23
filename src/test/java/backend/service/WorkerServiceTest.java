@@ -1,6 +1,5 @@
 package backend.service;
 
-import backend.Exception.IdempotencyException;
 import backend.Exception.JobNotFoundException;
 import backend.Exception.LeaseExpiredException;
 import backend.api.CreateJobRequest;
@@ -8,9 +7,12 @@ import backend.domain.Job;
 import backend.domain.JobResult;
 import backend.domain.JobStatus;
 import backend.repository.JobRepository;
+import backend.repository.JobResultRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -25,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@DirtiesContext
 public class WorkerServiceTest {
 
     @Autowired
@@ -33,6 +36,14 @@ public class WorkerServiceTest {
     private JobService jobService;
     @Autowired
     private JobRepository jobRepository;
+    @Autowired
+    private JobResultRepository resultRepository;
+
+    @AfterEach
+    void cleanup() {
+        resultRepository.deleteAllInBatch();
+        jobRepository.deleteAllInBatch();
+    }
 
     @Test
     void JobLifecycleTest() throws JobNotFoundException {

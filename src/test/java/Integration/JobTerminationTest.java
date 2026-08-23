@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
@@ -29,6 +30,7 @@ import static org.mockito.Mockito.doThrow;
         "job.processing-time=100",
         "job.max-duration=1"
 })
+@DirtiesContext
 public class JobTerminationTest {
 
     @Autowired
@@ -41,6 +43,7 @@ public class JobTerminationTest {
     void terminationAfterTooManyFailuresTest(@Value( "${job.max-attempts}") int maxAttempts) throws Exception{
         UUID idempotencyKey = UUID.randomUUID();
         configureMockProcessor(idempotencyKey);
+        System.out.println("Test gestartet. Idempotenz-Key: " + idempotencyKey);
 
         //Test, dass Jobs prinzipiell noch verarbeitet werden können
         Job job = jobService.createJob(new CreateJobRequest(UUID.randomUUID(), "{\"payload\":\"Test\"}"));
@@ -50,9 +53,11 @@ public class JobTerminationTest {
                 .until(() -> jobService.getJobById(job.getIdempotencyKey())
                         .map(j -> j.getStatus() == JobStatus.SUCCEEDED)
                         .orElse(false));
+        System.out.println("Sanity-Check erfolgreich abgeschlossen");
 
         Job failureJob = jobService.createJob(new CreateJobRequest(idempotencyKey, "{\"payload\":\"Test\"}"));
         assertEquals(JobStatus.QUEUED, failureJob.getStatus());
+        System.out.println("Status queued");
         Instant start = Instant.now();
         await().atMost(Duration.ofSeconds(60))
                 .pollInterval(Duration.ofSeconds(1))

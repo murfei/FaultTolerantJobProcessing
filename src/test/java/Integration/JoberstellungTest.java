@@ -7,6 +7,7 @@ import jobClient.dto.CreateJobRequest;
 import jobClient.dto.CreateJobResponse;
 import jobClient.rest.BackendRestClient;
 import jobClient.service.JobClient;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -16,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -25,11 +27,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 @SpringBootTest(classes = Application.class, webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 @ActiveProfiles("test")
+@DirtiesContext
 public class JoberstellungTest {
 
     static JobClient client;
@@ -52,6 +54,11 @@ public class JoberstellungTest {
         payload = mapper.writeValueAsString(jsonObjekt);
     }
 
+    @AfterEach
+    void tearDown() {
+        jobRepository.deleteAllInBatch();
+    }
+
     @Test
     void validPayloadTest() {
         ResponseEntity<CreateJobResponse> response = client.createJob(payload);
@@ -62,6 +69,7 @@ public class JoberstellungTest {
 
     @Test
     void invalidPayloadTest() { // Nachweis zu Z1
+        reset(restClient);
         int length = client.getAllJobs().getBody().size();
         System.out.println("Anzahl Jobs vor dem Test: " + length);
         assertNull(client.createJob("")); //Syntaktisch invalide Request -> scheitert an @Valid

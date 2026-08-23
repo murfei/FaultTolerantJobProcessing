@@ -1,11 +1,13 @@
 package Integration;
 
 import backend.Application;
+import backend.repository.JobRepository;
 import backend.service.JobService;
 import com.zaxxer.hikari.HikariDataSource;
 import jobClient.dto.CreateJobRequest;
 import jobClient.dto.CreateJobResponse;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,6 +69,12 @@ public class DatabaseRetryTest {
         if (dbProxy != null)
             dbProxy.setConnectionCut(false);
     }
+
+    @AfterEach
+    void tearDown() {
+        jobRepository.deleteAllInBatch();
+    }
+
     @DynamicPropertySource
     static void configureDatabase(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.hikari.connection-timeout", () -> "1000");
@@ -80,6 +88,8 @@ public class DatabaseRetryTest {
     TestRestTemplate restTemplate;
     @Autowired
     DataSource dataSource;
+    @Autowired
+    JobRepository jobRepository;
     @MockitoSpyBean
     JobService jobService;
 
