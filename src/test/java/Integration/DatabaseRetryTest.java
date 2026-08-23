@@ -1,12 +1,11 @@
 package Integration;
 
 import backend.Application;
-import backend.domain.Job;
 import backend.service.JobService;
 import com.zaxxer.hikari.HikariDataSource;
 import jobClient.dto.CreateJobRequest;
 import jobClient.dto.CreateJobResponse;
-import jobClient.service.JobClient;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +14,7 @@ import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRe
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
@@ -36,6 +36,7 @@ import static org.mockito.Mockito.verify;
 @Testcontainers
 @SpringBootTest(classes = Application.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureTestRestTemplate
+@DirtiesContext
 public class DatabaseRetryTest {
 
     static final Network network = Network.newNetwork();
@@ -61,6 +62,11 @@ public class DatabaseRetryTest {
         dbProxy = toxiproxy.getProxy(postgres, 5432);
     }
 
+    @AfterAll
+    static void cleanUp() {
+        if (dbProxy != null)
+            dbProxy.setConnectionCut(false);
+    }
     @DynamicPropertySource
     static void configureDatabase(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.hikari.connection-timeout", () -> "1000");

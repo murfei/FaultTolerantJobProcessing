@@ -3,11 +3,13 @@ package Integration;
 import backend.Application;
 import backend.domain.JobStatus;
 import backend.repository.JobRepository;
+import jobClient.dto.CreateJobRequest;
 import jobClient.dto.CreateJobResponse;
 import jobClient.rest.BackendRestClient;
 import jobClient.service.JobClient;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
@@ -22,6 +24,9 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @SpringBootTest(classes = Application.class, webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 @ActiveProfiles("test")
@@ -29,12 +34,15 @@ public class JoberstellungTest {
 
     static JobClient client;
     static String payload;
+    static BackendRestClient restClient;
     @Autowired
     JobRepository jobRepository;
 
     @BeforeAll
     static void setup() {
-        client = new JobClient();
+        restClient = Mockito.spy(new BackendRestClient("http://localhost:8080/api/jobs"));
+        client = new JobClient(restClient);
+
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode jsonObjekt = mapper.createObjectNode();
         jsonObjekt.put("name", "Max Mustermann");
@@ -57,7 +65,9 @@ public class JoberstellungTest {
         int length = client.getAllJobs().getBody().size();
         System.out.println("Anzahl Jobs vor dem Test: " + length);
         assertNull(client.createJob("")); //Syntaktisch invalide Request -> scheitert an @Valid
+        verify(restClient, times(1)).createJob(any(CreateJobRequest.class));
         assertNull(client.createJob("invalid payload")); //Fachlich invalide Request -> scheitert an Validator
+        verify(restClient, times(2)).createJob(any(CreateJobRequest.class));
         assertEquals(length, client.getAllJobs().getBody().size());
         System.out.println("Anzahl Jobs nach dem Test: " + length);
     }

@@ -1,6 +1,7 @@
 package Integration;
 
 import backend.Application;
+import backend.Exception.LeaseExpiredException;
 import backend.api.CreateJobRequest;
 import backend.domain.Job;
 import backend.domain.JobResult;
@@ -63,9 +64,6 @@ public class WorkerCrashRecoveryTest {
 
     @BeforeEach
     void init() {
-        resultRepository.deleteAllInBatch();
-        jobRepository.deleteAllInBatch();
-
         concurrentWorker = UUID.randomUUID();
         //verwaisten Job erstellen
         jobId = UUID.randomUUID();
@@ -77,7 +75,14 @@ public class WorkerCrashRecoveryTest {
         jobRepository.save(job);
     }
 
+    @AfterEach
+    void tearDown() {
+        resultRepository.deleteAllInBatch();
+        jobRepository.deleteAllInBatch();
+    }
+
     @Test
+        //TODO: Das hier ist Test für Z8 -> dementsprechend integrieren
     void recoveryComponentTest() throws InterruptedException {
         //RecoveryService aktivieren
         recoveryService.recoverCycle();
@@ -97,6 +102,7 @@ public class WorkerCrashRecoveryTest {
                         .orElse(false));
 
         //Testen, dass der Job nicht mehr von einem simulierten alten Worker fertiggestellt werden kann
+        System.out.println("Simulierter Zugriff eines unberechtigten Workers");
         assertThrows(IllegalStateException.class, () -> workerService.finishJob(recoveredJob.getId(),
                 concurrentWorker, new JobResult(recoveredJob, "Unberechtigter Worker")));
 
@@ -115,11 +121,27 @@ public class WorkerCrashRecoveryTest {
 
         //Erneute Prüfung, dass keine Doppelspeicherung möglich ist, falls der alte Worker nur zu langsam war und doch
         //das Speichern versucht
+        System.out.println("Simulierter Zugriff eines zu langsamen Workers");
         assertThrows(IllegalStateException.class, () -> workerService.finishJob(finishedJob.getId(),
                 concurrentWorker, new JobResult(finishedJob, "Unberechtigter Worker")));
         assertEquals(countResults+1, resultRepository.count());
     }
 
+    @Test //TODO: auch relevant für Z8?
+    void finishJobRejectedWhenOwnLeaseAlreadyExpiredButNotYetRecovered() {
+        UUID workerId = UUID.randomUUID();
+        Job job = JobFactory.createJob(new CreateJobRequest(UUID.randomUUID(), "{\"payload\":\"Test\"}"));
+        job.setStatus(JobStatus.RUNNING);
+        job.setClaimed_by(workerId); // weiterhin der rechtmäßige, noch nicht recoverte Besitzer
+        job.setLease_until(Instant.now().minusSeconds(1)); // Lease ist abgelaufen, aber Recovery war noch nicht dran
+        jobRepository.save(job);
+
+        assertThrows(LeaseExpiredException.class, () ->
+                workerService.finishJob(job.getId(), workerId, new JobResult(job, "{\"Ergebnis\":\"Zu spät\"}")));
+
+        assertEquals(0, resultRepository.findAll().stream()
+                .filter(r -> r.getJobId().equals(job.getId())).count());
+    }
     @Test
     void jobStatusFailedAfterToManyAttempsTest(@Value( "${job.max-attempts}") int maxAttempts){
         for (int i = 1; i < maxAttempts; i++) {

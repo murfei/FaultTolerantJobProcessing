@@ -62,18 +62,21 @@ public class WorkerService {
             System.out.println("WorkerService: Job hat nicht den Status RUNNING sondern " + job.getStatus() + ", obwohl Worker Ergebnis speichern wollte");
             throw new IllegalStateException("Job hat nicht den Status RUNNING, obwohl Worker Ergebnis speichern wollte");
         }
-        if (!workerId.equals(job.getClaimed_by()))
+        if (!workerId.equals(job.getClaimed_by())) {
+            System.out.println("Worker hat keine Berechtigung, diesen Job zu bearbeiten. Besitzer: " + job.getClaimed_by() + " Worker: " + workerId);
             throw new IllegalStateException("Worker hat keine Berechtigung, diesen Job zu bearbeiten");
-
-        if (job.getLease_until().isBefore(Instant.now()))
+        }
+        if (job.getLease_until().isBefore(Instant.now())) {
+            System.out.println("Lease abgelaufen! Worker hat keine Berechtigung mehr, diesen Job zu bearbeiten. Worker: " + workerId);
             throw new LeaseExpiredException();
+        }
 
         job.setStatus(JobStatus.SUCCEEDED);
         testHook.afterStatusChange();
         resultRepository.save(jobResult);
         job.setResult(jobResult);
         job.setUpdatedAt(Instant.now());
-        System.out.println("Job " + jobId + " finished successfully");
+        System.out.println("Job " + job.getIdempotencyKey() + " finished successfully by worker " + workerId);
         return job;
     }
 }

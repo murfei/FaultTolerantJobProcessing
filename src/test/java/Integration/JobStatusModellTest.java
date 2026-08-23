@@ -26,7 +26,6 @@ import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -74,7 +73,7 @@ public class JobStatusModellTest {
                 "Beide Ausgänge sollten über die Wiederholungen hinweg mindestens einmal aufgetreten sein -- sonst war das Rennen nicht scharf genug, um Z-5 wirklich zu prüfen");
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(TestConfig.RACE_REPETITIONS)
     void finishJobAndRecoveryRaceNeverReversesTerminalState() throws Exception {
         System.out.println("---------------------------------------Testdurchlauf---------------------------------------");
         UUID idempotencyKey = UUID.randomUUID();
@@ -90,45 +89,48 @@ public class JobStatusModellTest {
 
         CyclicBarrier barrier = new CyclicBarrier(2);
         ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Callable<Exception> finishTask = () -> {
+                try {
+                    barrier.await();
+                    workerService.finishJob(tempJobId, workerId, new JobResult(tempJob, jobResult));
+                    return null;
+                } catch (Exception e) {
+                    return e;
+                }
+            };
+            Callable<Exception> recoveryTask = () -> {
+                try {
+                    barrier.await();
+                    recoveryExecutor.recoverJob(tempJobId);
+                    return null;
+                } catch (Exception e) {
+                    return e;
+                }
+            };
 
-        Callable<Exception> finishTask = () -> {
-            try {
-                barrier.await();
-                workerService.finishJob(tempJobId, workerId, new JobResult(tempJob, jobResult));
-                return null;
-            } catch (Exception e) {
-                return e;
+            Future<Exception> finishOutcome = pool.submit(finishTask);
+            Future<Exception> recoveryOutcome = pool.submit(recoveryTask);
+            Exception finishException = finishOutcome.get(10, TimeUnit.SECONDS);
+            Exception recoveryException = recoveryOutcome.get(10, TimeUnit.SECONDS);
+
+            assertNull(recoveryException, "recoverCycle() sollte nie werfen, auch nicht bei Kollision");
+
+            Job result = jobRepository.findByIdempotencyKey(idempotencyKey).orElseThrow();
+
+            if (result.getStatus() == JobStatus.SUCCEEDED) {
+                finishWins.incrementAndGet();
+                assertNull(finishException, "finishJob hätte hier erfolgreich sein müssen");
+                assertNotNull(result.getResult());
+            } else {
+                recoveryWins.incrementAndGet();
+                assertTrue(result.getStatus() == JobStatus.QUEUED || result.getStatus() == JobStatus.FAILED);
+                assertNotNull(finishException, "finishJob hätte hier per Fencing abgelehnt werden müssen");
+                assertNull(result.getResult());
             }
-        };
-        Callable<Exception> recoveryTask = () -> {
-            try {
-                barrier.await();
-                recoveryExecutor.recoverJob(tempJobId);
-                return null;
-            } catch (Exception e) {
-                return e;
-            }
-        };
+        } finally {
+            pool.shutdown();
 
-        Future<Exception> finishOutcome = pool.submit(finishTask);
-        Future<Exception> recoveryOutcome = pool.submit(recoveryTask);
-        Exception finishException = finishOutcome.get(10, TimeUnit.SECONDS);
-        Exception recoveryException = recoveryOutcome.get(10, TimeUnit.SECONDS);
-        pool.shutdown();
-
-        assertNull(recoveryException, "recoverCycle() sollte nie werfen, auch nicht bei Kollision");
-
-        Job result = jobRepository.findByIdempotencyKey(idempotencyKey).orElseThrow();
-
-        if (result.getStatus() == JobStatus.SUCCEEDED) {
-            finishWins.incrementAndGet();
-            assertNull(finishException, "finishJob hätte hier erfolgreich sein müssen");
-            assertNotNull(result.getResult());
-        } else {
-            recoveryWins.incrementAndGet();
-            assertTrue(result.getStatus() == JobStatus.QUEUED || result.getStatus() == JobStatus.FAILED);
-            assertNotNull(finishException, "finishJob hätte hier per Fencing abgelehnt werden müssen");
-            assertNull(result.getResult());
         }
     }
 }
