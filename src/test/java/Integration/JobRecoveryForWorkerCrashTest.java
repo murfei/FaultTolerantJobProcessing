@@ -106,6 +106,7 @@ public class JobRecoveryForWorkerCrashTest {
 
         Job finished = jobService.getJobById(idempotencyKey).orElseThrow();
         assertEquals(2, finished.getAttempt_count());
+        assertTrue(finished.getResult().getResult().contains("{\"result\": \"Testergebnis\", \"Zeitpunkt\": "));
         System.out.println(finished.getStatus());
         System.out.println(finished.getResult().getResult());
     }
