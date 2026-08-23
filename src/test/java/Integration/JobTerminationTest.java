@@ -57,7 +57,7 @@ public class JobTerminationTest {
 
         Job failureJob = jobService.createJob(new CreateJobRequest(idempotencyKey, "{\"payload\":\"Test\"}"));
         assertEquals(JobStatus.QUEUED, failureJob.getStatus());
-        System.out.println("Status queued");
+        System.out.println("Status QUEUED");
         Instant start = Instant.now();
         await().atMost(Duration.ofSeconds(60))
                 .pollInterval(Duration.ofSeconds(1))

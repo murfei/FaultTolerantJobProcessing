@@ -127,7 +127,7 @@ public class ConcurrencyTest {
             try {
                 barrier.await();
                 Job freshJob = jobRepository.findByIdempotencyKey(idempotencyKey).orElseThrow();
-                workerService.finishJob(jobId, staleWorker, new JobResult(freshJob, "{\"Ergebnis\":\"verspaetet\"}"));
+                workerService.finishJob(jobId, staleWorker, new JobResult(freshJob, "{\"Ergebnis\":\"verspätet\"}"));
                 return null;
             } catch (Exception e) {
                 return e;

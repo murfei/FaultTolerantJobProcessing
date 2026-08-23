@@ -27,11 +27,11 @@ public class BackendRestClient {
                 .baseUrl(baseUrl)
                 .defaultStatusHandler(this::checkRetriable,
                         (req, res) -> {
-                            throw new RetryableHttpException(res.getStatusCode(), "Potentially retriable error while requesting Job-Processing Backend-API");
+                            throw new RetryableHttpException(res.getStatusCode(), "Fehler bei Anfrage der Job-Processing Backend-API. Retry möglicherweise sinnvoll.");
                         })
                 .defaultStatusHandler(HttpStatusCode::isError,
                         (req, res) -> {
-                            throw new NonRetryableHttpException(res.getStatusCode(), "Not retriable error while requesting Job-Processing Backend-API");
+                            throw new NonRetryableHttpException(res.getStatusCode(), "Fehler bei Anfrage der Job-Processing Backend-API. Retry nicht sinnvoll.");
                         });
         if(interceptor != null){
             builder.requestInterceptor(interceptor);

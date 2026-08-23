@@ -76,7 +76,7 @@ public class WorkerService {
         resultRepository.save(jobResult);
         job.setResult(jobResult);
         job.setUpdatedAt(Instant.now());
-        System.out.println("Job " + job.getIdempotencyKey() + " finished successfully by worker " + workerId);
+        System.out.println("Job " + job.getIdempotencyKey() + " erfolgreich beendet durch Worker " + workerId);
         return job;
     }
 }

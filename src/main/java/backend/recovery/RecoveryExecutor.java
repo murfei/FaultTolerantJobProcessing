@@ -28,15 +28,15 @@ public class RecoveryExecutor {
             return;
         }
         if (job.getStatus() != JobStatus.RUNNING) {
-            System.out.println("Recovery: Job hat nicht den Status RUNNING sondern " + job.getStatus() + ", skipping recovery");
+            System.out.println("Recovery: Job hat nicht den Status RUNNING sondern " + job.getStatus() + ", Recovery wird abgebrochen");
             return;
         }
         if (job.getAttempt_count() < maxAttempts) {
             job.setStatus(JobStatus.QUEUED);
-            System.out.println("Recovery: Job " + job.getIdempotencyKey() + " recovered and put back into queue");
+            System.out.println("Recovery: Job " + job.getIdempotencyKey() + " recovered und Status zurück auf QUEUED gesetzt");
         } else {
             job.setStatus(JobStatus.FAILED);
-            System.out.println("Recovery: Job " + job.getIdempotencyKey() + " failed due to too many failed attempts");
+            System.out.println("Recovery: Job " + job.getIdempotencyKey() + " wird aufgrund zu vieler Versuche als FAILED markiert");
         }
         job.setClaimed_by(null);
         job.setLease_until(null);

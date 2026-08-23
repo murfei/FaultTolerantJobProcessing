@@ -31,18 +31,18 @@ public class Worker implements Runnable {
             try {
                 Optional<Job> job = retryExecutor.execute(() -> workerService.claimNextJob(id));
                 if (job.isEmpty()) {
-                    System.out.println("Worker: " + id + " No job found");
+                    System.out.println("Worker: " + id + " kein Job verfügbar");
                     if (!sleep(2000)) {
                         break;
                     }
                     continue;
                 }
-                System.out.println("Worker: " + id + " working on job: " + job.get().getIdempotencyKey());
+                System.out.println("Worker: " + id + " starte Verarbeitung von Job: " + job.get().getIdempotencyKey());
                 JobResult result = processor.process(job.get());
                 retryExecutor.execute(() -> workerService.finishJob(job.get().getId(), id, result));
-                System.out.println("Worker: " + id + " finished job: " + job.get().getIdempotencyKey());
+                System.out.println("Worker: " + id + " hat Job: " + job.get().getIdempotencyKey() + " erfolgreich beendet");
             } catch (Exception e) {
-                System.out.println("Worker: " + id + " failed with error: " + e.getMessage());//TODO: Logging Messages überall einheitlich auf deutsch oder englisch
+                System.out.println("Worker: " + id + " Verarbeitung Fehlgeschlagen mit Error: " + e.getMessage());
             }
         }
     }

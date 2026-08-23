@@ -41,12 +41,12 @@ public class JobControllerRetryTest {
     void testRetryToManyAttempts() {
         JobService jobService = Mockito.mock(JobService.class);
         when(jobService.createJob(any(CreateJobRequest.class)))
-                .thenThrow(new DataAccessResourceFailureException("DB unavailable"))
-                .thenThrow(new DataAccessResourceFailureException("DB unavailable"))
-                .thenThrow(new DataAccessResourceFailureException("DB unavailable"))
-                .thenThrow(new DataAccessResourceFailureException("DB unavailable"))
-                .thenThrow(new DataAccessResourceFailureException("DB unavailable"))
-                .thenThrow(new DataAccessResourceFailureException("DB unavailable"));
+                .thenThrow(new DataAccessResourceFailureException("DB nicht erreichbar"))
+                .thenThrow(new DataAccessResourceFailureException("DB nicht erreichbar"))
+                .thenThrow(new DataAccessResourceFailureException("DB nicht erreichbar"))
+                .thenThrow(new DataAccessResourceFailureException("DB nicht erreichbar"))
+                .thenThrow(new DataAccessResourceFailureException("DB nicht erreichbar"))
+                .thenThrow(new DataAccessResourceFailureException("DB nicht erreichbar"));
         JobController tempController = new JobController(jobService, new PayloadValidator());
 
         ResponseEntity<CreateJobResponse> response = tempController.createJob(request);
@@ -94,9 +94,9 @@ public class JobControllerRetryTest {
         JobService jobService = Mockito.mock(JobService.class);
         Job responseJob = JobFactory.createJob(request);
         when(jobService.createJob(any(CreateJobRequest.class)))
-                .thenThrow(new DataAccessResourceFailureException("DB unavailable"))
-                .thenThrow(new DataAccessResourceFailureException("DB unavailable"))
-                .thenThrow(new DataAccessResourceFailureException("DB unavailable"))
+                .thenThrow(new DataAccessResourceFailureException("DB nicht erreichbar"))
+                .thenThrow(new DataAccessResourceFailureException("DB nicht erreichbar"))
+                .thenThrow(new DataAccessResourceFailureException("DB nicht erreichbar"))
                 .thenReturn(responseJob);
         JobController tempController = new JobController(jobService, new PayloadValidator());
 

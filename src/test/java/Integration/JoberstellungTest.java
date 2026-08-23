@@ -88,7 +88,7 @@ public class JoberstellungTest {
             ClientHttpResponse response = execution.execute(request, body);
             if (callCount.getAndIncrement() == 0) {
                 response.close();
-                throw new IOException("simulierter Verbindungsabbruch nach erfolgreicher Verarbeitung");
+                throw new IOException("Simulierter Verbindungsabbruch nach erfolgreicher Verarbeitung");
             }
             return response;
         };

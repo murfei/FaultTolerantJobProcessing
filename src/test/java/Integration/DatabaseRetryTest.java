@@ -145,7 +145,7 @@ public class DatabaseRetryTest {
         ResponseEntity<CreateJobResponse> response =
                 restTemplate.postForEntity("/api/jobs/job", request, CreateJobResponse.class);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        System.out.println("Job created");
+        System.out.println("Job erstellt");
         response = restTemplate.postForEntity("/api/jobs/job", request, CreateJobResponse.class);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(jobService, times(2)).createJob(any(backend.api.CreateJobRequest.class));
