@@ -10,11 +10,9 @@ import backend.recovery.RecoveryExecutor;
 import backend.repository.JobRepository;
 import backend.repository.JobResultRepository;
 import backend.service.WorkerService;
+import com.zaxxer.hikari.HikariDataSource;
 import jakarta.persistence.EntityManager;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
@@ -22,18 +20,18 @@ import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
+import javax.sql.DataSource;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 
 @SpringBootTest(classes = Application.class, properties = "worker.count=0")
 @ActiveProfiles("test")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DirtiesContext
 public class JobStatusModellTest {
 
@@ -47,11 +45,15 @@ public class JobStatusModellTest {
     private RecoveryExecutor recoveryExecutor;
     @Autowired
     private EntityManager entityManager;
+    @Autowired
+    private DataSource dataSource;
 
     static final AtomicInteger finishWins = new AtomicInteger();
     static final AtomicInteger recoveryWins = new AtomicInteger();
 
     static String jobResult;
+
+    static int workerCount = 2;
 
     @BeforeAll
     static void setup() {
@@ -59,6 +61,14 @@ public class JobStatusModellTest {
         ObjectNode jsonObjekt = mapper.createObjectNode();
         jsonObjekt.put("Ergebnis", "Test");
         jobResult = mapper.writeValueAsString(jsonObjekt);
+    }
+
+    @BeforeAll
+    void verifyMaxPoolSize() {
+        assertInstanceOf(HikariDataSource.class, dataSource);
+        HikariDataSource hikari = (HikariDataSource) dataSource;
+
+        assertTrue(workerCount + 1 < hikari.getMaximumPoolSize(), "Hikari Maximum Pool Size entspricht nicht der Erwartung");
     }
 
     @BeforeEach
@@ -89,8 +99,8 @@ public class JobStatusModellTest {
         jobRepository.save(tempJob);
         UUID tempJobId = tempJob.getId();
 
-        CyclicBarrier barrier = new CyclicBarrier(2);
-        ExecutorService pool = Executors.newFixedThreadPool(2);
+        CyclicBarrier barrier = new CyclicBarrier(workerCount);
+        ExecutorService pool = Executors.newFixedThreadPool(workerCount);
         try {
             Callable<Exception> finishTask = () -> {
                 try {

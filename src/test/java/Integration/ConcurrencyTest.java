@@ -48,7 +48,6 @@ public class ConcurrencyTest {
         assertInstanceOf(HikariDataSource.class, dataSource);
         HikariDataSource hikari = (HikariDataSource) dataSource;
 
-        // Bricht die gesamte Suite sofort ab, falls der Wert nicht stimmt
         assertTrue(workerCount + 1 < hikari.getMaximumPoolSize(), "Hikari Maximum Pool Size entspricht nicht der Erwartung");
     }
 

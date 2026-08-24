@@ -84,7 +84,6 @@ public class WorkerCrashRecoveryTest {
     }
 
     @Test
-        //TODO: Das hier ist Test für Z8 -> dementsprechend integrieren
     void recoveryComponentTest() throws InterruptedException {
         //RecoveryService aktivieren
         recoveryService.recoverCycle();
@@ -102,6 +101,8 @@ public class WorkerCrashRecoveryTest {
                 .until(() -> jobRepository.findByIdempotencyKey(jobId)
                         .map(j -> j.getStatus() == JobStatus.RUNNING)
                         .orElse(false));
+        //Kontrolle, dass der Job nicht vom gleichen Worker wieder aufgenommen wurde
+        assertNotEquals(jobRepository.findByIdempotencyKey(jobId).get().getClaimed_by(), concurrentWorker);
 
         //Testen, dass der Job nicht mehr von einem simulierten alten Worker fertiggestellt werden kann
         System.out.println("Simulierter Zugriff eines unberechtigten Workers");
@@ -129,7 +130,7 @@ public class WorkerCrashRecoveryTest {
         assertEquals(countResults+1, resultRepository.count());
     }
 
-    @Test //TODO: auch relevant für Z8?
+    @Test
     void finishJobRejectedWhenOwnLeaseAlreadyExpiredButNotYetRecovered() {
         UUID workerId = UUID.randomUUID();
         Job job = JobFactory.createJob(new CreateJobRequest(UUID.randomUUID(), "{\"payload\":\"Test\"}"));
@@ -172,7 +173,7 @@ public class WorkerCrashRecoveryTest {
 
         assertThrows(RuntimeException.class, () -> workerService.finishJob(job.getId(), concurrentWorker, result));
         System.out.println("Testhook hat Fehler geworfen");
-        entityManager.clear();
+//        entityManager.clear();
 
         Job persistedJob = jobRepository.findById(job.getId()).orElseThrow();
         assertEquals(JobStatus.RUNNING, persistedJob.getStatus());
