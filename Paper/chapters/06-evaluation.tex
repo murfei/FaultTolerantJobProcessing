@@ -17,6 +17,30 @@ Den Abschluss bildet die Bewertung der formulierten Hypothesen.
 \section{Versuchsaufbau}
 \label{sec:versuchsaufbau} %TODO: die Tests werden auf einer isolierten über Docker laufenden DB durchgeführt. die für jeden Test in einen leeren
                            % Initialzustand versetzt wird, damit die Test reproduzierbar sind
+%TODO:Da der Ausgang eines einzelnen Durchlaufs vom nichtdeterministischen Ausgang des jeweiligen Wettlaufs abhängt, werden
+% alle drei Szenarien mit \texttt{TestConfig.RACE\_REPETITIONS = 100} Wiederholungen automatisiert ausgeführt.
+% Nebenläufigkeitsabhängige Tests werden jeweils 100-mal unter identischen
+% Ausgangsbedingungen wiederholt.
+% Die feste Wiederholungszahl dient dazu, die Abhängigkeit der beobachteten
+% Ergebnisse vom Thread-Scheduling und von der zeitlichen Reihenfolge
+% konkurrierender Operationen zu reduzieren.
+% Da Race Conditions nicht notwendigerweise bei jedem einzelnen Durchlauf
+% auftreten, erhöht die Wiederholung die Wahrscheinlichkeit, auch seltenere
+% Ausführungsreihenfolgen zu erfassen.
+% Die Anzahl von 100 Wiederholungen stellt dabei einen Kompromiss zwischen
+% der Aussagekraft der Untersuchung und dem für die Testdurchführung
+% erforderlichen Zeitaufwand dar.
+% Ein erfolgreicher Durchlauf wird dabei nicht als Beweis für das generelle
+% Ausbleiben eines Fehlers interpretiert; vielmehr wird untersucht, ob die
+% definierten Prüfkriterien über alle Wiederholungen hinweg eingehalten
+% werden.
+% Unter der vereinfachenden Annahme unabhängiger Testläufe gilt für einen Fehler, der mit Wahrscheinlichkeit p pro Lauf auftritt:
+% P(Fehler mindestens einmal entdeckt)=1−(1−p)^N
+% Bei N=100 Wiederholungen würde ein Fehler, der in jedem Lauf mit 5% Wahrscheinlichkeit auftritt, mit etwa 99,4%
+% Wahrscheinlichkeit mindestens einmal beobachtet werden. Bei einer Fehlerwahrscheinlichkeit von nur 1% wären es dagegen nur etwa 63,4%.
+
+
+
 Die Evaluation erfolgt mit der implementierten Spring-basierten Anwendung und einer PostgreSQL-Datenbank.
 Für die Integrationstests wird PostgreSQL in einem durch Testcontainers verwalteten Container ausgeführt.
 Dadurch kann die Testumgebung reproduzierbar erstellt und für die einzelnen Testläufe kontrolliert gestartet und beendet werden.
@@ -90,7 +114,7 @@ Die Auswahl und methodische Begründung der Szenarien wurden bereits in \cref{se
     \addlinespace
     \ref{zus:verarbeitungsgarantie}, \ref{zus:idempotenz} & Harter Worker-Ausfall während \texttt{Running} & Worker-Instanz während Bearbeitung hart beenden & Job wird nach Recovery von einem neuen Worker aufgenommen und erreicht \texttt{Succeeded}, gespeichertes Ergebnis entspricht dem erfolgreichen (zweiten) Ausfyhrungsversuch \\
     \addlinespace
-    \ref{zus:idempotenz} & (a) Recovery eines Jobs im Status \textit{Running}; (b) Lease abgelaufen ohne vorherige Recovery & (a) Manuelle Recovery eines Jobs. Speichern durch nicht-besitzenden Worker vor und nach Abschluss durch anderen Worker; (b) \texttt{lease\_until} auf Vergangenheit setzen & (a) Zugriff wird abgelehnt, es wird genau ein Ergebnis vom besitzenden Worker gespeichert; (b) Zugriff wird abgelehnt, kein Ergebnis wird gespeichert \\
+    \ref{zus:idempotenz} & (a) Recovery eines Jobs im Status \textit{Running}; (b) Lease abgelaufen ohne vorherige Recovery & (a) Manuelle Recovery eines aktiven Jobs. Speicherversuch durch nicht-besitzenden Worker vor und nach Abschluss durch besitzenden Worker; (b) \texttt{lease\_until} auf Vergangenheit setzen & (a) Zugriff wird abgelehnt, es wird genau ein Ergebnis vom besitzenden Worker gespeichert; (b) Zugriff wird abgelehnt, kein Ergebnis wird gespeichert \\
     \addlinespace
     \ref{zus:terminierung} & Job schlägt dauerhaft fachlich fehl & Processor-Mock wirft für bestimmte Job-ID bei jedem Versuch eine Exception & \texttt{attempt\_count} erreicht Maximum, Job geht in \texttt{Failed} über; Zeit bis \texttt{Failed} $\leq$ \texttt{maxAttempts} $\times$ (Lease + max(Recovery-Intervall, Worker idle-Timeout)) \\
 \end{longtable}
@@ -191,57 +215,63 @@ im Testfall über Mockito so konfiguriert wird, dass er nach der Statusänderung
 eine Exception auslöst.
 Anschließend wird geprüft, dass die Änderungen verworfen wurden und kein Zwischenzustand im Job-Store verblieben ist.
 
-
-Z3 (a) ConcurrencyTest.onlyOneWorkerClaimsContendedJob()
-JobStatusModellTest.finishJobAndRecoveryRaceNeverReversesTerminalState()
-Z8(a) (WorkerCrashRecoveryTest.recoveryComponentTest()
-Z8(b) (WorkerCrashRecoveryTest.finishJobRejectedWhenOwnLeaseAlreadyExpiredButNotYetRecovered()
-
-\subsection{Nebenläufigkeit beim Claiming und Abschluss (Z-3, Z-5, Z-8)}
+\subsection{Nebenläufigkeit beim Claiming und Abschluss (Z-3, Z-5)}
 \label{subsec:nebenlaeufigkeits_fehlersimulation}
-Die Testszenarien zu Z-3, Z-5 und Z-8 hängen vom zeitlichen Zusammenspiel mehrerer konkurrierender Operationen ab.
+Die Testszenarien zu Z-3 und Z-5 hängen vom zeitlichen Zusammenspiel mehrerer konkurrierender Operationen ab.
 Um die konkurrierenden Aufrufe möglichst zeitgleich zu starten, werden die beteiligten Threads über eine \texttt{CyclicBarrier}
 synchronisiert, sodass keiner der Aufrufe beginnt, bevor nicht alle beteiligten Threads bereitstehen.
+Da die getesteten Eigenschaften hier Zugriffs- und Schreibrechte der Worker auf spezifische Datensätze betreffen, ist
+eine notwendige Voraussetzung für die Aussagekraft dieser Tests, dass die konkurrierenden Zugriffe tatsächlich auf
+Datenbankebene aufeinandertreffen und nicht bereits vorher durch den Verbindungspool serialisiert werden.
+Die verwendete maximale Poolgröße muss daher mindestens der Anzahl gleichzeitig zugreifender Worker entsprechen.
+Um diese Systemeigenschaft sicherzustellen, wird dies vor Ausführung der betroffenen Testklasse automatisiert überprüft
+und die Testausführung andernfalls abgebrochen.
 
-Eine notwendige Voraussetzung für die Aussagekraft dieser Tests ist, dass die konkurrierenden Zugriffe tatsächlich auf
-Datenbankebene aufeinandertreffen und nicht bereits vorher durch den Verbindungspool serialisiert werden. Die
-verwendete maximale Poolgröße muss daher mindestens der Anzahl gleichzeitig zugreifender Worker entsprechen; dies wird
-vor Ausführung der betroffenen Testklasse automatisiert überprüft und die Testausführung andernfalls abgebrochen.
-
-Für Z-3 wird ein einzelner Job von mehreren Worker-Threads gleichzeitig beansprucht. Für Z-5 werden \texttt{finishJob}
-und der direkte Aufruf von \texttt{recoverJob} auf denselben Job angewendet, wobei der Job absichtlich mit bereits
-erreichter maximaler Versuchsanzahl präpariert wird, sodass je nach Ausgang des Wettlaufs entweder der erfolgreiche
-Abschluss oder die endgültige Fehlschlagsmarkierung eintritt. Für Z-3/Z-8 wird \texttt{finishJob} von zwei Threads mit
-unterschiedlicher, jedoch nur einer tatsächlich zum Job gehörenden Worker-ID gleichzeitig aufgerufen.
-
-Da der Ausgang eines einzelnen Durchlaufs vom nichtdeterministischen Ausgang des jeweiligen Wettlaufs abhängt, werden
-alle drei Szenarien mit \texttt{TestConfig.RACE\_REPETITIONS = 100} Wiederholungen automatisiert ausgeführt. Für Z-5 wird
-dabei zusätzlich protokolliert, wie viele Durchläufe auf den jeweiligen Ausgang entfallen, um sicherzustellen, dass das
-Rennen tatsächlich beide möglichen Ausgänge erzeugt und nicht durch eine feste Reihenfolge vorentschieden ist.
+Für Z-3 (a) wird ein einzelner Job von mehreren Worker-Threads gleichzeitig beansprucht.
+Anschließend wird geprüft, wie viele Worker dabei Erfolg hatten.
+Da für den Test genau ein Job im Job-Store persistiert ist, sollte nur ein Worker erfolgreich sein und alle anderen
+ein leeres \texttt{Optional}-Objekt erhalten.
+Z-3 (b) testet demgegenüber nach dem gleichen Prinzip das Speichern desselben Jobs zur selben Zeit.
+Ein besitzender und ein nicht besitzender Job versuchen über eine Barrier synchronisiert ein Ergebnis zu speichern.
+Für Z-5 werden \texttt{finishJob} und der direkte Aufruf von \texttt{recoverJob} auf denselben Job angewendet, wobei der
+Job absichtlich mit bereits erreichter maximaler Versuchsanzahl präpariert wird, sodass je nach Ausgang des Wettlaufs
+entweder der erfolgreiche Abschluss oder der endgültige Fehlschlag eintritt.
+Der Verlierer des Rennens darf dann keine Änderung mehr vornehmen, da der Gewinner den Job bereits in einen finalen
+Zustand überführt hat.\\
+Für Z-5 wird zusätzlich zur mehrfachen Ausführung protokolliert, wie viele Durchläufe auf den jeweiligen Ausgang entfallen,
+um sicherzustellen, dass das Rennen tatsächlich beide möglichen Ausgänge erzeugt und nicht durch eine feste Reihenfolge vorentschieden ist.
 
 \subsection{Recovery nach Worker-Ausfall (Z-7, Z-8, Z-9)}
 \label{subsec:recovery_fehlersimulation}
-Für die Erkennung verwaister Jobs (Z-8, Teilaspekt) wird der für den Recovery-Mechanismus relevante Zustand direkt im
-Job-Store hergestellt: Ein Job wird auf den Status \texttt{Running} gesetzt und mit einem bereits abgelaufenen
-\texttt{lease\_until} versehen, ohne dass tatsächlich eine Verarbeitung stattgefunden hat. Anschließend wird beobachtet,
-ob der Recovery-Mechanismus den erwarteten Zustandsübergang durchführt und ein verspäteter Abschlussversuch des
-ursprünglichen Workers korrekt abgewiesen wird.
+Für Z-7 wird ein tatsächlicher Prozessabbruch herbeigeführt.
+Dazu wird der SpringBoot Kontext geladen, aber die Anzahl laufender Worker auf 0 gesetzt.
+Anschließend wird das System als eine zweite eigenständige Instanz als Prozess gegen dieselbe Datenbank gestartet und ausgeführt.
+Dieser Prozess verfügt über einen laufenden Worker.
+Aus dem Test heraus wird ein Job erzeugt und bis zu dessen Übernahme durch den Worker-Prozess abgewartet.
+Sobald der Job in Bearbeitung ist, wird der Prozess hart beendet, ohne dass ein geordnetes Herunterfahren stattfindet.
+Daraufhin wird geprüft, ob der Worker Prozess den Job tatsächlich nicht beenden konnte und ein zweiter, unabhängiger Prozess
+mit laufendem Worker wird gestartet.
+Der \texttt{RecoveryService} sollte den Job im nächsten Durchlauf als verwaist erkennen und erneut zur Bearbeitung ausstellen.
+Der neue Worker sollte den verwaisten Job daraufhin übernehmen.
+Zusätzlich zum Erreichen des Zustands \texttt{Succeeded} wird für Z-8 geprüft, dass der gespeicherte Ergebnisinhalt dem
+tatsächlich erfolgreichen, zweiten Verarbeitungsversuch entspricht und keine Reste des abgebrochenen ersten Versuchs enthält.
 
-Für Z-7 wird demgegenüber ein tatsächlicher Prozessabbruch herbeigeführt: Die Anwendung wird als eigenständiger,
-über die Kommandozeile gestarteter Prozess gegen dieselbe Testcontainers-Datenbank ausgeführt, ein Job wird erzeugt und
-bis zur Übernahme durch den Worker-Prozess abgewartet. Der Prozess wird anschließend hart beendet, ohne dass ein
-geordnetes Herunterfahren stattfindet. Eine zweite, unabhängig gestartete Instanz übernimmt danach die weitere
-Verarbeitung. Da hierbei kein tatsächlicher Wettlauf zwischen konkurrierenden Operationen untersucht wird, sondern ein
-deterministischer Ablauf (Absturz, danach Neustart), wird dieses Szenario nicht wiederholt ausgeführt. Zusätzlich zum
-Erreichen des Zustands \texttt{Succeeded} wird geprüft, dass der nach dem Neustart gespeicherte Ergebnisinhalt dem
-tatsächlich erfolgreichen, zweiten Verarbeitungsversuch entspricht -- und nicht etwa Reste des abgebrochenen ersten
-Versuchs enthält.
+Der Test zu Z-8 (a) prüft, dass die Berechtigungen eines Workers nach der Recovery erlöschen.
+Dazu wird nach Ablauf des Leases ein Recovery-Durchlauf aktiviert und gewartet, bis der Job durch einen anderen Worker
+übernommen wird.
+Daraufhin versucht der ursprüngliche Besitzer ein Ergebnis zu speichern.
+Dieser Versuch wird nach Fertigstellung durch den neuen Besitzer wiederholt.
+Zusätzlich untersucht Z-8 (b), ob der Worker die Berechtigung nach Ablauf des Leases auch ohne vorherigen Recovery-Durchgang
+verliert.
+Zur Überprüfung wird ein Job mit Status \textit{Running} und abgelaufenem Lease im Job-Store persistiert.
+Anschließend versucht der eingetragene Besitzer den Job über \texttt{finishJob} zu beenden.
 
-Für Z-9 wird die Fachlogik eines einzelnen, gezielt ausgewählten Jobs über einen \texttt{JobProcessor}-Spy so
-konfiguriert, dass jeder Verarbeitungsversuch mit einer Exception fehlschlägt. Vor der eigentlichen Untersuchung wird
-zunächst ein Kontrolljob regulär verarbeitet, um sicherzustellen, dass der konfigurierte Spy die grundsätzliche
-Funktionsfähigkeit des Workers nicht beeinträchtigt. Der Testjob wird anschließend so lange beobachtet, bis entweder der
-Endzustand \texttt{Failed} erreicht oder ein konfiguriertes Timeout überschritten wird.
+Für Z-9 wird die Fachlogik eines einzelnen, gezielt ausgewählten Jobs über einen \texttt{JobProcessor}-Spy mittels
+\texttt{@MockitoSpyBean} so konfiguriert, dass jeder Verarbeitungsversuch mit einer Exception fehlschlägt.
+Vor der eigentlichen Untersuchung wird zunächst ein Kontrolljob regulär verarbeitet, um sicherzustellen, dass der konfigurierte
+Spy die grundsätzliche Funktionsfähigkeit des Workers nicht beeinträchtigt.
+Anschließend wird geprüft, dass der fehlschlagende Job nach genau der konfigurierten Maximalanzahl der Wiederholungsversuche
+in den Zustand \textit{Failed} überführt wird und kein weiterer Verarbeitungsversuch mehr stattfindet.
 
 
 %\subsection{Fehlerinjektion bei Recovery-Szenarien}
@@ -276,102 +306,51 @@ Endzustand \texttt{Failed} erreicht oder ein konfiguriertes Timeout überschritt
 
 \section{Ergebnisse}\label{sec:ergebnisse}
 %eine Tabelle mit einer Zeile pro Szenario (Erfolgsquote X/N, ggf. mittlere Zeit bis Endzustand), plus kurze Diskussion, welche Zusicherung dadurch als bestätigt gilt.
-Die Ergebnisse der einzelnen Testfälle werden zunächst pro Zusicherung dokumentiert.
-Dabei werden die tatsächlich beobachteten Werte den jeweils definierten Prüfkriterien gegenübergestellt.
+Die folgenden Abschnitte dokumentieren für jede Zusicherung den beobachteten Verlauf und das resultierende Prüfergebnis.
+Ausgangssituation und Fehlerinjektion sind für die jeweiligen Szenarien bereits in \cref{sec:durchfuhrung} beschrieben und
+werden an dieser Stelle nicht wiederholt.
 
-Z1: ->
-Beide getesteten Requests wurden vom Backend mit dem HTTP-Status \texttt{400 Bad Request} abgelehnt.
-Der erste Request führte dabei zu einer Ablehnung auf Grundlage der syntaktischen Validierung, während der zweite Request
-durch die fachliche Validierung zurückgewiesen wurde.
-In beiden Fällen erfolgte keine erneute Übermittlung der Anfrage.
+\paragraph{Atomare Persistenz und Validität (\ref{zus:atomare_persistenz})}
+\label{erg:atomare_persistenz}
+Beide Requests wurden vom Backend mit dem HTTP-Status \texttt{400 Bad Request} abgelehnt, der erste aufgrund der
+syntaktischen, der zweite aufgrund der fachlichen Validierung.
+Die Anzahl der im Job-Store vorhandenen Jobs war vor und nach beiden Anfragen identisch, folglich kam es für keine der beiden
+ungültigen Requests zu einer Persistierung des Jobs.\\
+Damit wurde das für \ref{zus:atomare_persistenz} definierte Prüfkriterium erfüllt.
+Die Atomarität der eigentlichen Persistierung wurde durch den Test nicht direkt überprüft, sondern ergibt sich konstruktiv
+aus der Verwendung von \texttt{@Transactional} mit PostgreSQL, da die Datenbank selbst \gls{acid} sicherstellt.
 
-Vor und nach der Durchführung der Tests befand sich derselbe Bestand an Jobs im Job-Store.
-Insbesondere wurde für keinen der beiden ungültigen Requests ein neuer Job persistiert.
-Damit wurde das für \ref{zus:atomare_persistenz} definierte Prüfkriterium erfüllt: Ungültige Anfragen führen nicht zu einer erfolgreichen
-Joberstellung, sondern werden mit dem HTTP-Statuscode 400 Bad Request abgelehnt.
-
-Die Atomarität der eigentlichen Persistierung wird durch den Test nicht direkt überprüft, sondern ergibt sich direkt aus
-der Verwendung von \texttt{@Transactional} mit PostgreSQL, da die Datenbank selbst \gls{acid} sicherstellt.
-
-Z2: ->
-Der Test zur Überprüfung von \ref{zus:duplikaterkennung} simulierte das Verlorengehen des Acknowledge nach erfolgreicher Verarbeitung der ersten Anfrage.
-Der Job wurde dadurch bereits im Job-Store persistiert, während der Client die erfolgreiche Antwort nicht erhielt und
-die Anfrage aufgrund des transienten Fehlers erneut übermittelte.
-
-Im ersten Ausführungsversuch wurde der Job erfolgreich persistiert.
-Anschließend führte der Client einen zweiten Versuch mit demselben Idempotency-Key durch.
+\paragraph{Duplikaterkennung bei der Auftragserfassung (\ref{zus:duplikaterkennung})}
+\label{erg:duplikaterkennung}
+Im ersten Ausführungsversuch wurde der Job erfolgreich persistiert, bevor die simulierte \texttt{IOException} die Antwort abfing.
+Der clientseitige \texttt{RetryExecutor} übertrug daraufhin dieselbe Anfrage samt identischem Idempotency-Key erneut.
 Das Backend erkannte dabei die Verletzung des entsprechenden \texttt{UNIQUE}-Constraints und behandelte den zweiten Aufruf
-als Idempotenzfall.
-Der Retry wurde auf Clientseite somit tatsächlich ausgeführt, während der Datenbankfehler (Unqiue-Constraint Violation) auf
-Backendseite nicht erneut durch den dortigen \texttt{RetryExecutor} behandelt wurde.
+als Idempotenzfall, ohne diesen seinerseits erneut zu wiederholen.
+Der clientseitige Retry wurde also tatsächlich ausgeführt, während der resultierende Datenbankfehler auf Backendseite
+korrekt als nicht retrybar eingestuft wurde.
+Der zweite Client-Aufruf lieferte den HTTP-Status \texttt{200 OK} und denselben, bereits zuvor erzeugten Job zurück.
+Während des gesamten Tests erhöhte sich die Anzahl der Jobs im Job-Store lediglich von null auf eins.\\
+Das für \ref{zus:duplikaterkennung} definierte Prüfkriterium ist damit erfüllt: Eine erneute Übermittlung derselben
+Anfrage wie hier beispielsweise nach einem verlorenen Response führt nicht zu einer zweiten Persistierung, sondern liefert
+den bereits vorhandenen Job zurück.
 
-Der zweite Client-Aufruf lieferte schließlich den HTTP-Status \texttt{200 OK}.
-Der zurückgegebene Job wurde demnach bereits zuvor erzeugt.
-Während des gesamten Tests erhöhte sich die Anzahl der Jobs im Job-Store lediglich von null auf eins.
-Damit wurde trotz zweier Anfragen genau ein Job persistiert.
-
-Das für \ref{zus:duplikaterkennung} definierte Prüfkriterium ist damit erfüllt:
-Eine erneute Übermittlung derselben Anfrage nach einem verlorenen Response führt nicht zu einer zweiten Persistierung,
-sondern liefert den bereits vorhandenen Job zurück.
-
-Z3 (a)
-Zur Überprüfung von \ref{zus:exklusive_rechte} wurde ein einzelner verfügbarer Job gleichzeitig
-von mehreren Workern zur Verarbeitung angefordert.
-Die konkurrierenden Worker wurden über eine \texttt{CyclicBarrier}
-synchronisiert, sodass ihre Zugriffsversuche möglichst zeitgleich
-ausgeführt wurden.
-Pro Testdurchlauf wurde anschließend ausgewertet, wie viele Worker den Job
-erfolgreich beanspruchen konnten.
-
-In den durchgeführten Testläufen konnte jeweils genau ein Worker den Job
-erfolgreich übernehmen.
-Dies ist im Protokoll durch den einmaligen Zustandsübergang von
-\texttt{QUEUED} nach \texttt{RUNNING} erkennbar.
-Die übrigen konkurrierenden Worker erhielten keinen Job und gaben
-\texttt{Kein Job gefunden} aus.
-Ein mehrfacher Übergang desselben Jobs in den Zustand \texttt{RUNNING}
-wurde in keinem Testlauf beobachtet.
-
-Nach Abschluss jedes Testdurchlaufs befand sich der Job im Zustand
-\texttt{RUNNING} und besaß eine gesetzte \texttt{claimed\_by}-Kennung.
-Damit wurde das für \ref{zus:exklusive_rechte} definierte Prüfkriterium erfüllt:
-Auch bei gleichzeitigem Zugriff mehrerer Worker wird ein verfügbarer Job
-höchstens einem Worker zur Verarbeitung zugeordnet.
-
-Z3 (b)
-Zur Überprüfung von \ref{zus:exklusive_rechte} wurden in 100 Testdurchläufen zwei konkurrierende
-Aufrufe von \texttt{finishJob} auf denselben Job ausgeführt.
-Dabei verwendete einer der Aufrufe die dem Job zugeordnete Worker-ID,
-während der zweite Aufruf eine abweichende, nicht berechtigte Worker-ID
-verwendete. Beide Aufrufe wurden über eine \texttt{CyclicBarrier}
-synchronisiert, um die konkurrierende Ausführung möglichst zeitgleich zu
-starten.
-
-In allen Testdurchläufen konnte jeweils nur der aktuell berechtigte Worker
-den Job erfolgreich abschließen.
-Der erfolgreiche Aufruf überführte den Job von \texttt{RUNNING} nach
-\texttt{SUCCEEDED} und persistierte das fachliche Ergebnis.
-Der konkurrierende Aufruf mit der abweichenden Worker-ID wurde dagegen
-abgewiesen, da diese nicht mit dem im Job gespeicherten
+\paragraph{Exklusive Rechte (\ref{zus:exklusive_rechte})}
+\label{erg:exklusive_rechte}
+Bei der Untersuchung des Claimings (Testfall a) konnte in allen Durchläufen jeweils genau ein Worker den Job
+erfolgreich übernehmen, erkennbar am einmaligen Zustandsübergang von \textit{Queued} nach \textit{Running}.
+Die übrigen konkurrierenden Worker erhielten in keinem der Durchläufe einen Job.
+Folglich wurde ein mehrfacher Übergang desselben Jobs nach \textit{Running} in keinem Durchlauf beobachtet, was bedeutet,
+dass das Claiming exklusiv ablief.\\
+Bei der Untersuchung der Ergebnisspeicherung (Testfall b) konnte in allen Durchläufen jeweils nur der aktuell
+berechtigte Worker den Job erfolgreich abschließen.
+Der konkurrierende Aufruf mit abweichender Worker-ID wurde je nach Scheduling der Anfragen entweder abgewiesen, da der
+Job schon nicht mehr im Zustand \textit{Running} war, oder weil die Worker-ID nicht mit dem gespeicherten
 \texttt{claimed\_by}-Wert übereinstimmte.
-Dies ist in den Testprotokollen wiederholt durch die Meldung
-\texttt{Worker hat keine Berechtigung, diesen Job zu bearbeiten}
-sichtbar. :contentReference[oaicite:0]{index=0}
-
-Nach jedem Testlauf wurde anschließend die Anzahl der zum Job gehörenden
-Ergebnisdatensätze überprüft.
-Dabei existierte jeweils genau ein persistiertes \texttt{JobResult}.
-Zusätzlich befand sich der Job im Zustand \texttt{SUCCEEDED}, und der
-gespeicherte Ergebnisinhalt entsprach dem vom berechtigten Worker
-übermittelten Ergebnis.
-
-Damit wurde das für \ref{zus:exklusive_rechte} definierte Prüfkriterium erfüllt:
-Von zwei konkurrierenden Abschlussversuchen konnte genau einer das
-Ergebnis persistieren, während der nicht berechtigte beziehungsweise
-verspätete Aufruf durch das implementierte Fencing abgewiesen wurde.
-Ein zweites fachliches Ergebnis wurde in keinem der durchgeführten
-Testläufe gespeichert.
-
+Nach jedem Testlauf existierte genau ein persistiertes \texttt{JobResult}, dessen Inhalt dem vom berechtigten Worker
+übermittelten Ergebnis entspricht.\\
+Damit wurde das für \ref{zus:exklusive_rechte} definierte Prüfkriterium in beiden Testfällen erfüllt: Ein
+verfügbarer Job wird höchstens einem Worker zur Verarbeitung zugeordnet und von zwei konkurrierenden Abschlussversuchen
+kann höchstens einer das Ergebnis persistieren.
 
 Z4:
 Die Atomarität der Ergebnispersistierung wird konstruktiv durch die gemeinsame Transaktion von Statusänderung und
