@@ -70,7 +70,7 @@ public class JobTerminationTest {
         assertEquals(JobStatus.FAILED, failureJob.getStatus());
         double duration = Duration.between(start, end).toMillis() / 1000.0;
         assertTrue(duration <= maxAttempts * (1 + 2L)); //Zeit <= maxAttempts * (Lease + max(recoveryIntervall(1),WorkerIdleTimeout(2))
-        System.out.println(duration + " Sekunden dauert es, bis der Job abgeschlossen wurde");
+        System.out.println("Es dauerte " + duration + " Sekunden, bis der Job abgeschlossen wurde");
     }
 
     private void configureMockProcessor(UUID idempotencyKey) throws Exception {

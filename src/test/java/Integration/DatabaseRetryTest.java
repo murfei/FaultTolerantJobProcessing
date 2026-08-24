@@ -36,7 +36,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @Testcontainers
-@SpringBootTest(classes = Application.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = Application.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = {"worker.count=0", "recovery.enabled=false"})
 @AutoConfigureTestRestTemplate
 @DirtiesContext
 public class DatabaseRetryTest {
