@@ -68,7 +68,9 @@ public class JobTerminationTest {
         failureJob = jobService.getJobById(idempotencyKey).orElseThrow();
         assertEquals(maxAttempts, failureJob.getAttempt_count());
         assertEquals(JobStatus.FAILED, failureJob.getStatus());
-        assertTrue(end.isBefore(start.plusSeconds(maxAttempts * (1 + 2L)))); //Zeit <= maxAttempts * (Lease + max(recoveryIntervall(1),WorkerIdleTimeout(2))
+        double duration = Duration.between(start, end).toMillis() / 1000.0;
+        assertTrue(duration <= maxAttempts * (1 + 2L)); //Zeit <= maxAttempts * (Lease + max(recoveryIntervall(1),WorkerIdleTimeout(2))
+        System.out.println(duration + " Sekunden dauert es, bis der Job abgeschlossen wurde");
     }
 
     private void configureMockProcessor(UUID idempotencyKey) throws Exception {

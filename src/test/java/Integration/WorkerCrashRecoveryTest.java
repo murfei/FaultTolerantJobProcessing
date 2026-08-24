@@ -105,7 +105,7 @@ public class WorkerCrashRecoveryTest {
         assertNotEquals(jobRepository.findByIdempotencyKey(jobId).get().getClaimed_by(), concurrentWorker);
 
         //Testen, dass der Job nicht mehr von einem simulierten alten Worker fertiggestellt werden kann
-        System.out.println("Simulierter Zugriff eines unberechtigten Workers");
+        System.out.println("Simulierter Zugriff eines unberechtigten Workers:");
         assertThrows(IllegalStateException.class, () -> workerService.finishJob(recoveredJob.getId(),
                 concurrentWorker, new JobResult(recoveredJob, "Unberechtigter Worker")));
 
@@ -117,16 +117,16 @@ public class WorkerCrashRecoveryTest {
                         .orElse(false));
 
         Job finishedJob = jobRepository.findByIdempotencyKey(jobId).orElseThrow(IllegalStateException::new);
+
+        //Erneute Prüfung, dass keine Doppelspeicherung möglich ist, falls der alte Worker nur zu langsam war und doch
+        //das Speichern versucht
+        System.out.println("Simulierter Zugriff eines zu langsamen Workers:");
+        assertThrows(IllegalStateException.class, () -> workerService.finishJob(recoveredJob.getId(), concurrentWorker,
+                new JobResult(jobRepository.findByIdempotencyKey(jobId).orElseThrow(IllegalStateException::new), "Unberechtigter Worker")));
         //Fertigstellung prüfen
         assertEquals(JobStatus.SUCCEEDED, finishedJob.getStatus());
         assertEquals(2, finishedJob.getAttempt_count());
         assertNotNull(finishedJob.getResult());
-
-        //Erneute Prüfung, dass keine Doppelspeicherung möglich ist, falls der alte Worker nur zu langsam war und doch
-        //das Speichern versucht
-        System.out.println("Simulierter Zugriff eines zu langsamen Workers");
-        assertThrows(IllegalStateException.class, () -> workerService.finishJob(finishedJob.getId(),
-                concurrentWorker, new JobResult(finishedJob, "Unberechtigter Worker")));
         assertEquals(countResults+1, resultRepository.count());
     }
 
