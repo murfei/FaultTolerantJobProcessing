@@ -1,8 +1,6 @@
-%%! Author = murfe
-%%! Date = 16.08.2026
+%! Author = murfe
+%! Date = 25.08.2026
 
-%TODO: Nennen, dass Architektur hergeleitet ist nach 4 Sichten Modell von Gernot Starke
-%TODO: Nochmal in Requirements Engineering von Chris Rupp bzgl Anforderungsermittlung Systemarchi recherchieren --> begründen, wieso ich die Anforderungen genau so erhoben/implementiert habe
 \chapter{Methodik}
 \label{ch:methodik}
 Dieses Kapitel beschreibt das methodische Vorgehen zur Beantwortung der in \cref{sec:problemstellung} formulierten
@@ -42,6 +40,7 @@ Die konkrete Durchführung wird in \cref{ch:evaluation} beschrieben.
 
 \subsection{Anforderungserhebung und Ableitung der Zusicherungen}
 \label{subsec:anforderungserhebung}
+%TODO: Nochmal in Requirements Engineering von Chris Rupp bzgl Anforderungsermittlung Systemarchi recherchieren --> begründen, wieso ich die Anforderungen genau so erhoben/implementiert habe
 Der zentrale Aspekt des entwickelten Systems ist die Fehlertoleranz.
 Da es jedoch eine große Menge verschiedener Fehler und Fehlerklassen gibt, wird in \cref{sec:abgrenzungFehlermodell} zunächst
 definiert, welche Fehlerarten im Rahmen der vorliegenden Arbeit relevant sind.
@@ -66,6 +65,7 @@ werden sollte. Mögliche Struktur: Anforderung | abgeleitete Zusicherung | Begr�
 
 \subsection{Architekturentwurf und prototypische Implementierung}
 \label{subsec:architekturentwurfUndImplementierung}
+%TODO: Nennen, dass Architektur hergeleitet ist nach 4 Sichten Modell von Gernot Starke
 Auf Grundlage der definierten Anforderungen und Zusicherungen werden die Architektur und die zentralen
 Verarbeitungsmechanismen des Systems entworfen.
 Die Architekturentscheidungen werden dabei jeweils hinsichtlich ihres Beitrags zur Erfüllung der zuvor definierten Zusicherungen
@@ -88,27 +88,7 @@ Die Implementierung und die daraus resultierenden technischen Entscheidungen wer
 zwischen Entwurf und Prototyp auftraten. Nur aufnehmen, wenn dies dem tatsächlichen Vorgehen entspricht.}
 
 \section{Evaluation}
-\label{sec:evaluation}
-%TODO:
-%Erstens werden die in \cref{fig:fehlerklassen} eingeführten
-%Fehlerklassen anhand der klassischen Fehlertaxonomie nach
-%\textcite{cristian_understanding_1991} eingeordnet (Crash-, Omission- und Timing-Fehler
-%werden betrachtet, byzantinische Fehler explizit ausgeschlossen, vgl.
-%\cref{sec:fehlermodell}).
-%
-%Drittens wird die Auswahl der betrachteten Infrastrukturfehler (transiente
-%Netzwerk-/DB-Ausfälle) durch \textcite{alquraan_analysis_2018} empirisch gestützt, die
-%zeigen, dass Netzwerkpartitionierungsfehler zu den in der Praxis relevanten
-%Ausfallursachen in Cloud-Systemen zählen.
-%
-%Das \emph{primäre} Auswahlkriterium ist jedoch die Vollständigkeit relativ zu
-%den eigenen Zusicherungen: Für jede der neun Zusicherungen Z-1 bis Z-9 wird
-%mindestens ein Testszenario definiert, das gezielt prüft, ob die Zusicherung
-%unter der jeweiligen Fehlerbedingung eingehalten wird (spezifikationsbasierter
-%Testentwurf). Die vollständige Zuordnung von Zusicherung, Fehlerinjektion und
-%Prüfkriterium ist in \cref{tab:testmatrix} (\cref{sec:evaluation})
-%dokumentiert.
-%
+\label{sec:evaluationsmethodik}
 Die Evaluation untersucht, ob die implementierte Lösung die in \cref{ch:anforderungen} definierten Zusicherungen auch unter
 gezielt herbeigeführten Fehlern einhält.
 Dazu werden die Zusicherungen zunächst in beobachtbare Eigenschaften und konkrete Prüfkriterien überführt.
@@ -122,50 +102,62 @@ Die Evaluationsmethodik umfasst damit die folgenden Schritte:
     \item{Auswertung}
 \end{enumerate}
 
+\subsection{Ableitung der Testszenarien}
+\label{subsec:auswahlprinzip} %TODO: den letzten Satz nochmla schärfen -> die Zusicherungen ergeben sich ja schon aus den gewählten Fehlerklassen
+Die Auswahl der konkreten Testszenarien orientiert sich primär an der Vollständigkeit relativ zu den eigenen
+Zusicherungen: Für jede der neun Zusicherungen Z-1 bis Z-9 wird mindestens ein Testszenario definiert, das gezielt
+prüft, ob die Zusicherung unter einer jeweiligen Fehlerbedingung eingehalten wird (spezifikationsbasierter Testentwurf). %TODO: nochmal spezifikationsbasierten Testentwurf recherchieren
+Die zugrunde liegenden Fehlerklassen selbst sind bereits in \cref{sec:fehlermodell} definiert und
+literaturseitig eingeordnet; die vollständige Zuordnung von Zusicherung, Fehlerinjektion und Prüfkriterium ist in
+\cref{tab:testmatrix} dokumentiert.
+
 \subsection{Operationalisierung der Zusicherungen}
 \label{subsec:operationalisierung}
-Damit die formulierten Zusicherungen empirisch überprüft werden können, werden diese in beobachtbare Eigenschaften
-und konkrete Prüfkriterien überführt.
-Die Operationalisierung beschreibt somit, anhand welcher Zustände, Datenbankeinträge oder beobachtbaren Abläufe entschieden
-wird, ob eine Zusicherung im jeweiligen Testfall eingehalten wurde.
-Die Operationalisierung erfolgt dabei unmittelbar aus dem Inhalt der jeweiligen Zusicherung.
-Für jede betrachtete Eigenschaft wird zunächst festgelegt, welcher Systemzustand nach einem Testlauf erwartet wird.
-Anschließend wird bestimmt, anhand welcher beobachtbaren Merkmale dieser Zustand überprüft werden kann.
+Damit die formulierten Zusicherungen empirisch überprüft werden können, wird für jede Zusicherung festgelegt,
+anhand welches konkret beobachtbaren Systemzustands nach einem Testlauf entschieden wird, ob sie eingehalten
+wurde -- das jeweilige Prüfkriterium. Die vollständige Zuordnung der neun Zusicherungen zu ihren Prüfkriterien
+sowie den zugehörigen Fehlerinjektionen ist in \cref{tab:testmatrix} dokumentiert und wird an dieser Stelle nicht %TODO: wiederholt sowieso nicht, einmal Formulierung prüfen
+wiederholt.
 
-Die Operationalisierung unterscheidet damit zwischen dem abstrakten Korrektheitskriterium und dessen konkreter Beobachtung im Test.
-Die vollständige Zuordnung der Zusicherungen zu ihren jeweiligen Fehlerinjektionen und Prüfkriterien wird in der Testmatrix in
-\cref{tab:testmatrix} dargestellt. %TODO: prüfen ob hier wirklich auf die Tabelle referenziert werden sollte
+Die neun Prüfkriterien lassen sich dabei auf wenige wiederkehrende Muster zurückführen: das Nichtvorhandensein %TODO: Diesen Absatz auch nochmal überarbeiten
+eines zusätzlichen Datenbankeintrags (\ref{zus:duplikaterkennung}, der Fehlerzweig von \ref{zus:atomare_wirkung},
+\ref{zus:idempotenz}), die zeitliche Nichtüberlappung konkurrierender Zustände (\ref{zus:exklusive_rechte},
+\ref{zus:endzustaende}) sowie eine obere Zeitschranke bis zum Erreichen eines Endzustands (Erfolgsfall von
+\ref{zus:retries}, \ref{zus:terminierung}). Diese Klassifikation beschreibt die Methode hinter der Tabelle, ohne
+deren Inhalt vorwegzunehmen.
 
-\notiz{Prüfen, ob jede Zusicherung Z-1 bis Z-9 explizit in einem kurzen Satz operationalisiert werden sollte.
-Ggf. ergänzende Tabelle mit Zusicherung | beobachtbare Eigenschaft | Prüfkriterium einfügen.}
-
-\subsection{Test- und Nachweismethoden}%TODO: hier fehlt die Definition der Fehlerszenarien
+\subsection{Test- und Nachweismethoden}
 \label{subsec:test_und_nachweismethoden}
-Zur Überprüfung der entwickelten Mechanismen werden Komponenten- und Integrationstest kombiniert.
-Die unterschiedlichen Ebenen prüfen das System dabei mit unterschiedlicher Granularität und ergänzen sich gegenseitig.
-Komponententests werden eingesetzt, um einzelne Implementierungsmechanismen unabhängig von der übrigen Systeminfrastruktur
-zu überprüfen.
-Diese Testebene eignet sich beispielsweise für die Retry-Komponenten, da ihre Entscheidungslogik unabhängig von einer konkreten
-Datenbank oder HTTP-Verbindung untersucht werden kann.\\
-Komponententests dienen dabei der Überprüfung der eigentlichen Logik.
-Sie ersetzen nicht die Tests des Gesamtsystems, da sie nicht das Zusammenspiel einzelner Komponenten bei
-Verbindungsabbrüchen oder konkurrierenden Zugriffen testen können.
-Dazu werden Integrationstests eingesetzt.
-Hierzu wird das entwickelte Spring-Backend zusammen mit einer PostgreSQL-Datenbank ausgeführt.
-Die Datenbank wird über Testcontainers bereitgestellt, sodass die Tests gegen eine reale Instanz des verwendeten
-Datenbanksystems durchgeführt werden können.
-Diese Testebene ermöglicht insbesondere die Untersuchung von Datenbankfehlern sowie Infrastruktur- und Komponentenausfällen.
-Dadurch kann überprüft werden, ob die in den Komponententests getroffenen Annahmen über das Laufzeitverhalten auch unter realen
-Infrastrukturbedingungen zutreffen.
-Die Integrationstests werden so entworfen, dass möglichst realistisch typische Fehler wie eine kurzzeitige Nichterreichbarkeit
-des Backends simuliert werden.
+Für jede der neun Zusicherungen existiert mindestens ein empirischer Testfall (vgl. \cref{subsec:auswahlprinzip}).
+Nicht jeder Teilaspekt einer Zusicherung wird dabei zusätzlich empirisch geprüft: Wo ein Teilaspekt bereits
+konstruktiv aus dem Transaktionsdesign folgt -- etwa die Atomarität der Persistierung bei
+\ref{zus:atomare_persistenz} aus der \texttt{@Transactional}-Grenze, oder die Finalität der Endzustände bei
+\ref{zus:endzustaende} aus einer Betrachtung der endlich vielen zustandsändernden Codepfade --, wird dieser
+Aspekt zusätzlich analytisch begründet. Der empirische Test dient in diesen Fällen dazu, die Prämissen des
+jeweiligen Arguments am tatsächlichen Code zu erhärten, nicht dazu, die Eigenschaft allein zu beweisen.
 
-Die beiden Testebenen verfolgen somit komplementäre Ziele.
-Ein erfolgreicher Komponententest der \texttt{DBRetryPolicy} zeigt beispielsweise, dass eine \texttt{DataAccessException}
-grundsätzlich als retrybar klassifiziert wird.
-Er zeigt jedoch nicht, ob eine reale PostgreSQL-Verbindung nach einer kurzzeitigen Störung tatsächlich wieder erfolgreich
-verwendet werden kann.
-Diese Eigenschaft wird erst durch den entsprechenden Integrationstest überprüft.
+Zur Überprüfung der entwickelten Mechanismen werden Komponenten- und Integrationstests eingesetzt, die
+unterschiedliche Zwecke verfolgen. Im Rahmen der Entwicklung wurden isolierte Komponententests genutzt, um
+einzelne Mechanismen -- etwa die Entscheidungslogik der Retry-Komponenten -- unabhängig von einer laufenden
+Datenbank oder externen Infrastruktur zu überprüfen. Ein erfolgreicher Komponententest zeigt dabei beispielsweise,
+dass eine \texttt{DataAccessException} grundsätzlich als retrybar klassifiziert wird; er zeigt jedoch nicht, ob
+eine reale Datenbankverbindung nach einer kurzzeitigen Störung tatsächlich wieder erfolgreich verwendet werden
+kann. Da die betrachteten Zusicherungen überwiegend das Zusammenspiel mehrerer Komponenten unter realer
+Nebenläufigkeit und tatsächlichem Infrastrukturverhalten betreffen, werden Komponententests daher nicht als
+eigenständige Evaluationsevidenz herangezogen. Als Evaluationsevidenz gelten stattdessen ausschließlich
+Integrationstests, die einer konkreten Zusicherung zugeordnet sind und gegen eine reale Infrastrukturkomponente
+gezielt eine Fehlerbedingung erzeugen.
+
+Allgemeine Funktionstests ohne gezielte Fehlerinjektion -- etwa zur Sicherstellung der grundsätzlichen
+Erreichbarkeit des Backends oder der fehlerfreien Erstellung eines Jobs -- werden im Rahmen der
+Systementwicklung zwar zur Absicherung der allgemeinen Funktionsfähigkeit genutzt, sind jedoch ebenfalls nicht
+Gegenstand der Evaluation, da diese sich auf die Fehlertoleranz des Systems konzentriert. Für die Evaluation wird
+entsprechend ein unter normalen Bedingungen funktionierendes System vorausgesetzt.
+
+Integrationstests werden dabei nicht gegen eine simulierte, sondern gegen eine reale Instanz des verwendeten %TODO: stimmt so nicht ganz
+Datenbanksystems durchgeführt, um sicherzustellen, dass in Komponententests getroffene Annahmen über das
+Laufzeitverhalten auch unter realen Infrastrukturbedingungen zutreffen. Die konkrete technische Umsetzung der
+Testumgebung wird in \cref{sec:versuchsaufbau} beschrieben.
 
 \subsection{Fehlerinjektion und Testdurchführung}
 \label{subsec:fehlerinjektion_und_testdurchfuehrung}
@@ -174,21 +166,22 @@ Ein Testlauf beginnt mit einem kontrollierten Ausgangszustand, anschließend wir
 und das resultierende Systemverhalten beobachtet.
 Abschließend werden die für das Szenario relevanten Prüfkriterien auf den resultierenden Systemzustand angewendet.\\
 Die konkrete Injektionsmethode ist abhängig vom untersuchten Testszenario.
-Transiente Datenbankfehler werden beispielsweise durch eine  Unterbrechung der Verbindung zwischen Anwendung
+Transiente Datenbankfehler werden beispielsweise durch eine Unterbrechung der Verbindung zwischen Anwendung
 und Datenbank erzeugt.
-Recovery-Szenarien werden dagegen über gezieltes Beenden eines aktiven Worker-Prozesses während einer aktiven Verarbeitung untersucht.
-Für nebenläufigkeitskritische Szenarien werden mehrere Worker gegen einen gemeinsamen Job-Bestand ausgeführt und die
-relevanten Zustandsübergänge zeitlich protokolliert.\\
-%Für Tests mit sehr kleinen kritischen Zeitfenstern wird die entsprechende Verarbeitung im Test gezielt verzögert.
-%Dadurch wird die Wahrscheinlichkeit erhöht, dass der zu untersuchende Nebenläufigkeitsfall tatsächlich eintritt.
-%Die künstliche Verzögerung verändert dabei nicht die zu prüfende Korrektheitseigenschaft, sondern dient ausschließlich der
-%reproduzierbaren Erzeugung des Fehlerzenarios.
+Recovery-Szenarien werden überwiegend durch direkte Manipulation des relevanten Datenbankzustands untersucht, %TODO: finde auch das noch viele Details
+sodass der für den Recovery-Mechanismus relevante Ausgangszustand gezielt hergestellt werden kann, ohne eine
+reale, zeitaufwendige Verarbeitung nachbilden zu müssen. Ergänzend wird für ein Szenario ein tatsächlicher,
+harter Abbruch eines Worker-Prozesses durchgeführt, um die Recovery-Kette zusätzlich unter realistischeren
+Bedingungen als Plausibilitätsnachweis zu bestätigen. Für nebenläufigkeitskritische Szenarien werden mehrere
+Worker gegen einen gemeinsamen Job-Bestand ausgeführt und die relevanten Zustandsübergänge zeitlich protokolliert;
+die beteiligten Threads werden dabei über eine \texttt{CyclicBarrier} synchronisiert, sodass keiner der
+konkurrierenden Aufrufe beginnt, bevor nicht alle beteiligten Threads bereitstehen. Für Szenarien, die einen
+Fehler an einer präzise definierten Stelle innerhalb einer Transaktion erfordern (\ref{zus:atomare_wirkung}),
+wird stattdessen ein im produktiven Betrieb wirkungsloser Test-Hook verwendet, der im Testfall gezielt an der
+betreffenden Stelle eine Exception auslöst.
 
-\notiz{Hier konkrete Verwendung von Awaitility und die finalen Timeouts
-ergänzen, sobald die Testfälle vollständig implementiert sind.}
-
-\notiz{Hier ggf. beschreiben, welche Testfälle synchronisiert oder durch
-Test-Hooks gezielt in ein kritisches Zeitfenster gebracht werden.}
+\notiz{Hier konkrete Verwendung von Awaitility und die finalen Timeouts ergänzen, sobald die Testfälle
+vollständig implementiert sind.}
 
 \subsection{Reproduzierbarkeit und Auswertung}
 \label{subsec:reproduzierbarkeit}
@@ -199,74 +192,13 @@ Die Tests bezüglich konkurrierender Verarbeitung werden deshalb wiederholt unte
 Für jeden Lauf werden dabei dieselben Systemparameter und dieselben Fehlerinjektionsbedingungen verwendet.
 Ausgewertet wird anschließend die Anzahl der bestandenen Läufe im Verhältnis zur Gesamtzahl der Durchläufe.
 
-\notiz{Konkrete Anzahl der Wiederholungen festlegen und später hier eintragen. Der Wert sollte mit Kapitel 6 übereinstimmen.}
-
-%Um insbesondere seltene Race Conditions gezielt reproduzierbar zu machen, werden kritische Zeitfenster bei Bedarf künstlich vergrößert.
-%Dies erfolgt beispielsweise durch definierte Verzögerungen zwischen der Verarbeitung eines Jobs und dem anschließenden Aufruf von
-%\texttt{finishJob}.
-%Die Verzögerung dient ausschließlich dazu, eine konkurrierende Situation zuverlässig herbeizuführen und stellt keine zusätzliche
-%Anforderung an das produktive System dar. TODO: nochmal prüfen
+Die Anzahl der Wiederholungen wird dabei einheitlich auf 100 festgelegt. Diese Zahl stellt einen Kompromiss
+zwischen der Aussagekraft der Untersuchung und dem für die Testdurchführung erforderlichen Zeitaufwand dar: Eine
+höhere Wiederholungszahl würde die Wahrscheinlichkeit erhöhen, auch seltene Ausführungsreihenfolgen zu erfassen,
+verlängert jedoch die Laufzeit der gesamten Testsuite entsprechend. Ein erfolgreicher Durchlauf wird dabei nicht
+als Beweis für das generelle Ausbleiben eines Fehlers interpretiert; vielmehr wird untersucht, ob die definierten
+Prüfkriterien über alle Wiederholungen hinweg eingehalten werden. Dieses Vorgehen bildet zugleich die
+methodische Grundlage für die Überprüfung von H3.
 
 Die konkrete Durchführung, die verwendeten Parameter und die Ergebnisse der Testfälle werden in \cref{ch:evaluation} dokumentiert.
-Die dort dargestellten Werte bilden die konkrete Instanziierung der in diesem Kapitel beschriebenen methodischen Vorgehensweise.
-
-\notiz{Nach Abschluss der Evaluation prüfen, ob einzelne methodische Aussagen angepasst werden müssen, damit Kapitel~3
-exakt dem tatsächlich durchgeführten Vorgehen entspricht.}
-
-
-%Die betrachteten Fehlerklassen erfordern unterschiedliche
-%Simulationsmechanismen, die nicht austauschbar sind:
-%
-%\begin{table}[h]
-%        \centering
-%        \begin{tabular}{@{}p{0.28\textwidth}p{0.32\textwidth}p{0.32\textwidth}@{}}
-%                \toprule
-%                \textbf{Fehlerklasse} & \textbf{Betroffene Zusicherungen} & \textbf{Simulationsmechanik} \\
-%                \midrule
-%                DB-/Infrastrukturausfall & Z-6 & Testcontainers-Container gezielt stoppen/neu starten \\
-%                Worker-Crash während \texttt{Running} & Z-7, Z-8, Z-9 & Job direkt per SQL/JPA auf \texttt{Running} mit abgelaufenem \texttt{lease\_until} setzen (kein realer Prozess-Kill nötig, da das System ohnehin ausschließlich über Lease-Timeouts erkennt, vgl. Kapitel~5.1.7) \\
-%                Duplikat-/permanente Client-Fehler & Z-2, Z-6 (Gegenprobe) & Parallele bzw. fehlerhafte Requests über \texttt{MockWebServer}/direkte Client-Aufrufe \\
-%                Nebenläufiger Zugriff mehrerer Worker & Z-3, Z-5, Z-8 & Mehrere Worker-Instanzen gegen denselben Job-Bestand, mit protokollierten Zeitstempeln je Statusübergang \\
-%                \bottomrule
-%        \end{tabular}
-%        \caption{Zuordnung von Fehlerklasse zu Simulationsmechanik}
-%        \label{tab:simulationsmechanik}
-%\end{table}
-%
-%\begin{enumerate}
-%        \item Jobs mit definierten Ausgangsbedingungen erzeugen,
-%        \item den jeweiligen Fehler gemäß Tabelle~\ref{tab:simulationsmechanik}
-%        injizieren,
-%        \item mittels Awaitility auf den erwarteten Endzustand warten
-%        (\notiz{konkretes Timeout je Szenario ergänzen}),
-%        \item eine generische, für alle Szenarien identische Menge an
-%        Invarianten gegen den resultierenden Datenbankzustand prüfen.
-%\end{enumerate}
-%
-%Für die nebenläufigkeitsabhängigen Szenarien (Z-3, Z-5, Z-8) ist ein
-%einzelner erfolgreicher Testlauf kein hinreichender Nachweis, da
-%Race Conditions timingabhängig und nicht bei jedem Durchlauf beobachtbar
-%sind. Jedes dieser Szenarien wird daher automatisiert
-%\notiz{konkrete Wiederholungsanzahl N festlegen, z.\,B. 30--50} mal
-%wiederholt; berichtet wird die Erfolgsquote (bestandene Läufe~/~$N$) in
-%\cref{sec:evaluationsergebnisse}. Für Szenarien mit besonders
-%kleinem Zeitfenster (insbesondere Z-8, vgl. Abbildung~5.7) wird das
-%Zeitfenster im Testaufbau künstlich vergrößert
-%(\notiz{Mechanismus final festlegen -- z.\,B. gezielte Verzögerung im
-%Test-Build zwischen Verarbeitung und \texttt{finishJob}}), um zu
-%verhindern, dass ein theoretisch möglicher, aber seltener Fall unter
-%Testbedingungen systematisch übersehen wird. Dieses Vorgehen bildet die
-%methodische Grundlage für Hypothese H3.
-%
-%\begin{enumerate}
-%\item Analytisch/konstruktiv abgesichert: Z-1 (Atomarität folgt aus der @Transactional-Grenze um persist, Validierung passiert davor),
-%Z-4 (folgt aus der gemeinsamen Transaktion in finishJob)
-%\item Empirisch zu testen: Z-2, Z-3, Z-5, Z-6, Z-7, Z-8, Z-9 – diese hängen von Nebenläufigkeit, echten Ausfällen oder Timing
-%ab und sind genau der Kern deiner Evaluation
-%\item Umgebung: Spring-Boot-Integrationstest mit Testcontainers (echter PostgreSQL-Container, kein H2 – sonst testest du nicht dein tatsächliches SKIP LOCKED-Verhalten).
-%Für Netzwerkfehler (Z-6) eignet sich Toxiproxy als Proxy zwischen App und DB, um Verbindungsabbrüche/Latenz gezielt und reproduzierbar zu erzeugen, statt
-%die DB tatsächlich herunterzufahren.
-%\item Ablauf pro Testfall: (1) Jobs erzeugen, (2) definierten Fehler injizieren, (3) mit Awaitility (Standard-Java-Bibliothek für "warte bis Bedingung X eintritt,
-%max. Y Sekunden") auf den erwarteten Endzustand warten, (4) generische Invarianten prüfen.
-%\item Generischer Invarianten-Check (einmal implementieren, nach jedem Lauf ausführen – das ist auch dein Beleg für H3 "reproduzierbar überprüfbar"):
-%\end{enumerate}
+Die dort dargestellten Werte bilden die konkrete Instanziierung der in diesem Kapitel beschriebenen methodischen Vorgehensweise. %TODO nochmal checken

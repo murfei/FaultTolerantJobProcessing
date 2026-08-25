@@ -97,7 +97,7 @@ deren Überprüfung im Rahmen der Evaluation erfolgt.
 \begin{enumerate}[label=H\arabic*:, ref=H\arabic*]
     \item \label{item:h1} Durch die Kombination eines persistenten Statusmodells mit transaktionsbasiertem
     Locking und Idempotenz-Mechanismen lässt sich ein System entwerfen, das auch bei
-    unerwarteten Prozessabbrüchen keine Jobs verliert und keine doppelten Ergebnisse
+    unerwarteten Prozessabbrüchen und Teilausfällen keine Jobs verliert und keine doppelten Ergebnisse
     erzeugt.
     \item \label{item:h2} Retry-Strategien mit exponentiellem Backoff in Verbindung mit einer
     Fehlerklassifikation (transient vs. permanent) erhöhen die Robustheit des Systems
