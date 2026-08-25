@@ -6,6 +6,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
 \usepackage{microtype}
+\usepackage{makecell}
 \usepackage[ngerman]{babel}
 \usepackage{tikz}
 \usepackage{graphicx}
@@ -116,6 +117,16 @@
     morekeywords={FOR, SKIP, LOCKED}
 }
 
+%% Konfiguration für Log-Dateien
+%\lstdefinestyle{logstyle}{
+%    style=code,
+%    breakatwhitespace=false,
+%    rulecolor=\color{gray!50},
+%    keywordstyle=\color{blue},
+%    commentstyle=\color{green!60!black},
+%    stringstyle=\color{purple},
+%    columns=fixed
+%}
 
 \newcommand{\notiz}[1]{\textcolor{red}{\textbf{[TODO: #1]}}} %TODO: entfernen
 %\includeonly{chapters/03-methodik.tex, chapters/06-evaluation.tex}

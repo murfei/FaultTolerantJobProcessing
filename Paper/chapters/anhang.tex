@@ -1,0 +1,78 @@
+%! Author = murfe
+%! Date = 24.08.2026
+
+\chapter{Anhang}\label{ch:anhang}
+\section{Testzuordnung}
+\label{sec:testzuordnung}
+\begin{table}[htbp]
+    \centering
+    \begin{tabularx}{\textwidth}{|w{l}{2.7cm}|X|}
+        \hline
+        \textbf{Fehlerszenario} & \textbf{Testmethode} \\ \hline
+        \ref{zus:atomare_persistenz} & \texttt{JoberstellungTest.invalidPayloadTest()} \\ \hline
+        \ref{zus:duplikaterkennung} & \texttt{JoberstellungTest.duplicateRequestTest()} \\ \hline
+        \ref{zus:exklusive_rechte} (a) & \texttt{ConcurrencyTest.onlyOneWorkerClaimsContendedJob()} \\ \hline
+        \ref{zus:exklusive_rechte} (b) & \makecell[l]{\texttt{ConcurrencyTest.}\\
+                                            \texttt{concurrentFinishAttemptsYieldExactlyOneStoredResult()}} \\ \hline
+        \ref{zus:atomare_wirkung} & \texttt{WorkerCrashRecoveryTest.atomicSaveTest()} \\ \hline
+        \ref{zus:endzustaende} & \makecell[l]{\texttt{JobStatusModellTest.}\\
+                                    \texttt{finishJobAndRecoveryRaceNeverReversesTerminalState()}} \\ \hline
+        \ref{zus:retries} (a) & \makecell[l]{\texttt{DatabaseRetryTest.}\\
+                                    \texttt{jobCreationRecoversAfterTransientDbOutage()}} \\ \hline
+        \makecell[l]{\ref{zus:retries} (a\\Gegenprobe)} & \makecell[l]{\texttt{DatabaseRetryTest.}\\
+                                            \texttt{jobCreationFailsAfterExhaustedRetriesOnPermanentOutage()}} \\ \hline
+        \ref{zus:retries} (b) & \makecell[l]{\texttt{DatabaseRetryTest.}\\
+                                    \texttt{testRetryNotAppliedOnConstraintViolation()}} \\ \hline
+        \ref{zus:verarbeitungsgarantie}, \ref{zus:idempotenz}, \ref{zus:terminierung} & \makecell[l]{\texttt{JobRecoveryForWorkerCrashTest.}\\
+                                                                                            \texttt{jobSurvivesRealWorkerProcessCrash()}} \\ \hline
+        \ref{zus:idempotenz} (a) & \texttt{WorkerCrashRecoveryTest.recoveryComponentTest()} \\ \hline
+        \ref{zus:idempotenz} (b) & \makecell[l]{\texttt{WorkerCrashRecoveryTest.}\\
+                                    \texttt{finishRejectedWhenLeaseExpiredButNotYetRecovered()}} \\ \hline
+        \ref{zus:terminierung} & \makecell[l]{\texttt{JobTerminationTest.}\\
+                                    \texttt{terminationAfterTooManyFailuresTest()}} \\ \hline
+    \end{tabularx}
+    \caption{Zuordnung von Zusicherungen zu den jeweiligen Testmethoden}
+    \label{tab:zuordnung_zusicherungen_tests}
+\end{table}
+\section{Testlogs}
+%TODO: Logs einfügen
+\label{sec:testlogs}
+
+\paragraph{JoberstellungTest.invalidPayloadTest() (\ref{zus:atomare_persistenz})}
+\label{subsec:testlog_z1}
+
+\paragraph{JoberstellungTest.duplicateRequestTest() (\ref{zus:duplikaterkennung})}
+\label{subsec:testlog_z2}
+
+\paragraph{ConcurrencyTest.onlyOneWorkerClaimsContendedJob() (\ref{zus:exklusive_rechte} (a))}
+\label{subsec:testlog_z3_a}
+
+\paragraph{ConcurrencyTest.concurrentFinishAttemptsYieldExactlyOneStoredResult() (\ref{zus:exklusive_rechte} (b))}
+\label{subsec:testlog_z3_b}
+
+\paragraph{WorkerCrashRecoveryTest.atomicSaveTest() (\ref{zus:atomare_wirkung})}
+\label{subsec:testlog_z4}
+
+\paragraph{JobStatusModellTest.finishJobAndRecoveryRaceNeverReversesTerminalState() (\ref{zus:endzustaende})}
+\label{subsec:testlog_z5}
+
+\paragraph{DatabaseRetryTest.jobCreationRecoversAfterTransientDbOutage() (\ref{zus:retries} (a))}
+\label{subsec:testlog_z6_a}
+
+\paragraph{DatabaseRetryTest.jobCreationFailsAfterExhaustedRetriesOnPermanentOutage() (\ref{zus:retries} (a Gegenprobe))}
+\label{subsec:testlog_z6_a_gegenprobe}
+
+\paragraph{DatabaseRetryTest.testRetryNotAppliedOnConstraintViolation() (\ref{zus:retries} (b))}
+\label{subsec:testlog_z6_b}
+
+\paragraph{JobRecoveryForWorkerCrashTest.jobSurvivesRealWorkerProcessCrash() (\ref{zus:verarbeitungsgarantie}, \ref{zus:idempotenz}, \ref{zus:terminierung})}
+\label{subsec:testlog_z7}
+
+\paragraph{WorkerCrashRecoveryTest.recoveryComponentTest() (\ref{zus:idempotenz} (a))}
+\label{subsec:testlog_z8_a}
+
+\paragraph{WorkerCrashRecoveryTest.finishRejectedWhenLeaseExpiredButNotYetRecovered() (\ref{zus:idempotenz} (b))}
+\label{subsec:testlog_z8_b}
+
+\paragraph{JobTerminationTest.terminationAfterTooManyFailuresTest() (\ref{zus:terminierung})}
+\label{subsec:testlog_z9}

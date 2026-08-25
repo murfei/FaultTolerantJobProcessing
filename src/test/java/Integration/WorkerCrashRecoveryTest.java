@@ -26,7 +26,6 @@ import tools.jackson.databind.node.ObjectNode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
-import java.util.concurrent.*;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
@@ -131,7 +130,7 @@ public class WorkerCrashRecoveryTest {
     }
 
     @Test
-    void finishJobRejectedWhenOwnLeaseAlreadyExpiredButNotYetRecovered() {
+    void finishRejectedWhenLeaseExpiredButNotYetRecovered() {
         UUID workerId = UUID.randomUUID();
         Job job = JobFactory.createJob(new CreateJobRequest(UUID.randomUUID(), "{\"payload\":\"Test\"}"));
         job.setStatus(JobStatus.RUNNING);
