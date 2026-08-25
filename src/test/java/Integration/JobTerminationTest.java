@@ -69,7 +69,7 @@ public class JobTerminationTest {
         assertEquals(maxAttempts, failureJob.getAttempt_count());
         assertEquals(JobStatus.FAILED, failureJob.getStatus());
         double duration = Duration.between(start, end).toMillis() / 1000.0;
-        assertTrue(duration <= maxAttempts * (1 + 2L)); //Zeit <= maxAttempts * (Lease + max(recoveryIntervall(1),WorkerIdleTimeout(2))
+        assertTrue(duration <= maxAttempts * (1 + 2L)); //Zeit <= maxAttempts * (Lease(1) + max(recoveryIntervall(1),WorkerIdleTimeout(2))
         System.out.println("Es dauerte " + duration + " Sekunden, bis der Job abgeschlossen wurde");
     }
 
