@@ -2174,7 +2174,7 @@ Simulierter Zugriff eines zu langsamen Workers:
 WorkerService: Job hat nicht den Status RUNNING sondern SUCCEEDED, obwohl Worker Ergebnis speichern wollte
 ```
 
-## WorkerCrashRecoveryTest.finishJobRejectedWhenOwnLeaseAlreadyExpiredButNotYetRecovered() (Z-8 (b))
+## WorkerCrashRecoveryTest.finishRejectedWhenLeaseExpiredButNotYetRecovered() (Z-8 (b))
 ```log
 Job: Zustandsübergang von QUEUED nach RUNNING für Job d7af152b-f6bd-4ffd-8d81-6a9be1ebfa5f
 Job: Zustandsübergang von QUEUED nach RUNNING für Job 83273539-1521-4ea7-aa42-221f70c70329
