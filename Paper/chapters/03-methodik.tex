@@ -63,14 +63,22 @@ spezifische Prüfkriterien und automatisierte Testfälle beurteilt werden kann (
 
 \subsection{Architekturentwurf und prototypische Implementierung}
 \label{subsec:architekturentwurfUndImplementierung}
-%TODO: Nennen, dass Architektur hergeleitet ist nach 4 Sichten Modell von Gernot Starke
 Auf Grundlage der definierten Anforderungen und Zusicherungen werden die Architektur und die zentralen
 Verarbeitungsmechanismen des Systems entworfen.
-Die Architekturentscheidungen werden dabei jeweils hinsichtlich ihres Beitrags zur Erfüllung der zuvor definierten Zusicherungen
-ausgewählt und begründet und gegebenenfalls gegenüber möglichen Alternativen eingeordnet.\\
-Der Entwurf umfasst insbesondere die Struktur des Job-Stores, das Zustandsmodell, die Koordination konkurrierender Worker
-sowie Mechanismen für Idempotenz, Retry und Recovery.
-
+Um die Komplexität eines solchen Systems methodisch fundiert zu handhaben, orientiert sich der Entwurf an einem sichtenbasierten Ansatz.
+Die Fachliteratur empfiehlt, komplexe Systeme aus mehreren Blickwinkeln zu analysieren und zu dokumentieren \parencite[S.470]{rupp_requirements-engineering_2021}.
+Die Bildung dieser spezifischen Sichten hilft das System strukturiert und schrittweise zu entwickeln \parencite[S.469]{rupp_requirements-engineering_2021}.
+Das Vorgehen orientiert sich hierfür an dem Vier-Sichten-Modell nach \textcite[S.80 ff.]{starke_effektive_2024}.
+Das dort beschriebene Vorgehen unterstützt nicht nur die Abstraktion und Kapselung, sondern hilft dabei, domänenspezifische Fragestellungen
+isoliert zu betrachten.\\
+Die geforderten Sichten spiegeln sich in der Struktur dieser Arbeit wie folgt wider:
+Die Kontextabgrenzung findet bereits im Rahmen der Anforderungserhebung statt und ist entsprechend in \cref{sec:systemkontext} thematisiert.
+Die Bausteinsicht wird in \cref{fig:componentDiagram} im Rahmen des Architekturentwurfs dargestellt, während einzelne
+Laufzeitsichten in den \cref{sec:architektur} untergeordneten Kapiteln zu finden sind.
+Durch diese systematische Strukturierung können die einzelnen Architekturentscheidungen klar isoliert und jeweils hinsichtlich
+ihres Beitrags zur Erfüllung der zuvor definierten Zusicherungen bewertet und gegenüber möglichen Alternativen eingeordnet werden. %TODO: bei Bedarf Verteilungssicht nennen bzw. deren nicht Verwendung begründen
+Der Entwurf umfasst dabei insbesondere die Struktur des Job-Stores, das Zustandsmodell, die Koordination konkurrierender
+Worker sowie Mechanismen für Idempotenz, Retry und Recovery.\\
 Die resultierende Architektur wird anschließend prototypisch implementiert.
 Dabei werden die im Entwurf vorgesehenen Komponenten und Mechanismen in Java und Spring umgesetzt.
 Die Implementierung dient nicht der Entwicklung einer vollständigen fachlichen Anwendung, sondern der prototypischen
