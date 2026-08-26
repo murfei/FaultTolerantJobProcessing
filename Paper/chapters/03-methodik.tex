@@ -1,5 +1,5 @@
 %! Author = murfe
-%! Date = 25.08.2026
+%! Date = 26.08.2026
 
 \chapter{Methodik}
 \label{ch:methodik}
@@ -13,19 +13,18 @@ definierten Zusicherungen und Anforderungen einhält.
 
 \section{Literaturrecherche}
 \label{sec:literaturrecherche}
-\notiz{Inhalt der Literaturrecherche später ergänzen: Datenbanken, Suchbegriffe, Auswahlkriterien, ggf. Schneeballverfahren
-und Abgrenzung der verwendeten Literatur.}
+\notiz{Datenbanken, Suchbegriffe/-string, Auswahlkriterien, Schneeballverfahren}
 
 \section{Systementwurf}
 \label{sec:systementwurf}
-Der Systementwurf folgt einem schrittweisen, an den Anforderungen orientierten Vorgehen.
-Ausgehend von der Problemstellung werden zunächst Anforderungen an das zu entwickelnde System erhoben und daraus konkrete
-Zusicherungen abgeleitet (vgl. \ref{item:tz1}).
+Die Systementwicklung folgt einem schrittweisen, an den Anforderungen orientierten Vorgehen.
+Ausgehend von der Problemstellung werden in \cref{ch:anforderungen} zunächst Anforderungen an das zu entwickelnde System
+erhoben und daraus konkrete Zusicherungen abgeleitet (vgl. \ref{item:tz1}).
 Diese Zusicherungen beschreiben die Eigenschaften, die das System auch unter Fehlerbedingungen einhalten soll.
-Auf dieser Grundlage werden anschließend Architekturentscheidungen getroffen, die die Erfüllung der Zusicherungen
-ermöglichen (vgl. \ref{item:tz2}).
+Auf dieser Grundlage werden in \cref{ch:umsetzung} anschließend Architekturentscheidungen getroffen, die die Erfüllung
+der Zusicherungen ermöglichen (vgl. \ref{item:tz2}).
 Die ausgewählten Mechanismen werden anschließend in einem prototypischen System implementiert (vgl. \ref{item:tz3}).\\
-Damit ergibt sich für den Systementwurf folgende methodische
+Damit ergibt sich für den Systementwurf folgende methodische Reihenfolge:
 \begin{enumerate}
     \item{Problemstellung}
     \item{Anforderungserhebung}
@@ -34,34 +33,33 @@ Damit ergibt sich für den Systementwurf folgende methodische
     \item{prototypische Implementierung}
 \end{enumerate}
 Abschließend wird das implementierte System evaluiert.
-Die Evaluation überprüft anhand verwendeter Mechanismen und gezielt erzeugter Fehlersituationen, ob die aus den Anforderungen
-abgeleiteten Zusicherungen durch den entworfenen und implementierten Prototyp eingehalten werden (vgl. \ref{item:tz4}).
+Die Evaluation überprüft anhand gezielt erzeugter Fehlersituationen, ob die aus den Anforderungen abgeleiteten Zusicherungen
+durch den entworfenen und implementierten Prototyp eingehalten werden (vgl. \ref{item:tz4}).
 Die konkrete Durchführung wird in \cref{ch:evaluation} beschrieben.
 
 \subsection{Anforderungserhebung und Ableitung der Zusicherungen}
 \label{subsec:anforderungserhebung}
-%TODO: Nochmal in Requirements Engineering von Chris Rupp bzgl Anforderungsermittlung Systemarchi recherchieren --> begründen, wieso ich die Anforderungen genau so erhoben/implementiert habe
 Der zentrale Aspekt des entwickelten Systems ist die Fehlertoleranz.
-Da es jedoch eine große Menge verschiedener Fehler und Fehlerklassen gibt, wird in \cref{sec:abgrenzungFehlermodell} zunächst
-definiert, welche Fehlerarten im Rahmen der vorliegenden Arbeit relevant sind.
-Daraus ergeben sich in Kombination mit dem durch die Problemstellung motivierten Systemkontext direkte Anforderungen
-an den normalen Verarbeitungsablauf als auch an das Verhalten bei Fehlern und konkurrierenden Zugriffen.
-Aus den Anforderungen werden anschließend konkrete Zusicherungen abgeleitet.
-Diese dienen als präzise Korrektheitsbedingungen für das entwickelte System und bilden daher die Grundlage für
-den späteren Systementwurf und die Evaluation.
-Eine Zusicherung beschreibt dabei eine Eigenschaft, die unabhängig von einem konkreten Ausführungsablauf beziehungsweise dem
-Auftreten eines Fehlers eingehalten werden soll.\\
-Die auf diese Weise formulierten Zusicherungen Z-1 bis Z-9 sind in \cref{ch:anforderungen} vollständig spezifiziert.
-Im weiteren Verlauf der Arbeit dienen sie als Referenz für die Herleitung der Architekturentscheidungen und für die
-Definition der Evaluationskriterien.
-
-\notiz{Hier konkretisieren, welche Quellen und Artefakte neben Problemstellung und Fehlermodell in die Anforderungserhebung
-eingeflossen sind.
-Insbesondere prüfen, ob Anforderungen aus Literatur, Zielsetzung, Fehlerannahmemodell und funktionalen Eigenschaften explizit
-getrennt werden sollten.}
-
-\notiz{Prüfen, ob die konkrete Ableitung jeder Zusicherung aus einer oder mehreren Anforderungen in einer Tabelle dargestellt
-werden sollte. Mögliche Struktur: Anforderung | abgeleitete Zusicherung | Begründung.}
+Um die Anforderungen hierfür systematisch zu ermitteln, orientiert sich das Vorgehen an den Ermittlungsgegenständen des
+Requirements-Engineerings nach \textcite{rupp_requirements-engineering_2021}.
+Anstelle klassischer Stakeholder-Befragungen fließen in dieser Arbeit spezifische Artefakte als primäre Anforderungsquellen
+in die Erhebung ein.
+Das Ziel ist dabei die Entwicklung eines Job-Processing Systems, das resilient gegenüber Fehlern und Teilausfällen in
+verteilten Systemen ist.
+Um den Rahmen der Anforderungen einzugrenzen, wird in \cref{sec:systemkontext} der Systemkontext spezifiziert.
+Als zentrale Quelle für die Anforderungserhebung dienen schließlich die aus der Literatur abgeleiteten Problemstellungen
+verteilter Systeme bezüglich möglicher auftretender Fehler und das sich daraus ergebende Fehlermodell, dessen für diese
+Arbeit betrachtete Teilmenge in \cref{sec:abgrenzungFehlermodell} definiert wird.
+Aus diesen Artefakten werden schließlich die Anforderungen an das System erhoben.\\
+Darauf folgend werden aus diesen Anforderungen konkrete Zusicherungen abgeleitet.
+Diese Verfeinerung hilft, um das zentrale Qualitätskriterium der Prüfbarkeit sicherzustellen.
+Eine Zusicherung beschreibt in diesem Sinne eine testbare Eigenschaft, die unabhängig von einem konkreten
+Ausführungsablauf beziehungsweise dem Auftreten eines Fehlers zwingend eingehalten werden soll.
+Die auf diese Weise formulierten Zusicherungen Z-1 bis Z-9 sind in \cref{sec:zusicherungen} vollständig spezifiziert.
+Sie dienen als präzise Korrektheitsbedingungen für das entwickelte System und bilden daher die Grundlage für
+den späteren Systementwurf und die Evaluation.\\
+Durch dieses Vorgehen wird konstruktiv sichergestellt, dass die Erfüllung der Anforderungen später objektiv durch
+spezifische Prüfkriterien und automatisierte Testfälle beurteilt werden kann (vgl. \cref{sec:evaluationsmethodik}).
 
 \subsection{Architekturentwurf und prototypische Implementierung}
 \label{subsec:architekturentwurfUndImplementierung}
@@ -73,19 +71,13 @@ ausgewählt und begründet und gegebenenfalls gegenüber möglichen Alternativen
 Der Entwurf umfasst insbesondere die Struktur des Job-Stores, das Zustandsmodell, die Koordination konkurrierender Worker
 sowie Mechanismen für Idempotenz, Retry und Recovery.
 
-\notiz{Hier ggf. das verwendete Architekturvorgehen explizit benennen und begründen, insbesondere falls das 4-Sichten-Modell
-von Gernot Starke zur Strukturierung des Entwurfs verwendet wird.}
-
 Die resultierende Architektur wird anschließend prototypisch implementiert.
 Dabei werden die im Entwurf vorgesehenen Komponenten und Mechanismen in Java und Spring umgesetzt.
 Die Implementierung dient nicht der Entwicklung einer vollständigen fachlichen Anwendung, sondern der prototypischen
 Umsetzung und Untersuchung der für das Job-Processing relevanten Mechanismen.
 Die eigentliche Jobverarbeitung wird deshalb durch eine simulierte Fachlogik repräsentiert, während Persistenz,
 Zustandsverwaltung, konkurrierende Verarbeitung, Retry und Recovery entsprechend dem Architekturentwurf implementiert werden.\\
-Die Implementierung und die daraus resultierenden technischen Entscheidungen werden in \cref{sec:implementierung} detailliert beschrieben.
-
-\notiz{Hier ggf. kurz beschreiben, ob die Implementierung iterativ erfolgte und ob während der Umsetzung Rückkopplungen
-zwischen Entwurf und Prototyp auftraten. Nur aufnehmen, wenn dies dem tatsächlichen Vorgehen entspricht.}
+Die Implementierung inklusive der relevanten technischen Entscheidungen wird in \cref{sec:implementierung} detailliert beschrieben.
 
 \section{Evaluation}
 \label{sec:evaluationsmethodik}
@@ -103,7 +95,7 @@ Die Evaluationsmethodik umfasst damit die folgenden Schritte:
 \end{enumerate}
 
 \subsection{Ableitung der Testszenarien}
-\label{subsec:auswahlprinzip} %TODO: den letzten Satz nochmla schärfen -> die Zusicherungen ergeben sich ja schon aus den gewählten Fehlerklassen
+\label{subsec:auswahlprinzip} %TODO: den letzten Satz nochmal schärfen -> die Zusicherungen ergeben sich ja schon aus den gewählten Fehlerklassen
 Die Auswahl der konkreten Testszenarien orientiert sich primär an der Vollständigkeit relativ zu den eigenen
 Zusicherungen: Für jede der neun Zusicherungen Z-1 bis Z-9 wird mindestens ein Testszenario definiert, das gezielt
 prüft, ob die Zusicherung unter einer jeweiligen Fehlerbedingung eingehalten wird (spezifikationsbasierter Testentwurf). %TODO: nochmal spezifikationsbasierten Testentwurf recherchieren
