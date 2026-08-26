@@ -4,7 +4,7 @@ import backend.infrastructure.JobMapper;
 import backend.recovery.DBRetryPolicy;
 import backend.service.JobService;
 import backend.domain.Job;
-import backend.service.PayloadValidator;
+import backend.infrastructure.PayloadValidator;
 import common.retry.RetryExecutor;
 import jakarta.validation.Valid;
 import org.springframework.dao.DataIntegrityViolationException;

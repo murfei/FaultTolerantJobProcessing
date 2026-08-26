@@ -3,7 +3,7 @@ package backend.api;
 import backend.domain.Job;
 import backend.infrastructure.JobFactory;
 import backend.service.JobService;
-import backend.service.PayloadValidator;
+import backend.infrastructure.PayloadValidator;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;

@@ -1,4 +1,4 @@
-package backend.service;
+package backend.infrastructure;
 
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
