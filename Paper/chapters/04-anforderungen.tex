@@ -19,7 +19,7 @@ Unabhängig vom ursprünglichen Aufruf übernehmen mehrere Worker-Prozesse ansch
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.5\textwidth]{images/contextView}
-    \caption{Systemkontext}
+    \caption{Systemkontext}%TODO: "Kontextabgrenzung" nach Gernot Starke
     \label{fig:contextView}
 \end{figure}
 Da der Schwerpunkt der Arbeit auf den Mechanismen des Job-Processings und nicht auf einer konkreten Fachanwendung liegt,
@@ -34,13 +34,6 @@ Die genau betrachtete Fehlermenge wird im folgenden Kapitel dargelegt.
 
 \section{Abgrenzung des betrachteten Fehlermodells}
 \label{sec:abgrenzungFehlermodell}
-%TODO: Hier noch an die richtige Stelle schieben
-%   Die hier vorgenommene Klassifikation lässt sich zusätzlich an der klassischen Fehlertaxonomie nach
-%   \textcite{cristian_understanding_1991} einordnen: Die betrachteten Fehlerklassen entsprechen im Wesentlichen
-%   Crash- und Omission-Fehlern, während byzantinische Fehler bewusst ausgeschlossen bleiben. Die Auswahl der
-%   betrachteten Infrastrukturfehler -- insbesondere transiente Netzwerk- und Datenbankausfälle -- wird zusätzlich
-%   durch \textcite{alquraan_analysis_2018} empirisch gestützt, die zeigen, dass Netzwerkpartitionierungsfehler zu
-%   den in der Praxis relevanten Ausfallursachen in Cloud-Systemen zählen.
 Verteilte Softwaresysteme können durch eine Vielzahl unterschiedlicher Fehler beeinträchtigt werden.
 Hierzu zählen unter anderem Hardwaredefekte, Softwarefehler, Netzwerkausfälle, Bedienfehler oder Cyberangriffe.
 Wie bereits in \cref{sec:fehlertoleranz} erläutert wurde, kann ein System jedoch nicht sämtliche denkbaren Fehler verhindern oder behandeln.
@@ -58,6 +51,8 @@ liegen außerhalb des Betrachtungsumfangs dieser Arbeit.\\
 Die Abgrenzung der betrachteten Fehler ist in \cref{tab:fehlermodell} zusammengefasst.
 Innerhalb des Systementwurfs werden im Wesentlichen vier Kategorien von Fehlern behandelt.
 An erster Stelle stehen Ausfälle einzelner Systemkomponenten sowie transiente Infrastruktur- und Kommunikationsstörungen.
+In der Klassifikation nach \textcite{cristian_understanding_1991} entsprechen diese Fehler im Wesentlichen Crash- und
+Omission-Fehlern.
 Hierzu zählen insbesondere das unerwartete Beenden eines Worker-Prozesses, Container-Neustarts, JVM-Abstürze, durch das Betriebssystem terminierte Prozesse,
 temporäre Netzwerkunterbrechungen oder kurzfristig nicht erreichbare Datenbanken.
 Dadurch kann es im System zu zwei Problemen kommen.
@@ -67,8 +62,9 @@ Ressource nach kurzer Zeit wieder verfügbar ist.
 Zum anderen entsteht die Gefahr, dass eine Nachricht bzw. ein Job verloren geht.
 Durch diese Fehler gerät das Gesamtsystem in einen unklaren Zustand darüber, wie weit die Verarbeitung bereits fortgeschritten war
 bzw. ob der Job persistiert wurde.
-Da diese Störungen in verteilten Umgebungen regelmäßig auftreten können \parencite[Kap.~1 Abschnitt \glqq Failure Is Inevitable\grqq]{newman_building_2026},
-muss die Systemarchitektur in der Lage sein, diese autonom zu überbrücken.
+Da diese Störungen in verteilten Umgebungen regelmäßig auftreten können \parencite[Kap.~1 Abschnitt \glqq Failure Is Inevitable\grqq]{newman_building_2026}
+und, wie bereits eingangs in \cref{sec:problemstellung} gezeigt, gerade in Cloud-Systemen mit zu den häufigsten Fehlern
+zählen \parencite{alquraan_analysis_2018}, muss die Systemarchitektur in der Lage sein, diese autonom zu überbrücken.
 Unter dem Aspekt der Fehlertoleranz sollen zur Behandlung transienter Fehler daher automatische Retries eingesetzt werden,
 um die Notwendigkeit von manuellem Eingreifen zu reduzieren.
 \begin{table}[h]
@@ -183,10 +179,9 @@ Daraus leitet sich die erste Systemzusicherung ab:
     Die Persistierung erfolgt atomar.
     Ein Auftrag ist für Worker-Prozesse entweder vollständig und in einem gültigen Initialzustand sichtbar oder existiert nicht.
 \end{quote}
-Wie in \cref{sec:abgrenzungFehlermodell} dargelegt, führen transiente Kommunikationsstörungen (wie Netzwerk-Timeouts)
-auf Client-Seite zu Wiederholungsversuchen.%TODO: Hier nochmal Referenz prüfen ob nicht eher auf Grundlagenkapitel verwiesen wird
-Um zu verhindern, dass derselbe logische Auftrag infolge dieser Wiederholungen mehrfach erfasst und somit mehrfach ausgeführt
-wird (\ref{req:duplikate}), muss das System eine idempotente Auftragserfassung implementieren:
+Wie in \cref{subsec:retry/backoff} dargelegt, können transiente Kommunikationsfehler dazu führen, dass Nachrichten erneut verschickt werden.
+Da im weiteren Verlauf entsprechende Wiederholungsmechanismen gefordert werden, muss die Joberstellung idempotent gestaltet sein,
+damit eine erneute Verarbeitung derselben Anfrage nicht zur mehrfachen Persistierung desselben Jobs führt:
 \begin{quote}
     \zusicherung{Duplikaterkennung bei der Auftragserfassung}{zus:duplikaterkennung} \\
     Das System garantiert, dass identische Anfragen, die von Aufrufern erneut gesendet werden,
@@ -224,7 +219,7 @@ und die Konsistenz der Daten so zu schützen (\ref{req:idempotenz}):
     Kein Job kann nach Erreichen eines Endzustands erneut in einen aktiven Zustand versetzt werden.
 \end{quote}
 
-\subsection{Recovery}
+\subsection{Retries und Recovery}
 \label{subsec:anforderungen_recovery}
 Das Unterkapitel Recovery adressiert das Verhalten des Systems bei Teilausfällen, wie dem unerwarteten Absturz von Worker-Prozessen
 oder abgebrochenen Verbindungen.

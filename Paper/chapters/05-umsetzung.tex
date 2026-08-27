@@ -32,8 +32,9 @@ von Mehrfachverarbeitungen im Fehlerfall dargelegt wird.
 \subsection{Architekturentwurf} %TODO: Bis jetzt felt bie mir irgendwie der Weg von Datenbank zu relational zu PostgreSQL --> ich mache das weil ich z.B. ACID-Garantien nutzen möchte weil diese viel für mich übernehmen.
                                 % bei fällt das im Moment noch einfach vom Himmel, dass ich Postgres nutze. Das muss auf jeden Fall!!! vernünftig begründet/hergeleitet werden
 \label{subsec:architekturentwurf}
-In \cref{subsec:backgroundJobs} wurde bereits dargelegt, dass das Queue-Based Load Leveling Pattern eine geeignete Option ist, %TODO: "geeignet" hier sehr wertend. Das macht Kapitel 2 eigentlich noch nicht. Hier anders formulieren, vllt in die Richtung: die Vorteile und die Nachteile existieren
-die ausstehenden Jobs innerhalb eines Backend-Job-Processing-Systems zwischenzuspeichern.
+\notiz{Hier muss noch der Weg von Datenbank -> relationale Datenbank offengelegt werden}
+In \cref{subsec:backgroundJobs} wurde bereits dargelegt, dass das Queue-Based Load Leveling Pattern eine mögliche und etablierte
+Option ist, die ausstehenden Jobs innerhalb eines Backend-Job-Processing-Systems zwischenzuspeichern.
 Eine verbreitete Variante, dieses Pattern für Nachrichten, oder wie im Fall dieser Arbeit für Jobs, umzusetzen,
 ist die Implementierung mithilfe dedizierter Message Broker \parencite[Kap.~11 Abschnitt \glqq Message brokers\grqq]{kleppmann_designing_2017}.
 Das im Rahmen dieser Arbeit entwickelte System nutzt hingegen bewusst eine relationale PostgreSQL-Datenbank als zentralen Job-Store.
@@ -44,6 +45,8 @@ Die Datenbank übernimmt dabei nicht ausschließlich die Rolle eines persistente
 Warteschlange sowie als Synchronisationsmechanismus zwischen konkurrierenden Workern.
 Funktional orientiert sich die Architektur somit an den Prinzipien eines klassischen Message Brokers, nutzt jedoch die Konsistenzgarantien
 einer relationalen Datenbank als Grundlage für die Umsetzung der definierten Zusicherungen.
+\notiz{Hier nochmal überarbeiten: im folgenden ist nicht die Nutzung eines datenbankbasierten Job-Stores das "Problem", sondern die Nutzung einer
+Datenbank die auf den Sekundärspeicher schreibt.}
 Die Wahl eines datenbankbasierten Job-Stores stellt dabei einen bewussten Architektur-Trade-off dar.
 Im Vergleich zu In-Memory-basierten Messaging-Systemen entstehen durch den permanenten Zugriff auf einen externen persistenten Datenspeicher
 zusätzliche Latenzen und ein geringerer maximaler Nachrichtendurchsatz.
