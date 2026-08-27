@@ -1,5 +1,5 @@
 %! Author = murfe
-%! Date = 25.08.2026
+%! Date = 27.08.2026
 
 \chapter{Evaluation}
 \label{ch:evaluation}
@@ -34,6 +34,7 @@ und reproduzierbar durchgeführt werden können und dass insbesondere das Auftre
 Konkret wurde die Anzahl der Worker auf 1 gesetzt, die Anzahl der maximalen Verarbeitungsversuche für Jobs auf 5, die Lease-Dauer
 auf 10 Sekunden, die Verarbeitungszeit der Jobs auf 5 Sekunden und das Recovery-Intervall ebenfalls auf 5 Sekunden.
 Das Retry- und Backoff-Verhalten ist mit 200ms und einem Faktor von $2^n$ gewählt, um die Laufzeit der Tests zu begrenzen.
+Findet ein Worker keinen freien Job, pausiert er und wartet 2 Sekunden, bis er den Job-Bestand erneut prüft.
 Einzelne Parameter können für die unterschiedlichen Tests angepasst werden, so beispielsweise die Anzahl Worker für die
 nebenläufigkeitsabhängigen Tests.
 Diese Änderungen werden bei der jeweiligen Testbeschreibung dargelegt.
@@ -86,7 +87,7 @@ Die Auswahl inklusive Begründung der betrachteten Fehlerklassen wurde bereits i
     \addlinespace
     \ref{zus:idempotenz} & (a) Recovery eines Jobs im Status \textit{Running}; (b) Lease abgelaufen ohne vorherige Recovery & (a) Manuelle Recovery eines aktiven Jobs. Speicherversuch durch nicht-besitzenden Worker vor und nach Abschluss durch besitzenden Worker; (b) \texttt{lease\_until} auf Vergangenheit setzen & (a) Zugriff wird abgelehnt, es wird genau ein Ergebnis vom besitzenden Worker gespeichert; (b) Zugriff wird abgelehnt, kein Ergebnis wird gespeichert \\
     \addlinespace
-    \ref{zus:terminierung} & Job schlägt dauerhaft fachlich fehl & Processor-Mock wirft für bestimmte Job-ID bei jedem Versuch eine Exception & \texttt{attempt\_count} erreicht Maximum, Job geht in \texttt{Failed} über; Zeit bis \texttt{Failed} $\leq$ \texttt{maxAttempts} $\times$ (Lease + max(Recovery-Intervall, Worker idle-Timeout)) \\
+    \ref{zus:terminierung} & Job schlägt dauerhaft fachlich fehl & Processor-Mock wirft für bestimmte Job-ID bei jedem Versuch eine Exception & \texttt{attempt\_count} erreicht Maximum, Job geht in \texttt{Failed} über; Zeit bis \texttt{Failed} $\leq$ \texttt{maxAttempts} $\times$ (Lease + Recovery-Intervall + Worker idle-Timeout) \\
 \end{longtable}
 Eine Zuordnung der in \cref{tab:testmatrix} beschriebenen Fehlerszenarien zu den konkret implementierten Testklassen und
 -methoden befindet sich im Anhang in \cref{tab:zuordnung_zusicherungen_tests}.
@@ -219,8 +220,41 @@ Vor der eigentlichen Untersuchung wird zunächst ein Kontrolljob regulär verarb
 Spy die grundsätzliche Funktionsfähigkeit des Workers nicht beeinträchtigt.
 Anschließend wird geprüft, dass der fehlschlagende Job nach genau der konfigurierten Maximalanzahl der Wiederholungsversuche
 in den Zustand \textit{Failed} überführt wird und kein weiterer Verarbeitungsversuch mehr stattfindet.
-Um die Testlaufzeit zu optimieren, wird für ausschließlich diesen Test das Recovery-Intervall und die Leasedauer auf 1s,
-sowie die Dauer der Jobverarbeitung auf 100ms reduziert.
+Da \ref{zus:terminierung} den Übergang in einen Endzustand nach endlicher Zeit fordert, wird für die maximale Zeit bis
+zur endgültigen Beendigung eines dauerhaft fehlschlagenden Jobs eine obere Schranke definiert.
+Diese ergibt sich aus der maximalen Anzahl der Verarbeitungsversuche sowie der für einen einzelnen Verarbeitungszyklus maximal
+zu erwartenden Wartezeit:
+
+\[
+    T_{\mathrm{max}}
+    =
+    A_{\mathrm{max}}
+    \cdot
+    \left(
+        T_{\mathrm{lease}}
+        +
+        T_{\mathrm{recovery}}
+        +
+        T_{\mathrm{idle}}
+    \right)
+\]
+Dabei bezeichnet \(A_{\mathrm{max}}\) die maximal zulässige Anzahl von Verarbeitungsversuchen, bevor ein Job in \textit{Failed}
+überführt wird,
+\(T_{\mathrm{lease}}\) die konfigurierte Lease-Dauer bis ein Job als verwaist gilt,
+\(T_{\mathrm{recovery}}\) das Recovery-Intervall und
+\(T_{\mathrm{idle}}\) das Warteintervall eines verfügbaren Workers zwischen zwei Übernahmeversuchen.
+Um die Testlaufzeit zu optimieren, werden für ausschließlich diesen Test das Recovery-Intervall und die Lease-Dauer auf 1s reduziert.
+In Kombination mit den in \cref{sec:versuchsaufbau} beschriebenen Parametern ergibt sich daraus für den Test folgende Konfiguration:
+\begin{align*}
+    A_{\mathrm{max}} &= 5\\
+    T_{\mathrm{lease}} &= 1\,\mathrm{s},\\
+    T_{\mathrm{recovery}} &= 1\,\mathrm{s},\\
+    T_{\mathrm{idle}} &= 2\,\mathrm{s}.
+\end{align*}
+Daraus folgt, dass für die Zeit bis zum Übergang in einen finalen Status die obere Schranke von \(T_{\mathrm{max}} = 20\,s\) gilt.
+Diese Schranke gilt unter der Voraussetzung, dass während des gesamten Testzeitraums die Anzahl der verfügbaren Worker
+gleich groß wie die der ausstehenden Jobs ist.
+Da die Anzahl Worker und Jobs in diesem Test beide eins beträgt, ist diese Bedingung erfüllt.
 
 \section{Ergebnisse}
 \label{sec:ergebnisse}
@@ -382,23 +416,20 @@ Der abschließende \texttt{attempt\_count} entsprach dabei genau dem konfigurier
 Das für \ref{zus:terminierung} definierte Kriterium ist damit erfüllt: Der dauerhaft fehlschlagende Job verbleibt
 nicht unbegrenzt im Wechsel zwischen \textit{Running} und \textit{Queued}, sondern wird nach Erreichen der
 maximalen Anzahl von Verarbeitungsversuchen endgültig in den Zustand \textit{Failed} überführt.
-Die Zeit die es dafür gebraucht hat war mit \_\_\_ kleiner als  maxAttempts *(Lease + max(recoveryIntervall, workerIdleTiemout)) = 15s\\ %TODO": Formel schöner und Wert einfügen
-Die Reihenfolge der Jobauswahl berücksichtigt zusätzlich die Erstellungszeitpunkte der Jobs: Durch die Sortierung
-nach \texttt{created\_at} wird verhindert, dass Jobs durch wiederholt zurückgestellte Aufgaben dauerhaft verdrängt werden.
-Dieser Aspekt der Terminierungsgarantie wird analytisch begründet und nicht zusätzlich empirisch überprüft, da er unmittelbar
-aus der in \cref{subsec:impl_persistenz} beschriebenen Sortierlogik der Kandidatenauswahl folgt.
+Die hierfür benötigte Zeit betrug 12,179\,s und lag damit unterhalb der aus den konfigurierten Zeitparametern
+abgeleiteten oberen Schranke von 20\,s.\\
+Für die Terminierung ist neben der Begrenzung der Anzahl der Verarbeitungsversuche auch die Reihenfolge der Jobauswahl relevant.
+Die Auswahl erfolgt wie in \cref{subsec:impl_persistenz} beschrieben anhand des Erstellungszeitpunkts durch die Sortierung
+der Jobs innerhalb der Datenbankanfrage nach dem Attribut \texttt{created\_at}.
+Dadurch kann es nicht passieren, dass ein Job dauerhaft durch später erstellte Jobs verdrängt wird.
 
 \section{Bewertung der Hypothesen}
 \label{sec:hypothesenbewertung}
-Auf Grundlage der Ergebnisse wird abschließend geprüft, inwieweit die in \cref{ch:anforderungen} formulierten Hypothesen H1
-bis H3 durch die durchgeführten Untersuchungen gestützt werden.
+%Auf Grundlage der Ergebnisse wird abschließend geprüft, inwieweit die in \cref{ch:anforderungen} formulierten Hypothesen H1
+%bis H3 durch die durchgeführten Untersuchungen gestützt werden.
+%Für jede Hypothese wird zunächst angegeben, welche Zusicherungen und Tests zu ihrer Überprüfung herangezogen werden.
+%Anschließend wird das beobachtete Ergebnis den formulierten Erwartungen gegenübergestellt.
 
-Für jede Hypothese wird zunächst angegeben, welche Zusicherungen und Tests zu ihrer Überprüfung herangezogen werden.
-Anschließend wird das beobachtete Ergebnis den formulierten Erwartungen gegenübergestellt.
-
-\notiz{Hier später H1, H2 und H3 jeweils explizit bewerten: Welche Tests stützen die Hypothese?
+\notiz{H1, H2 und H3 jeweils explizit bewerten: Welche Tests stützen die Hypothese?
 Welche Ergebnisse wurden beobachtet?
 Wird die Hypothese bestätigt, teilweise gestützt oder nicht gestützt?}
-
-\notiz{Falls Kapitel 7 eine ausführliche Diskussion der Ergebnisse enthält, sollte dieser Abschnitt auf die eigentliche
-Hypothesenbewertung beschränkt bleiben und keine ausführliche Interpretation oder Limitationen vorwegnehmen.}

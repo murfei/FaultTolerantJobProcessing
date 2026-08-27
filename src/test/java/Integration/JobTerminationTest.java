@@ -27,7 +27,7 @@ import static org.mockito.Mockito.doThrow;
 @ActiveProfiles("test")
 @SpringBootTest(classes = Application.class, properties = {
         "recovery.intervall=1",
-        "job.processing-time=100",
+        "job.processing-time=100",  //Nur relevant für den Sanity-Check
         "job.max-duration=1"
 })
 @DirtiesContext
@@ -69,7 +69,7 @@ public class JobTerminationTest {
         assertEquals(maxAttempts, failureJob.getAttempt_count());
         assertEquals(JobStatus.FAILED, failureJob.getStatus());
         double duration = Duration.between(start, end).toMillis() / 1000.0;
-        assertTrue(duration <= maxAttempts * (1 + 2L)); //Zeit <= maxAttempts * (Lease(1) + max(recoveryIntervall(1),WorkerIdleTimeout(2))
+        assertTrue(duration <= maxAttempts * (1 + 1 + 2L)); //Zeit <= maxAttempts * (Lease(1) + recoveryIntervall(1) + WorkerIdleTimeout(2))
         System.out.println("Es dauerte " + duration + " Sekunden, bis der Job abgeschlossen wurde");
     }
 
