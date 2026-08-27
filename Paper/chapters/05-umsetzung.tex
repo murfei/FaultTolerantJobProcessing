@@ -45,7 +45,7 @@ Die Datenbank übernimmt dabei nicht ausschließlich die Rolle eines persistente
 Warteschlange sowie als Synchronisationsmechanismus zwischen konkurrierenden Workern.
 Funktional orientiert sich die Architektur somit an den Prinzipien eines klassischen Message Brokers, nutzt jedoch die Konsistenzgarantien
 einer relationalen Datenbank als Grundlage für die Umsetzung der definierten Zusicherungen.
-\notiz{Hier nochmal überarbeiten: im folgenden ist nicht die Nutzung eines datenbankbasierten Job-Stores das "Problem", sondern die Nutzung einer
+\notiz{Hier nochmal überarbeiten: im folgenden ist nicht die Nutzung eines datenbankbasierten Job-Stores das \glqq Problem\grqq, sondern die Nutzung einer
 Datenbank die auf den Sekundärspeicher schreibt.}
 Die Wahl eines datenbankbasierten Job-Stores stellt dabei einen bewussten Architektur-Trade-off dar.
 Im Vergleich zu In-Memory-basierten Messaging-Systemen entstehen durch den permanenten Zugriff auf einen externen persistenten Datenspeicher
