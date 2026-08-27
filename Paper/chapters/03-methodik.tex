@@ -1,5 +1,5 @@
 %! Author = murfe
-%! Date = 26.08.2026
+%! Date = 27.08.2026
 
 \chapter{Methodik}
 \label{ch:methodik}
@@ -69,7 +69,7 @@ Um die Komplexität eines solchen Systems methodisch fundiert zu handhaben, orie
 Die Fachliteratur empfiehlt, komplexe Systeme aus mehreren Blickwinkeln zu analysieren und zu dokumentieren \parencite[S.470]{rupp_requirements-engineering_2021}.
 Die Bildung dieser spezifischen Sichten hilft das System strukturiert und schrittweise zu entwickeln \parencite[S.469]{rupp_requirements-engineering_2021}.
 Das Vorgehen orientiert sich hierfür an dem Vier-Sichten-Modell nach \textcite[S.80 ff.]{starke_effektive_2024}.
-Das dort beschriebene Vorgehen unterstützt nicht nur die Abstraktion und Kapselung, sondern hilft dabei, domänenspezifische Fragestellungen
+Dieses unterstützt nicht nur die Abstraktion und Kapselung, sondern hilft dabei, domänenspezifische Fragestellungen
 isoliert zu betrachten.\\
 Die geforderten Sichten spiegeln sich in der Struktur dieser Arbeit wie folgt wider:
 Die Kontextabgrenzung findet bereits im Rahmen der Anforderungserhebung statt und ist entsprechend in \cref{sec:systemkontext} thematisiert.
@@ -102,103 +102,83 @@ Die Evaluationsmethodik umfasst damit die folgenden Schritte:
     \item{Auswertung}
 \end{enumerate}
 
-\subsection{Ableitung der Testszenarien}
-\label{subsec:auswahlprinzip} %TODO: den letzten Satz nochmal schärfen -> die Zusicherungen ergeben sich ja schon aus den gewählten Fehlerklassen
-Die Auswahl der konkreten Testszenarien orientiert sich primär an der Vollständigkeit relativ zu den eigenen
-Zusicherungen: Für jede der neun Zusicherungen Z-1 bis Z-9 wird mindestens ein Testszenario definiert, das gezielt
-prüft, ob die Zusicherung unter einer jeweiligen Fehlerbedingung eingehalten wird (spezifikationsbasierter Testentwurf). %TODO: nochmal spezifikationsbasierten Testentwurf recherchieren
-Die zugrunde liegenden Fehlerklassen selbst sind bereits in \cref{sec:fehlermodell} definiert und
-literaturseitig eingeordnet; die vollständige Zuordnung von Zusicherung, Fehlerinjektion und Prüfkriterium ist in
-\cref{tab:testmatrix} dokumentiert.
-
 \subsection{Operationalisierung der Zusicherungen}
 \label{subsec:operationalisierung}
-Damit die formulierten Zusicherungen empirisch überprüft werden können, wird für jede Zusicherung festgelegt,
-anhand welches konkret beobachtbaren Systemzustands nach einem Testlauf entschieden wird, ob sie eingehalten
-wurde -- das jeweilige Prüfkriterium. Die vollständige Zuordnung der neun Zusicherungen zu ihren Prüfkriterien
-sowie den zugehörigen Fehlerinjektionen ist in \cref{tab:testmatrix} dokumentiert und wird an dieser Stelle nicht %TODO: wiederholt sowieso nicht, einmal Formulierung prüfen
-wiederholt.
-
-Die neun Prüfkriterien lassen sich dabei auf wenige wiederkehrende Muster zurückführen: das Nichtvorhandensein %TODO: Diesen Absatz auch nochmal überarbeiten
-eines zusätzlichen Datenbankeintrags (\ref{zus:duplikaterkennung}, der Fehlerzweig von \ref{zus:atomare_wirkung},
-\ref{zus:idempotenz}), die zeitliche Nichtüberlappung konkurrierender Zustände (\ref{zus:exklusive_rechte},
-\ref{zus:endzustaende}) sowie eine obere Zeitschranke bis zum Erreichen eines Endzustands (Erfolgsfall von
-\ref{zus:retries}, \ref{zus:terminierung}). Diese Klassifikation beschreibt die Methode hinter der Tabelle, ohne
-deren Inhalt vorwegzunehmen.
+Die in \cref{ch:anforderungen} formulierten Zusicherungen beschreiben zunächst abstrakte Eigenschaften des zu entwickelnden Systems.
+Damit diese im Rahmen der Evaluation überprüft werden können, werden sie in konkret beobachtbare Eigenschaften und daraus
+ableitbare Prüfkriterien überführt.
+Die Operationalisierung legt somit fest, anhand welcher beobachtbaren Systemzustände oder -ereignisse entschieden wird,
+ob eine Zusicherung unter einem definierten Fehlerszenario eingehalten wurde.\\
+Hierzu wird für jede Zusicherung zunächst der für den Test erwartete Systemzustand bzw. das erwartete Verhalten bestimmt.
+Darauf aufbauend wird ein Prüfkriterium formuliert, das anhand von beobachtbaren Größen wie Zuständen im Job-Store, der Anzahl
+persistierter Ergebnisse, HTTP-Antworten, ausgeführten Operationen oder der Anzahl erreichter Verarbeitungsversuche überprüft werden kann.
+Die vollständige Zuordnung der Zusicherungen zu den jeweiligen Fehlerinjektionen und Prüfkriterien ist in \cref{tab:testmatrix}
+dokumentiert.
 
 \subsection{Test- und Nachweismethoden}
 \label{subsec:test_und_nachweismethoden}
-Für jede der neun Zusicherungen existiert mindestens ein empirischer Testfall (vgl. \cref{subsec:auswahlprinzip}).
-Nicht jeder Teilaspekt einer Zusicherung wird dabei zusätzlich empirisch geprüft: Wo ein Teilaspekt bereits
-konstruktiv aus dem Transaktionsdesign folgt -- etwa die Atomarität der Persistierung bei
-\ref{zus:atomare_persistenz} aus der \texttt{@Transactional}-Grenze, oder die Finalität der Endzustände bei
-\ref{zus:endzustaende} aus einer Betrachtung der endlich vielen zustandsändernden Codepfade --, wird dieser
-Aspekt zusätzlich analytisch begründet. Der empirische Test dient in diesen Fällen dazu, die Prämissen des
-jeweiligen Arguments am tatsächlichen Code zu erhärten, nicht dazu, die Eigenschaft allein zu beweisen.
-
-Zur Überprüfung der entwickelten Mechanismen werden Komponenten- und Integrationstests eingesetzt, die
-unterschiedliche Zwecke verfolgen. Im Rahmen der Entwicklung wurden isolierte Komponententests genutzt, um
-einzelne Mechanismen -- etwa die Entscheidungslogik der Retry-Komponenten -- unabhängig von einer laufenden
-Datenbank oder externen Infrastruktur zu überprüfen. Ein erfolgreicher Komponententest zeigt dabei beispielsweise,
-dass eine \texttt{DataAccessException} grundsätzlich als retrybar klassifiziert wird; er zeigt jedoch nicht, ob
-eine reale Datenbankverbindung nach einer kurzzeitigen Störung tatsächlich wieder erfolgreich verwendet werden
-kann. Da die betrachteten Zusicherungen überwiegend das Zusammenspiel mehrerer Komponenten unter realer
-Nebenläufigkeit und tatsächlichem Infrastrukturverhalten betreffen, werden Komponententests daher nicht als
-eigenständige Evaluationsevidenz herangezogen. Als Evaluationsevidenz gelten stattdessen ausschließlich
-Integrationstests, die einer konkreten Zusicherung zugeordnet sind und gegen eine reale Infrastrukturkomponente
-gezielt eine Fehlerbedingung erzeugen.
-
-Allgemeine Funktionstests ohne gezielte Fehlerinjektion -- etwa zur Sicherstellung der grundsätzlichen
-Erreichbarkeit des Backends oder der fehlerfreien Erstellung eines Jobs -- werden im Rahmen der
-Systementwicklung zwar zur Absicherung der allgemeinen Funktionsfähigkeit genutzt, sind jedoch ebenfalls nicht
-Gegenstand der Evaluation, da diese sich auf die Fehlertoleranz des Systems konzentriert. Für die Evaluation wird
-entsprechend ein unter normalen Bedingungen funktionierendes System vorausgesetzt.
-
-Integrationstests werden dabei nicht gegen eine simulierte, sondern gegen eine reale Instanz des verwendeten %TODO: stimmt so nicht ganz
-Datenbanksystems durchgeführt, um sicherzustellen, dass in Komponententests getroffene Annahmen über das
-Laufzeitverhalten auch unter realen Infrastrukturbedingungen zutreffen. Die konkrete technische Umsetzung der
-Testumgebung wird in \cref{sec:versuchsaufbau} beschrieben.
+Die Auswahl der konkreten Testszenarien orientiert sich primär an der Abdeckung der zuvor definierten Zusicherungen.
+Entsprechend wird für jede der neun Zusicherungen systematisch mindestens ein Testszenario definiert, das gezielt evaluiert,
+ob die geforderte Eigenschaft unter der jeweiligen Fehlerbedingung eingehalten wird.\\
+Die zugrunde liegenden Fehlerklassen werden in \cref{sec:abgrenzungFehlermodell} definiert und durch die Literatur fundiert begründet.
+Die vollständige Zuordnung von Systemzusicherung, simulierter Fehlerinjektion und dem dazugehörigen Prüfkriterium ist in
+\cref{tab:testmatrix} dokumentiert.
+Die Nachweisführung einer Zusicherung kann sowohl empirische als auch analytische Anteile umfassen.
+Empirisch überprüfbare Eigenschaften werden durch gezielte Testszenarien untersucht.
+Eigenschaften, die sich aus strukturellen Merkmalen der Implementierung ableiten lassen, werden ergänzend anhand dieser
+Implementierungsmerkmale begründet.
+Die konkrete Zuordnung der jeweiligen Nachweismethode zu den einzelnen Zusicherungen erfolgt im Rahmen der Evaluation.\\
+Zur Überprüfung der entwickelten Mechanismen werden Komponenten- und Integrationstests eingesetzt, die unterschiedliche Zwecke verfolgen.
+Im Rahmen der Entwicklung wurden isolierte Komponententests genutzt, um einzelne Mechanismen, wie die Entscheidungslogik
+der Retry-Komponenten, unabhängig von einer laufenden Datenbank oder Infrastruktur zu überprüfen.
+Ein erfolgreicher Komponententest zeigt dabei beispielsweise, dass eine \texttt{DataAccessException} grundsätzlich als
+retrybar klassifiziert wird, er zeigt jedoch nicht, ob eine reale Datenbankverbindung nach einer kurzzeitigen Störung
+tatsächlich wieder erfolgreich verwendet werden kann.
+Da sich die Evaluation auf die Fehlertoleranz des Systems unter gezielt herbeigeführten Fehlerbedingungen konzentriert,
+werden ausschließlich Integrationstests als Evaluationsevidenz herangezogen, die einer konkreten Zusicherung zugeordnet
+sind und das Zusammenspiel der beteiligten Komponenten unter den jeweiligen Fehlerbedingungen untersuchen.
+Komponententests wurden im Rahmen der Entwicklung eingesetzt, um einzelne Mechanismen isoliert zu überprüfen und die allgemeine
+Funktionsfähigkeit des Systems sicherzustellen.
+Dazu zählen beispielsweise Tests zur Klassifikation von Fehlern durch die Retry-Komponenten, Tests zur Überprüfung der
+grundsätzlichen Erreichbarkeit des Backends oder der fehlerfreien Joberstellung.
+Diese Tests sind jedoch nicht Bestandteil der eigentlichen Evaluation.
+Für die Evaluation wird entsprechend ein unter normalen Bedingungen funktionierendes System vorausgesetzt.\\
+Integrationstests werden dabei gegen eine reale Instanz des verwendeten Datenbanksystems durchgeführt, um das Verhalten
+der Anwendung auch unter den tatsächlichen Laufzeitbedingungen der eingesetzten Datenbank zu untersuchen.
+Dadurch wird auch das Zusammenspiel der einzelnen Komponenten untereinander und mit der Datenbank getestet.
+Die konkrete technische Umsetzung der Testumgebung wird in \cref{sec:versuchsaufbau} beschrieben.
 
 \subsection{Fehlerinjektion und Testdurchführung}
 \label{subsec:fehlerinjektion_und_testdurchfuehrung}
-Die Integrationstests basieren auf einer gezielten Injektion definierter Fehlerbedingungen.
-Ein Testlauf beginnt mit einem kontrollierten Ausgangszustand, anschließend wird die jeweilige Fehlerbedingung erzeugt
-und das resultierende Systemverhalten beobachtet.
-Abschließend werden die für das Szenario relevanten Prüfkriterien auf den resultierenden Systemzustand angewendet.\\
-Die konkrete Injektionsmethode ist abhängig vom untersuchten Testszenario.
-Transiente Datenbankfehler werden beispielsweise durch eine Unterbrechung der Verbindung zwischen Anwendung
-und Datenbank erzeugt.
-Recovery-Szenarien werden überwiegend durch direkte Manipulation des relevanten Datenbankzustands untersucht, %TODO: finde auch das noch viele Details
-sodass der für den Recovery-Mechanismus relevante Ausgangszustand gezielt hergestellt werden kann, ohne eine
-reale, zeitaufwendige Verarbeitung nachbilden zu müssen. Ergänzend wird für ein Szenario ein tatsächlicher,
-harter Abbruch eines Worker-Prozesses durchgeführt, um die Recovery-Kette zusätzlich unter realistischeren
-Bedingungen als Plausibilitätsnachweis zu bestätigen. Für nebenläufigkeitskritische Szenarien werden mehrere
-Worker gegen einen gemeinsamen Job-Bestand ausgeführt und die relevanten Zustandsübergänge zeitlich protokolliert;
-die beteiligten Threads werden dabei über eine \texttt{CyclicBarrier} synchronisiert, sodass keiner der
-konkurrierenden Aufrufe beginnt, bevor nicht alle beteiligten Threads bereitstehen. Für Szenarien, die einen
-Fehler an einer präzise definierten Stelle innerhalb einer Transaktion erfordern (\ref{zus:atomare_wirkung}),
-wird stattdessen ein im produktiven Betrieb wirkungsloser Test-Hook verwendet, der im Testfall gezielt an der
-betreffenden Stelle eine Exception auslöst.
-
-\notiz{Hier konkrete Verwendung von Awaitility und die finalen Timeouts ergänzen, sobald die Testfälle
-vollständig implementiert sind.}
+Die Überprüfung der Zusicherungen erfolgt durch gezielte Herbeiführung der für das jeweilige Testszenario relevanten Fehler- und
+Wettbewerbsbedingungen.
+Ein Testlauf beginnt dabei mit einem definierten Ausgangszustand.
+Anschließend wird die zu untersuchende Bedingung erzeugt und das daraus resultierende Systemverhalten beobachtet.
+Dieses wird abschließend mit den definierten Prüfkriterien verglichen.\\
+Die Art der Fehlerinjektion wird dabei an das jeweils untersuchte Fehlerszenario angepasst.
+Fehler können beispielsweise durch die Unterbrechung von Infrastrukturverbindungen, durch das gezielte Herstellen eines
+für Recovery relevanten Systemzustands oder durch das Auslösen definierter Fehler innerhalb einer Verarbeitung erzeugt werden.
+Für die Untersuchung von Nebenläufigkeit werden konkurrierende Operationen synchronisiert und gleichzeitig ausgeführt.
+Dadurch können insbesondere solche Zustandsübergänge und Interaktionen untersucht werden, die bei einer rein sequenziellen
+Ausführung nicht auftreten.\\
+Die konkrete technische Umsetzung der jeweiligen Fehlerinjektion und Teststeuerung wird zusammen mit den einzelnen Testszenarien
+in \cref{ch:evaluation} beziehungsweise dem Versuchsaufbau in \cref{sec:versuchsaufbau} beschrieben.
 
 \subsection{Reproduzierbarkeit und Auswertung}
 \label{subsec:reproduzierbarkeit}
 Nebenläufigkeitsabhängige Fehler können ein nicht-deterministisches Verhalten bei Mehrfachausführung desselben Tests verursachen.
 Insbesondere Race Conditions hängen vom konkreten Scheduling der beteiligten Threads ab.
-Ein einmalig erfolgreicher Testlauf stellt daher für solche Szenarien keinen hinreichenden empirischen Nachweis dar.\\
+Ein einmalig erfolgreicher Testlauf stellt daher für solche Szenarien keinen hinreichenden empirischen Nachweis dar.
 Die Tests bezüglich konkurrierender Verarbeitung werden deshalb wiederholt unter identischen Ausgangsbedingungen ausgeführt.
 Für jeden Lauf werden dabei dieselben Systemparameter und dieselben Fehlerinjektionsbedingungen verwendet.
-Ausgewertet wird anschließend die Anzahl der bestandenen Läufe im Verhältnis zur Gesamtzahl der Durchläufe.
-
-Die Anzahl der Wiederholungen wird dabei einheitlich auf 100 festgelegt. Diese Zahl stellt einen Kompromiss
-zwischen der Aussagekraft der Untersuchung und dem für die Testdurchführung erforderlichen Zeitaufwand dar: Eine
-höhere Wiederholungszahl würde die Wahrscheinlichkeit erhöhen, auch seltene Ausführungsreihenfolgen zu erfassen,
-verlängert jedoch die Laufzeit der gesamten Testsuite entsprechend. Ein erfolgreicher Durchlauf wird dabei nicht
-als Beweis für das generelle Ausbleiben eines Fehlers interpretiert; vielmehr wird untersucht, ob die definierten
-Prüfkriterien über alle Wiederholungen hinweg eingehalten werden. Dieses Vorgehen bildet zugleich die
-methodische Grundlage für die Überprüfung von H3.
-
+Ausgewertet wird anschließend die Anzahl der bestandenen Läufe im Verhältnis zur Gesamtzahl der Durchläufe.\\
+Die Anzahl der Wiederholungen wird dabei einheitlich auf 100 festgelegt.
+Diese Zahl stellt einen Kompromiss zwischen der Aussagekraft der Untersuchung und dem für die Testdurchführung erforderlichen
+Zeitaufwand dar.
+Eine höhere Wiederholungszahl erhöht die Wahrscheinlichkeit, selten auftretende Nebenläufigkeitseffekte zu beobachten,
+führt jedoch gleichzeitig zu einem höheren Zeitaufwand für die Testdurchführung.
+Ein erfolgreicher Durchlauf wird dabei nicht als Beweis für das generelle Ausbleiben eines Fehlers interpretiert.
+Vielmehr wird untersucht, ob die definierten Prüfkriterien über alle Wiederholungen hinweg eingehalten werden.
+Dieses Vorgehen bildet zugleich die methodische Grundlage für die Überprüfung von H3.\\
 Die konkrete Durchführung, die verwendeten Parameter und die Ergebnisse der Testfälle werden in \cref{ch:evaluation} dokumentiert.
-Die dort dargestellten Werte bilden die konkrete Instanziierung der in diesem Kapitel beschriebenen methodischen Vorgehensweise. %TODO nochmal checken
+Die dort dargestellten Werte bilden die konkrete Instanziierung der in diesem Kapitel beschriebenen methodischen Vorgehensweise.

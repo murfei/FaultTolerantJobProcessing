@@ -82,7 +82,7 @@ Die Auswahl inklusive Begründung der betrachteten Fehlerklassen wurde bereits i
     \addlinespace
     \ref{zus:retries} & (a) Transiente DB-Störung; (b) permanenter Fachfehler & (a) DB-Verbindung kurzzeitig kappen; (b) Anfrage mit existierendem Idempotenzschlüssel als permanenter Fehler & (a) Erfolg nach Wiederherstellung, Retry-Anzahl im Log; (b) sofortiger Abbruch ohne Retry-Schleife \\
     \addlinespace
-    \ref{zus:verarbeitungsgarantie}, \ref{zus:idempotenz}, \ref{zus:terminierung} & Harter Worker-Ausfall während \texttt{Running} & Worker-Instanz während Bearbeitung hart beenden & Job wird nach Recovery von einem neuen Worker aufgenommen und erreicht \texttt{Succeeded}, gespeichertes Ergebnis entspricht dem erfolgreichen (zweiten) Ausfyhrungsversuch \\
+    \ref{zus:verarbeitungsgarantie}, \ref{zus:idempotenz}, \ref{zus:terminierung} & Harter Worker-Ausfall während \texttt{Running} & Worker-Instanz während Bearbeitung hart beenden & Job wird nach Recovery von einem neuen Worker aufgenommen und erreicht \texttt{Succeeded}, gespeichertes Ergebnis entspricht dem erfolgreichen (zweiten) Ausführungsversuch \\
     \addlinespace
     \ref{zus:idempotenz} & (a) Recovery eines Jobs im Status \textit{Running}; (b) Lease abgelaufen ohne vorherige Recovery & (a) Manuelle Recovery eines aktiven Jobs. Speicherversuch durch nicht-besitzenden Worker vor und nach Abschluss durch besitzenden Worker; (b) \texttt{lease\_until} auf Vergangenheit setzen & (a) Zugriff wird abgelehnt, es wird genau ein Ergebnis vom besitzenden Worker gespeichert; (b) Zugriff wird abgelehnt, kein Ergebnis wird gespeichert \\
     \addlinespace
