@@ -3,6 +3,9 @@
 
 \chapter{Grundlagen}
 \label{ch:grundlagen}
+%TODO: Unterschriften sollten selbstlesend sein in der gesamten Arbeit nochmal überarbeiten!
+% Latex bietet die Möglichkeit zwei verschiedener Unterschriften, eine vor Ort und eine fürs Verzeichnis
+\notiz{Unterschriften von Abbildungen etc. sollten selbstlesend sein -> nochmal in gesamter Arbeit überarbeiten}
 Dieses Kapitel vermittelt die theoretischen Grundlagen, die für das Verständnis der im weiteren Verlauf entwickelten
 Architektur erforderlich sind.
 Zunächst werden die grundlegenden Konzepte der Hintergrundverarbeitung sowie die Anforderungen an zuverlässige
@@ -15,7 +18,9 @@ anschließende Implementierung und Evaluation.
 \section{Grundlagen der Hintergrundverarbeitung}
 \label{sec:hintergrundverarbeitung}
 Hintergrundverarbeitung dient dazu, zeitintensive oder ressourcenintensive Aufgaben vom synchronen Request-Response-Zyklus zu entkoppeln.
-Gleichzeitig entstehen daraus jedoch auch einige Herausforderungen: In verteilten Umgebungen sind Teilausfälle, %TODO: Hier kommen direkt Nachteile, aber nicht wieso man das überhaupt erst macht --> kurz einen Satz dazu
+Dadurch können Anfragen frühzeitig beantwortet werden, ohne den Aufrufer lange zu blockieren, während die eigentliche Verarbeitung
+unabhängig vom Lebenszyklus der ursprünglichen Anfrage fortgesetzt wird.
+Gleichzeitig entstehen daraus jedoch auch einige Herausforderungen: In verteilten Umgebungen sind Teilausfälle,
 Timeouts und kurzzeitige Unterbrechungen üblich, sodass ohne entsprechende Mechanismen nicht davon ausgegangen werden kann,
 dass eine angestoßene Verarbeitung vollständig und genau einmal ausgeführt wird.
 Insbesondere kann bei Kommunikationsabbrüchen oder Wiederholungsversuchen unklar bleiben, ob eine Operation bereits verarbeitet
@@ -31,8 +36,7 @@ asynchronem Verhalten unterscheiden.
 Der Unterschied der Funktionsweise wird in \cref{fig:syncVsAsync} deutlich.
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/synchronVsAsynchron} %TODO: Unterschriften sollten selbstlesend sein in der gesamten Arbeit nochmal überarbeiten!
-                                                                      % Latex bietet die Möglichkeit zwei verschiedener Unterschriften, eine vor Ort und eine fürs Verzeichnis
+    \includegraphics[width=0.8\textwidth]{images/synchronVsAsynchron}
     \caption{Vergleich synchroner und asynchroner Kommunikation}
     \label{fig:syncVsAsync}
 \end{figure}
@@ -47,12 +51,6 @@ Dieses Prinzip wird als \textit{Queueing} bezeichnet.
 Dadurch können Nachrichtenverluste aufgrund von Überlastung reduziert und Lastspitzen ausgeglichen werden, indem der Puffer
 erhaltene Anfragen zur späteren Ausführung zwischenspeichert \parencite[Kap.~11, Abschnitt \glqq Message brokers\grqq]{kleppmann_designing_2017}.
 Das grundlegende Prinzip ist in \cref{fig:queueing} schemenhaft dargestellt.
-%\begin{figure}[h]
-%    \centering
-%    \includegraphics[width=0.8\textwidth]{images/queueing}
-%    \caption{Queueing}
-%    \label{fig:queueing}
-%\end{figure}
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/queue-based-load-leveling-pattern}
@@ -496,14 +494,14 @@ der verarbeiteten Daten zu gefährden.
 Sie stellt einen zentralen Baustein fehlertoleranter Background-Job-Processing-Systeme dar und ermöglicht die korrekte
 Verarbeitung trotz unvermeidbarer Mehrfachausführungen und Duplikate.
 
-\section{Stand der Forschung}
-\label{sec:forschungsstand}
-%TODO: "Die Wahl eines datenbankbasierten Job-Stores stellt dabei einen
-%bewussten Architektur-Trade-off dar. Im Vergleich zu In-Memory-basierten Messaging-
-%Systemen entstehen durch den permanenten Zugriff auf einen externen persistenten
-%Datenspeicher zusätzliche Latenzen und ein geringerer maximaler Nachrichtendurchsatz. "
-%--> Redis nochmal angucken: ist eine nosql in-Memory Datenbank; das was ich geschrieben habe ist bedingt durch PostgreSQL nicht durch einen datenbankbasierten Job-Store,
-%Hier ggfs. Nochmal Redis aufgreifen
+\section{Stand der Technik}
+\label{sec:technikstand}
+%TODO: Kap.5 "Die Wahl eines datenbankbasierten Job-Stores stellt dabei einen
+% bewussten Architektur-Trade-off dar. Im Vergleich zu In-Memory-basierten Messaging-
+% Systemen entstehen durch den permanenten Zugriff auf einen externen persistenten
+% Datenspeicher zusätzliche Latenzen und ein geringerer maximaler Nachrichtendurchsatz. "
+% --> Redis nochmal angucken: ist eine nosql in-Memory Datenbank; das was ich geschrieben habe ist bedingt durch PostgreSQL nicht durch einen datenbankbasierten Job-Store,
+% Hier ggfs. Nochmal Redis aufgreifen
 Die Verarbeitung von Hintergrundaufgaben ist ein etabliertes Problemfeld verteilter Systeme.
 Entsprechend existieren zahlreiche Frameworks und Architekturmuster, die eine asynchrone Hintergrundausführung von Aufgaben ermöglichen.
 Die Ansätze unterscheiden sich insbesondere hinsichtlich der verwendeten Infrastruktur, der Persistenzmechanismen sowie
@@ -552,14 +550,14 @@ Die konkrete Umsetzung der Nebenläufigkeitskontrolle, Wiederherstellung und Feh
 Die zugrundeliegenden Prinzipien bleiben somit hinter der Schnittstelle der Frameworks verborgen und lassen sich nicht ohne
 Weiteres abstrahieren oder auf eigene Systementwürfe übertragen.
 
-\subsection{Einordnung und Forschungslücke}
+\subsection{Einordnung und Handlungsbedarf}
 \label{subsec:forschungsluecke}
 Die vorgestellten Ansätze zeigen, dass sowohl brokerbasierte als auch datenbankbasierte Architekturen zur Umsetzung von
 Background-Job-Processing-Systemen geeignet sind.
 Während bestehende Frameworks bereits umfangreiche Funktionalitäten für Scheduling, Retry-Mechanismen und Fehlertoleranz
 bereitstellen, liegt ihr Fokus primär auf der praktischen Nutzung, wodurch die zugrundeliegenden transaktionalen Mechanismen
 und deren Verhalten in kritischen Ausfallszenarien für den Entwickler oft intransparent bleiben.
-Insbesondere die Frage, unter welchen Voraussetzungen eine relationale Datenbank gleichzeitig als persistenter Job-Store und
+Insbesondere die Frage, unter welchen Voraussetzungen eine Datenbank gleichzeitig als persistenter Job-Store und
 Koordinationsmechanismus eingesetzt werden kann, wird in der Literatur nur begrenzt behandelt.
 Konzepte wie Fehlertoleranz, Recovery, Idempotenz und Nebenläufigkeitskontrolle werden zwar häufig einzeln beschrieben,
 ihre Integration zu einer konsistenten Gesamtarchitektur bleibt jedoch oftmals implizit.
@@ -572,8 +570,8 @@ einzusetzen und somit die Systemkomplexität niedrig zu halten.
 
 
 %TODO Feedback: Gibt es keine wissenschaftlichen Arbeiten zu transaktionalem Messaging, Saga-Pattern, Exactly-Once-Semantik in
-%verteilten Systemen o. ä.? Ich würde entweder den Abschnitt umbenennen (z. B. "Stand der Technik" statt "Stand der Forschung")
-%oder gezielt 2–3 peer-reviewed Papers zu Themen wie transactional outbox / reliable messaging / job scheduling consistency ergänzen,
-%um die Forschungslücke in 2.4.3 wissenschaftlich robuster zu begründen. Aktuell begründest du die Lücke im Wesentlichen mit "bestehende
-%Frameworks sind Blackboxes" – das ist eine Beobachtung über Tools, keine Lücke in der Forschung. Das ist der Punkt, den ich
-%am ehesten hinterfragen würde.
+% verteilten Systemen o. ä.? Ich würde entweder den Abschnitt umbenennen (z. B. "Stand der Technik" statt "Stand der Forschung")
+% oder gezielt 2–3 peer-reviewed Papers zu Themen wie transactional outbox / reliable messaging / job scheduling consistency ergänzen,
+% um die Forschungslücke in 2.4.3 wissenschaftlich robuster zu begründen. Aktuell begründest du die Lücke im Wesentlichen mit "bestehende
+% Frameworks sind Blackboxes" – das ist eine Beobachtung über Tools, keine Lücke in der Forschung. Das ist der Punkt, den ich
+% am ehesten hinterfragen würde.
