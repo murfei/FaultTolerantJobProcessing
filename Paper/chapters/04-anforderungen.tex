@@ -19,7 +19,9 @@ Unabhängig vom ursprünglichen Aufruf übernehmen mehrere Worker-Prozesse ansch
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.5\textwidth]{images/contextView}
-    \caption{Systemkontext}%TODO: "Kontextabgrenzung" nach Gernot Starke
+    \caption[Kontextabgrenzung des entwickelten Background-Job-Processing-Systems]{Systemkontext des entwickelten
+    Background-Job-Processing-Systems: Clients übergeben Aufträge über die REST-Schnittstelle an das Backend, das diese
+    persistent im Job-Store speichert. Anschließend werden die Jobs vom Backend asynchron verarbeitet.}
     \label{fig:contextView}
 \end{figure}
 Da der Schwerpunkt der Arbeit auf den Mechanismen des Job-Processings und nicht auf einer konkreten Fachanwendung liegt,
@@ -69,7 +71,7 @@ Unter dem Aspekt der Fehlertoleranz sollen zur Behandlung transienter Fehler dah
 um die Notwendigkeit von manuellem Eingreifen zu reduzieren.
 \begin{table}[h]
     \centering
-    \begin{xltabular}{\textwidth}{lcX}
+    \begin{tabularx}{\textwidth}{lcX}
         \toprule
         \textbf{Fehlerklasse} & \textbf{Relevant} & \textbf{Begründung} \\
         \midrule
@@ -82,8 +84,10 @@ um die Notwendigkeit von manuellem Eingreifen zu reduzieren.
         Cyberangriffe & \ding{55} & Qualitätsmerkmal Sicherheit\\
         Byzantinische Fehler & \ding{55} & Annahme: Vertrauensvolle Komponenten\\
         \bottomrule
-    \end{xltabular}
-    \caption{Übersicht betrachteter Fehlerklassen}
+    \end{tabularx}
+    \caption[Übersicht der betrachteten Fehlerklassen]{Übersicht der im Rahmen der Arbeit betrachteten Fehlerklassen mit Zuordnung
+    zu ihren charakteristischen Auswirkungen auf die Hintergrundverarbeitung
+    bzw. einer Begründung, wieso die Fehlerklasse nicht betrachtet wird.}
     \label{tab:fehlermodell}
 \end{table}
 \\Als direkte Folge solcher Infrastrukturprobleme und der darauf reagierenden Wiederholungsmechanismen der Clients entstehen doppelte Requests.
@@ -131,7 +135,7 @@ zusammengefasst.
     \centering
     \small
     \setcounter{anforderung}{0}
-    \begin{xltabular}{\textwidth}{l X}
+    \begin{tabularx}{\textwidth}{l X}
         \toprule
         \textbf{ID} & \textbf{Anforderung / Problemstellung}\\
         \midrule
@@ -150,8 +154,9 @@ zusammengefasst.
         \addlinespace
         \anforditem{req:idempotenz} & Konsistente Verarbeitung trotz wiederholter Ausführung\\
         \bottomrule
-    \end{xltabular}
-    \caption{Systemanforderungen}
+    \end{tabularx}
+    \caption[Systemanforderungen]{Übersicht der aus dem Anwendungskontext und dem betrachteten Fehlermodell
+    abgeleiteten Anforderungen an das Background-Job-Processing-System.}
     \label{tab:traceability_anforderungen}
 \end{table}
 Auf Basis dieser Anforderungen lassen sich Eigenschaften ableiten,

@@ -1,5 +1,5 @@
 %! Author = murfe
-%! Date = 14.08.2026
+%! Date = 28.08.2026
 
 % Packages
 \usepackage[T1]{fontenc}
@@ -15,8 +15,11 @@
 \usepackage[backend=biber,style=authoryear]{biblatex}
 \usepackage{enumitem}
 \usepackage{csquotes}
+\usepackage{caption}
+\usepackage{subcaption}
 \usepackage{booktabs}
 \usepackage{xltabular}
+\usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{textcomp}
 \usepackage{pifont}
@@ -29,6 +32,7 @@
 \usepackage[nameinlink, noabbrev]{cleveref}
 \usepackage{longtable}
 \usepackage{array}
+\usepackage{parskip}
 
 \crefname{chapter}{Kapitel}{Kapitel}
 \crefname{section}{Kapitel}{Kapitel}
@@ -105,7 +109,7 @@
 %   Klassen & Typen
     emph={[2]ResponseEntity, CreateJobResponse, CreateJobRequest, Job, HttpStatus, Exception, DataIntegrityViolationException,
     IllegalStateException, String, WorkerManager, WorkerService, Worker, Processor, Executors, Thread, Optional, JobResult, UUID,
-    JobStatus, Instant, JobNotFoundException, Callable, DataAccessException, Math, TimeUnit, List},
+    JobStatus, Instant, JobNotFoundException, Callable, DataAccessException, CannotCreateTransactionException, Math, TimeUnit, List},
     emphstyle={[2]\color{javaclass}\bfseries}
 }
 

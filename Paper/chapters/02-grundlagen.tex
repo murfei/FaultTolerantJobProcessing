@@ -1,11 +1,8 @@
 %! Author = murfe
 %! Date = 06.08.2026
-
+%TODO: Überall absätze überarbeiten
 \chapter{Grundlagen}
 \label{ch:grundlagen}
-%TODO: Unterschriften sollten selbstlesend sein in der gesamten Arbeit nochmal überarbeiten!
-% Latex bietet die Möglichkeit zwei verschiedener Unterschriften, eine vor Ort und eine fürs Verzeichnis
-\notiz{Unterschriften von Abbildungen etc. sollten selbstlesend sein -> nochmal in gesamter Arbeit überarbeiten}
 Dieses Kapitel vermittelt die theoretischen Grundlagen, die für das Verständnis der im weiteren Verlauf entwickelten
 Architektur erforderlich sind.
 Zunächst werden die grundlegenden Konzepte der Hintergrundverarbeitung sowie die Anforderungen an zuverlässige
@@ -14,6 +11,7 @@ Darauf aufbauend werden die für diese Arbeit relevanten Mechanismen zur Gewähr
 Verarbeitung sowie Konzepte zur Fehlertoleranz, Wiederherstellung und idempotenten Verarbeitung eingeführt.
 Die dargestellten Grundlagen bilden die Basis für den in \cref{sec:architektur} vorgestellten Architekturentwurf und dessen
 anschließende Implementierung und Evaluation.
+
 
 \section{Grundlagen der Hintergrundverarbeitung}
 \label{sec:hintergrundverarbeitung}
@@ -28,21 +26,24 @@ wurde oder ob sie erneut angestoßen werden muss \parencite[Kap.~8]{kleppmann_de
 Vor diesem Hintergrund werden in den folgenden Abschnitten grundlegende Konzepte vorgestellt, die eine Entkopplung der
 Verarbeitung ermöglichen und die Basis für robuste Hintergrundverarbeitung bilden.
 
-\subsection{Asynchrone Verarbeitung und Queueing} %TODO: Hier die Referenzierungsstellen (in der gesamten Arbeit!!!) nochmal
-                                                    % überarbeiten und mit spezifischerem a) und b) Berweis versehen
+\subsection{Asynchrone Verarbeitung und Queueing}
 \label{subsec:asynchroneVerarbeitung}
 In Backend-Systemen lässt sich Kommunikation und Verarbeitung bezüglich der zeitlichen Kopplung zwischen synchronem und
 asynchronem Verhalten unterscheiden.
-Der Unterschied der Funktionsweise wird in \cref{fig:syncVsAsync} deutlich.
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/synchronVsAsynchron}
-    \caption{Vergleich synchroner und asynchroner Kommunikation}
+    \stepcounter{figure}
+    \refstepcounter{subfigure}\label{fig:sync}
+    \refstepcounter{subfigure}\label{fig:async}
+    \addtocounter{figure}{-1}
+    \caption[Gegenüberstellung synchroner und asynchroner Verarbeitung]{Vergleich der Kommunikationsmuster: (a) Bei der synchronen Verarbeitung
+    blockiert der Aufrufer bis zum Erhalt der Antwort. (b) Die asynchrone Verarbeitung entkoppelt die Anfrage zeitlich von der Antwort.}
     \label{fig:syncVsAsync}
 \end{figure}
-Bei synchroner Verarbeitung nach dem Request-Response-Stil wartet der Aufrufer auf eine Antwort auf die Anfrage und blockiert
-gegebenenfalls, bevor er fortfährt.
-Bei asynchroner Verarbeitung wird die Antwort vom Zeitpunkt der Auftragserstellung entkoppelt.
+Bei synchroner Verarbeitung nach dem Request-Response-Stil, dargestellt in \cref{fig:sync}, wartet der Aufrufer
+auf eine Antwort auf die Anfrage und blockiert gegebenenfalls, bevor er fortfährt.
+Bei asynchroner Verarbeitung, wie in \cref{fig:async} dargestellt, wird die Antwort vom Zeitpunkt der Auftragserstellung entkoppelt.
 Der Aufrufer initiiert die Arbeit, blockiert jedoch nicht und kann auch während des Wartens auf eine Antwort weiter
 arbeiten \parencite[Kap.~3.1.1]{richardson_microservices_2018}.
 
@@ -50,11 +51,13 @@ Zur praktischen Umsetzung asynchroner Verarbeitung werden häufig Puffer eingese
 Dieses Prinzip wird als \textit{Queueing} bezeichnet.
 Dadurch können Nachrichtenverluste aufgrund von Überlastung reduziert und Lastspitzen ausgeglichen werden, indem der Puffer
 erhaltene Anfragen zur späteren Ausführung zwischenspeichert \parencite[Kap.~11, Abschnitt \glqq Message brokers\grqq]{kleppmann_designing_2017}.
-Das grundlegende Prinzip ist in \cref{fig:queueing} schemenhaft dargestellt.
+Das grundlegende Prinzip ist in \cref{fig:queueing} schematisch dargestellt.
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/queue-based-load-leveling-pattern}
-    \caption{Queueing \parencite{microsoft_corporation_hrsg_queue-based_2026}}
+    \caption[Entkopplung von Sender und Empfänger durch Message Queues]{Pufferung von schwankenden Anfrageraten durch
+            eine Message Queue, um eine konsistente Verarbeitungsgeschwindigkeit im Backend-Service sicherzustellen
+            \parencite{microsoft_corporation_hrsg_queue-based_2026}}
     \label{fig:queueing}
 \end{figure}
 Ein solcher Puffer kann verschiedene Ausprägungen annehmen, beispielsweise als In-Memory beim Empfänger, als Datenbank oder in
@@ -94,7 +97,7 @@ Im Kontext von Job-Processing sind diese Semantiken zur Nachrichtenzustellung an
 Ein Konsument erhält die Nachricht mindestens einmal.
 Bei der Auslieferung bestätigt der Konsument über ein Acknowledge das Ankommen der Nachricht.
 Sofern das Acknowledgement beim Absender eingeht, ist für diesen garantiert, dass die Nachricht angekommen ist.
-Bleibt diese Bestätigung innerhalb eines definierten Zeitfensters jedoch aus, z.B. weil die Nachricht oder das Acknowledgement
+Bleibt diese Bestätigung innerhalb eines definierten Zeitfensters jedoch aus, z.\,B. weil die Nachricht oder das Acknowledgement
 verloren geht, wird die Nachricht erneut zugestellt.
 Dieser Fall wird \textit{Redelivery} genannt.
 Dieses Verfahren verhindert Datenverlust, birgt jedoch das Risiko von Duplikaten, für den Fall, dass die Nachricht ankommt, aber das
@@ -130,25 +133,25 @@ In der Softwarearchitektur existieren verschiedene etablierte Entwurfsmuster zur
 beispielsweise das Queue-Based Load Leveling Pattern \parencite{microsoft_corporation_hrsg_queue-based_2026}.
 Dieses Muster besteht ähnlich des Konzepts aus \cref{fig:queueing} aus drei funktionalen Kernkomponenten:
 \begin{itemize}
-\item \textbf{Der Produzent:} Erzeugt einen Job und gibt diesen weiter an den Job-Store.
-Das kann zum einen direkt durch einen Service geschehen, oder beispielsweise auch über den Aufruf eines entfernten Endpoints,
-der den Job über eine synchrone Schnittstelle, wie z.B. \gls{rest}, entgegennimmt.
-In letzterem Fall fungiert der Service hinter dem Endpoint als Produzent.
-Dessen Aufgabe besteht darin, den Auftrag zu validieren und an die Persistenzschicht zu übergeben, woraufhin der synchrone
-Request-Response-Zyklus für den Client sofort beendet wird.
-Jobs können aber nicht nur durch solche Event-driven Trigger ausgelöst werden, sondern auch durch Schedule-driven Trigger.
-Dabei erfolgt die Ausführung eines Jobs periodisch oder zu vordefinierten Zeitpunkten, z.B. durch einen Cron-Trigger
-\parencite{microsoft_corporation_hrsg_best_2026}.
+    \item \textbf{Der Produzent:} Erzeugt einen Job und gibt diesen weiter an den Job-Store.
+    Das kann zum einen direkt durch einen Service geschehen, oder beispielsweise auch über den Aufruf eines entfernten Endpoints,
+    der den Job über eine synchrone Schnittstelle, wie z.\,B. \gls{rest}, entgegennimmt.
+    In letzterem Fall fungiert der Service hinter dem Endpoint als Produzent.
+    Dessen Aufgabe besteht darin, den Auftrag zu validieren und an die Persistenzschicht zu übergeben, woraufhin der synchrone
+    Request-Response-Zyklus für den Client sofort beendet wird.
+    Jobs können aber nicht nur durch solche Event-driven Trigger ausgelöst werden, sondern auch durch Schedule-driven Trigger.
+    Dabei erfolgt die Ausführung eines Jobs periodisch oder zu vordefinierten Zeitpunkten, z.\,B. durch einen Cron-Trigger
+    \parencite{microsoft_corporation_hrsg_best_2026}.
 
-\item \textbf{Der Job-Store:} Speichert die Jobs für den Zeitraum von der Erstellung bis mindestens zur endgültigen Beendigung zwischen.
-Für die Umsetzung existieren verschiedene Varianten, beispielsweise als Message Broker oder relationale Datenbank.
-Diese Realisierungsmöglichkeiten bieten jeweils spezifische Vor- und Nachteile in der Nutzung.
-Die Auswahl des passenden Ansatzes sollte daher durch die Qualitätsanforderungen an das System, wie z.B. Durchsatz oder
-Akzeptanz einzelner verlorener Jobs, begründet werden \parencite[Kap.~11]{kleppmann_designing_2017}.
+    \item \textbf{Der Job-Store:} Speichert die Jobs für den Zeitraum von der Erstellung bis mindestens zur endgültigen Beendigung zwischen.
+    Für die Umsetzung existieren verschiedene Varianten, beispielsweise als Message Broker oder relationale Datenbank.
+    Diese Realisierungsmöglichkeiten bieten jeweils spezifische Vor- und Nachteile in der Nutzung.
+    Die Auswahl des passenden Ansatzes sollte daher durch die Qualitätsanforderungen an das System, wie z.\,B. Durchsatz oder
+    Akzeptanz einzelner verlorener Jobs, begründet werden \parencite[Kap.~11]{kleppmann_designing_2017}.
 
-\item \textbf{Der Konsument:} Autonome Komponente, die die Fachlogik des hinterlegten Jobs ausführt.
-Sobald der Konsument über freie Systemressourcen verfügt, kann er einen wartenden Job aus dem Job-Store beanspruchen und führt
-diesen aus \parencite{microsoft_corporation_hrsg_queue-based_2026}.
+    \item \textbf{Der Konsument:} Autonome Komponente, die die Fachlogik des hinterlegten Jobs ausführt.
+    Sobald der Konsument über freie Systemressourcen verfügt, kann er einen wartenden Job aus dem Job-Store beanspruchen und führt
+    diesen aus \parencite{microsoft_corporation_hrsg_queue-based_2026}.
 \end{itemize}
 Durch eine solche Architektur können Background-Jobs als \glqq{}fire and forget\grqq-Operationen \parencite{microsoft_corporation_hrsg_best_2026}
 implementiert werden.
@@ -173,7 +176,7 @@ der Ausführung ausfallen, während andere Teile des Systems weiterhin verfügba
 Damit eine unterbrochene Verarbeitung nach einem solchen Ausfall wieder aufgenommen werden kann, muss das System den zuletzt bekannten
 Zustand kennen oder anhand persistenter Informationen rekonstruieren können
 \parencite[Kap.~11, Abschnitt \glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.\\
-Neben Prozessabstürzen können auch verschiedene Kommunikationsfehler auftreten, wie z.B. die vorübergehende Nichterreichbarkeit
+Neben Prozessabstürzen können auch verschiedene Kommunikationsfehler auftreten, wie z.\,B. die vorübergehende Nichterreichbarkeit
 externer Dienste.
 Das System muss daher abhängig von der jeweiligen Fehlersituation entscheiden können, ob eine Verarbeitung erneut durchgeführt,
 fortgesetzt oder endgültig beendet werden soll \parencite{microsoft_corporation_hrsg_best_2026}.
@@ -182,6 +185,7 @@ Da sowohl Wiederholungsversuche als auch Wiederaufnahmen nach einem Ausfall dazu
 mehrfach ausgeführt werden, muss darüber hinaus sichergestellt werden, dass solche Mehrfachausführungen keine inkonsistenten
 Ergebnisse verursachen.
 Hierzu werden Verfahren der idempotenten Verarbeitung eingesetzt, die in \cref{subsec:idempotenz} vorgestellt werden.
+
 
 \section{Konsistenz und konkurrierende Verarbeitung}
 \label{sec:konsistenz}
@@ -208,7 +212,7 @@ gefordert \parencite[Kap.~13.1.1]{saake_datenbanken_2018}:
 
 \begin{description}
     \item[Atomicity]
-    Die Atomarität stellt sicher, dass eine Transaktion entweder vollständig oder gar nicht ausgeführt wird. 
+    Die Atomarität stellt sicher, dass eine Transaktion entweder vollständig oder gar nicht ausgeführt wird.
     Tritt während der Ausführung ein Fehler auf, werden sämtliche bis dahin vorgenommenen Änderungen verworfen, sodass keine
     partiellen Zwischenzustände bestehen bleiben.
 
@@ -396,10 +400,12 @@ Fehlerzustand überführt \parencite[Kap.~3 Abschnitt \glqq How Many Retries Are
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/retryBackoff}
-    \caption{Verhalten bei transienten Fehlern}
+    \caption[Ablauf von Retry- und Backoff-Mechanismen]{Verhalten bei transienten Fehlern: Nach einem Fehlschlag wird
+            eine Backoff-Wartezeit eingefügt, bevor ein neuer Retry startet.}
     \label{fig:retry}
 \end{figure}
-\\Retry- und Backoff-Strategien bilden damit einen wesentlichen Baustein zur Behandlung transienter Fehler.
+
+Retry- und Backoff-Strategien bilden damit einen wesentlichen Baustein zur Behandlung transienter Fehler.
 Sie ermöglichen die automatische Wiederholung fehlgeschlagener Verarbeitungen und versuchen gleichzeitig die Belastung der
 betroffenen Systeme durch das Vermeiden unmittelbar aufeinanderfolgender Wiederholungsversuche möglichst gering zu halten.
 
@@ -493,6 +499,7 @@ Idempotenz bildet somit die Grundlage dafür, dass Retry- und Recovery-Mechanism
 der verarbeiteten Daten zu gefährden.
 Sie stellt einen zentralen Baustein fehlertoleranter Background-Job-Processing-Systeme dar und ermöglicht die korrekte
 Verarbeitung trotz unvermeidbarer Mehrfachausführungen und Duplikate.
+
 
 \section{Stand der Technik}
 \label{sec:technikstand}

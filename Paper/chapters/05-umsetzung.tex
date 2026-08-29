@@ -1,6 +1,6 @@
 %! Author = murfe
-%! Date = 07.08.2026
-
+%! Date = 28.08.2026
+%TODO: Schreibweise von Methodennamen in ganzer Arbeit nochmal prüfen: entweder einheutlich \texttt oder \textit
 \chapter{Umsetzung}%TODO: Verteilungssicht ergänzen oder in Kap. 3 explizit begründen wieso nicht genutzt
 \label{ch:umsetzung}
 Dieses Kapitel befasst sich mit dem Entwurf und der technische Umsetzung des in \cref{ch:anforderungen} definierten Systems.\\
@@ -72,8 +72,9 @@ In der Praxis kann diese Komponente jedoch ebenso durch eine grafische Benutzero
 Anwendungssystem angesprochen werden.
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/componentDiagram}
-    \caption{Abstrakte Architektur des entwickelten Systems}
+    \includegraphics[width=0.8\textwidth]{images/componentDiagram}%TODO: Schreibweise Recovery-Service in Abb. ohne -
+    \caption[Bausteinsicht der Architektur des entwickelten Systems]{Bausteinsicht der Architektur des entwickelten
+    Background-Job-Processing-Systems mit \gls{rest}-Schnittstelle, Job-Store sowie der Worker-Komponente und dem Recovery-Service.}
     \label{fig:componentDiagram}
 \end{figure}
 Die \gls{rest}-\gls{api} dient als Schnittstelle des Backends zur Erstellung neuer Jobs.
@@ -112,7 +113,8 @@ Die in diesem System definierten Zustände sowie die zulässigen Zustandsüberg�
 \begin{figure}[h] %TODO: Hier ggfs. einen Zustandsautomaten nach UML Glasklar anstatt des jetzigen DEAs
     \centering
     \includegraphics[width=0.8\textwidth]{images/statusmodell}
-    \caption{Zustandsmodell eines Jobs}
+    \caption[Zustandsmodell eines Jobs]{Zustandsmodell eines Jobs mit den Zuständen \textit{Queued}, \textit{Running},
+    \textit{Succeeded} und \textit{Failed} sowie den möglichen Zustandsübergängen während Annahme, Verarbeitung und Recovery.}
     \label{fig:statusmodell}
 \end{figure}
 Nachdem ein neuer Job über die \gls{rest}-Schnittstelle im Backend eingegangen ist, wird dieser persistent gespeichert
@@ -143,7 +145,8 @@ Das resultierende Datenbankschema ist in \cref{fig:dbSchema} dargestellt.
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/dbSchema}
-    \caption{Datenbankschema des entwickelten Job-Processing-Systems}
+    \caption[Datenbankschema des entwickelten Job-Processing-Systems]{Datenbankschema des entwickelten Job-Processing-Systems
+    mit den zur Verwaltung von Jobs, Verarbeitungszuständen und Ergebnissen verwendeten Entitäten, Attributen und ihren Beziehungen.}
     \label{fig:dbSchema}
 \end{figure}
 Hauptbestandteil des Schemas ist die Tabelle \texttt{jobs}.
@@ -200,7 +203,8 @@ Der Ablauf der Jobannahme ist in \cref{fig:jobannahme} dargestellt.
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/jobannahmeSequenzdiagramm}
-    \caption{Ablauf der Jobannahme}
+    \caption[Ablauf der Jobannahme]{Ablauf der Jobannahme vom Eingang einer Anfrage über die Persistierung des Jobs bis
+    zur Rückgabe einer Erfolgsnachricht an den Client inklusive Unterscheidung im Duplikatsfall des Idempotenz-Keys.}
     \label{fig:jobannahme}
 \end{figure}
 Zur Erstellung eines neuen Jobs sendet der Client eine Anfrage über die \gls{rest}-Schnittstelle an das Backend.
@@ -256,7 +260,8 @@ Der Verarbeitungsablauf gliedert sich hierzu in drei Phasen, die in \cref{fig:tr
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.9\textwidth]{images/transaktionsmodell}
-    \caption{Transaktionsmodell}
+    \caption[Transaktionsmodell der Jobverarbeitung]{Transaktionsmodell der Jobverarbeitung mit den Transaktionsgrenzen der
+    der einzelnen Phasen des Job-Lebenszyklus und den darin ausgeführten Operationen.}
     \label{fig:transaktionsmodell}
 \end{figure}
 Zunächst beansprucht ein Worker innerhalb einer Datenbanktransaktion einen freien Job.
@@ -332,7 +337,8 @@ entgegennimmt und deren Ausführung entsprechend einer konfigurierbaren Retry-Po
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/retryClassDiagramm}
-    \caption{Klassendiagramm der Retry-Komponente}
+    \caption[Klassendiagramm der Retry-Komponente]{Klassendiagramm der Retry-Komponente mit dem Retry-Executor als Schnittstelle
+    für den Client inklusive der Konfiguration durch unterschiedliche Policies.}
     \label{fig:retryClassDiagram}
 \end{figure}
 Der RetryExecutor enthält dabei selbst keine anwendungsspezifischen Entscheidungen darüber, wann eine Wiederholung erfolgen soll.
@@ -407,7 +413,9 @@ Die erneute Ausführung würde in diesem Fall dieselbe E-Mail ein weiteres Mal v
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.9\textwidth]{images/wiederholungenBeiSeiteneffekten}
-    \caption{Mehrfachausführung mit Seiteneffekten}
+    \caption[Mehrfachausführung einer Operation mit Seiteneffekten]{Problematik einer nach einem Crash wiederholt
+    ausgeführten Operation mit Seiteneffekten: Durch einen unklaren Verarbeitungszustand kann die Wiederaufnahme eines Jobs
+    zu einer ungewollten Mehrfachausführung einer Operation führen.}
     \label{fig:seiteneffekte}
 \end{figure}
 Die entwickelte Infrastruktur garantiert daher ausschließlich die idempotente Verarbeitung der internen Fachlogik des Job-Processing-Systems.
@@ -527,7 +535,8 @@ Für die Auswahl eines Jobs zur Verarbeitung wird beispielsweise die in \cref{ls
 \begin{lstlisting}[
     language=SQL,
     style=sql,
-    caption={Claiming eines Jobs im \texttt{JobRepository}},
+    caption={[Auswahl und Sperrung eines Jobs zur Verarbeitung]{Auswahl einer übergebenen Anzahl verfügbarer Jobs anhand seines Zustands
+    und Erstellungszeitpunkts sowie exklusive Sperrung der ausgewählten Datensätze mittels \texttt{FOR UPDATE SKIP LOCKED}.}},
     label={lst:claiming}
 ]
 SELECT *
@@ -537,17 +546,21 @@ ORDER BY created_at
 LIMIT :limit
 FOR UPDATE SKIP LOCKED
 \end{lstlisting}
+Beim Aufruf der Anfrage wird sie mit einem Status und einer Anzahl parametrisiert und liefert maximal die übergebene Anzahl
+Datensätze die sich im übergebenen Zustand befinden zurück.
+Die Sortierung nach dem Erstellungszeitpunkt stellt dabei sicher, dass ältere Jobs bevorzugt verarbeitet werden (\ref{zus:terminierung}).
 \texttt{FOR UPDATE} sperrt dabei den ausgewählten Datensatz für die laufende Transaktion zum Zwecke des exklusiven Zugriffs
 (\ref{zus:exklusive_rechte}), während \texttt{SKIP LOCKED} bereits durch andere Transaktionen gesperrte Datensätze ignoriert.
 Dadurch können mehrere Worker gleichzeitig nach verfügbaren Jobs suchen, ohne sich gegenseitig durch gesperrte Datensätze
 zu blockieren.
-Die Sortierung nach dem Erstellungszeitpunkt stellt dabei sicher, dass ältere Jobs bevorzugt verarbeitet werden (\ref{zus:terminierung}).\\
+
 Für den Abschluss einer Verarbeitung und Recovery-Szenarien wird der in \cref{lst:forUpdate} gezeigte Befehl
 zum gezielten Zugriff auf einzelne Jobs bereitgestellt, der mit der Auswahl eine Sperre für diesen Datensatz setzt.
 \begin{lstlisting}[
     language=SQL,
     style=sql,
-    caption={Auswählen eines Jobs zur Bearbeitung},
+    caption={[Exklusives Laden eines Jobs zur Bearbeitung]{Exklusives Laden eines Jobs zur Bearbeitung anhand seiner
+    ID. Dabei wird der zugehörigen Datensatzes für die Dauer der laufenden Transaktion mittels \textit{FOR UPDATE} gesperrt.}},
     label={lst:forUpdate}
 ]
 SELECT *
@@ -555,15 +568,17 @@ FROM jobs
 WHERE id = :jobId
 FOR UPDATE
 \end{lstlisting}
-Auch dieser Befehl dient dazu, konkurrierende Änderungen an einem konkreten Job zu verhindern (\ref{zus:exklusive_rechte}).\\
+Auch dieser Befehl dient dazu, konkurrierende Änderungen an einem konkreten Job zu verhindern (\ref{zus:exklusive_rechte}).
+
 Zusätzlich stellt das Repository eine Abfrage bereit, mit der Jobs anhand der Kombination ihres Status und des Ablaufs ihres Leases
 identifiziert werden können.
-Damit bildet die Abfrage aus \cref{lst:joberstellung-service} die Grundlage für die Erkennung verwaister Jobs durch den Recovery-Mechanismus.
+Damit bildet die Abfrage aus \cref{lst:verwaisteJobs} die Grundlage für die Erkennung verwaister Jobs durch den Recovery-Mechanismus.
 \begin{lstlisting}[
     language=SQL,
     style=sql,
-    caption={Finden verwaister Jobs},
-    label={lst:joberstellung-service}
+    caption={[Identifikation verwaister Jobs]{Identifikation von Jobs anhand des Zustands und des Ablaufzeitpunkts des
+    Leases als Grundlage für die anschließende Recovery.}},
+    label={lst:verwaisteJobs}
 ]
 SELECT j.id
 FROM Job j
@@ -571,7 +586,8 @@ WHERE j.status = :status
 AND j.lease_until < :timestamp
 \end{lstlisting}
 Wird der gesuchte Status auf \textit{Running} und der \texttt{timestamp} auf den aktuellen Zeitpunkt gesetzt, liefert
-die Anfrage alle Jobs, die noch nicht beendet wurden und deren Lease gleichzeitig abgelaufen ist.\\
+die Anfrage die ID aller Jobs, die noch nicht beendet wurden und deren Lease zusätzlich abgelaufen ist.
+
 Die Transaktionskapselung wird durch \texttt{@Transactional} erreicht.
 Alle Datenbankoperationen in einer mit \texttt{@Transactional} gekennzeichneten Methode werden im Rahmen einer
 gemeinsamen Transaktion ausgeführt.
@@ -588,14 +604,16 @@ und zur Synchronisation konkurrierender Zugriffe (\ref{zus:exklusive_rechte}) be
 Die Erstellung eines Jobs beginnt auf Clientseite mit der Zusammenstellung der für die Verarbeitung benötigten Nutzdaten.
 Diese werden als \textit{Payload} in Form eines JSON-Objekts repräsentiert.
 Zusätzlich erzeugt der Client einen \gls{uuid}-basierten \textit{Idempotency-Key}, der gemeinsam mit der Payload in dem
-\gls{dto} \texttt{CreateJobRequest} zusammengefasst wird.\\
+\gls{dto} \texttt{CreateJobRequest} zusammengefasst wird.
 \Cref{lst:createJob} zeigt, wie das Request-Objekt anschließend über den im Frontend implementierten \texttt{BackendRestClient}
 an die \gls{rest}-Schnittstelle des Backends übertragen wird.
 Die Anfrage wird als HTTP-POST-Request an den Endpunkt \texttt{/job} gesendet und enthält das zuvor erzeugte Request-Objekt im HTTP-Body.
 \begin{lstlisting}[
     language=Java,
     style=java,
-    caption={POST eines Jobs},
+    caption={[Übermittlung eines Jobs über die REST-Schnittstelle]{Übermittlung eines neuen Jobs vom Client an die
+    \gls{rest}-Schnittstelle des Backends mittels HTTP-POST einschließlich der Nutzdaten und des Idempotency-Keys gekapselt
+    durch ein \gls{dto}.}},
     label={lst:createJob}
 ]
 public ResponseEntity<CreateJobResponse> createJob(CreateJobRequest request) {
@@ -627,7 +645,8 @@ erneut übermittelt wurde, eindeutig erkennbar, dass der gewünschte Job im Syst
 \begin{lstlisting}[
     language=Java,
     style=java,
-    caption={POST Endpoint},
+    caption={[\gls{rest}-Endpunkt zur Joberstellung]{\gls{rest}-Endpunkt zur Joberstellung mit Validierung der Anfrage, Delegation an
+    den \texttt{JobService} sowie Behandlung erfolgreicher und bereits vorhandener Joberstellungen.}},
     label={lst:endpoint}
 ]
 @PostMapping("/job")
@@ -667,7 +686,8 @@ bereits durch Spring injiziert wurden.
 \begin{lstlisting}[
 language=Java,
     style=java,
-caption={Initialisierung des Worker-Pools},
+caption={[Initialisierung des Worker-Pools]{Initialisierung des konfigurierbaren Worker-Pools und Start der
+    \texttt{Worker}-Instanzen über einen festen Thread-Pool.}},
 label={lst:workerManager}
 ]
 public WorkerManager(WorkerService workerService, Processor jobProcessor,
@@ -700,7 +720,8 @@ Beendet wird die Schleife erst, wenn der Thread unterbrochen wird.
 \begin{lstlisting}[
 language=Java,
     style=java,
-caption={Ausführungsschleife eines Workers},
+caption={[Ausführungsschleife eines Workers]{Kontinuierliche Ausführungsschleife eines Workers zur Übernahme, Verarbeitung
+    und Fertigstellung von Jobs inklusive Pausierung, wenn kein Job verfügbar ist.}},
 label={lst:workerRun}
 ]
 @Override
@@ -737,7 +758,8 @@ den über \texttt{Instant} angefragten aktuellen Zeitpunkt addiert wird.
 \begin{lstlisting}[
 language=Java,
     style=java,
-caption={Beanspruchen eines Jobs},
+caption={[Transaktionale Übernahme eines Jobs]{Transaktionale Übernahme eines verfügbaren Jobs durch einen Worker mit
+    Aktualisierung des Bearbeitungsstatus, der Worker-Zuordnung, des Versuchszählers und der Lease-Gültigkeit.}},
 label={lst:claimNextJob}
 ]
 @Transactional
@@ -792,7 +814,9 @@ Wie bereits bei der Reservierung eines Jobs erfolgt auch dieser Schritt entsprec
 \begin{lstlisting}[
 language=Java,
     style=java,
-caption={Abschluss einer Jobverarbeitung},
+caption={[Transaktionaler Abschluss einer Jobverarbeitung]{Transaktionaler Abschluss einer Jobverarbeitung mit erneuter Prüfung
+    des Jobstatus, der Worker-Berechtigung und der Lease-Gültigkeit sowie gemeinsamer Persistierung des Ergebnisses und
+    Überführung des Jobs in den Zustand \textit{Succeeded}.}},
 label={lst:finishJob}
 ]
 @Transactional
@@ -857,7 +881,8 @@ oder eine andere Operation wiederholt werden soll.
 \begin{lstlisting}[
 language=Java,
     style=java,
-caption={Generischer RetryExecutor},
+caption={[Generischer RetryExecutor]{Generische Steuerung von Wiederholungsversuchen: Ausführung einer Operation,
+    Klassifikation auftretender Exceptions durch die Retry-Policy und ggfs. erneute Ausführung nach dem konfigurierten Backoff.}},
 label={lst:retryExecutor}
 ]
 public <T> T execute(Callable<T> callable) throws Exception {
@@ -901,7 +926,9 @@ Für die unterschiedlichen Einsatzzwecke werden jeweils eigene Implementierungen
 \begin{lstlisting}[
 language=Java,
     style=java,
-caption={Beispiel einer RetryPolicy},
+caption={[Retry-Policy für Datenbankzugriffe]{Retry-Policy zur Klassifikation von Fehlern bei Datenbankzugriffen.
+    Entscheidet über Wiederholungsversuche, begrenzt die Versuchsanzahl und schließt explizit die \texttt{DataIntegrityViolationException} aus.
+    Zusätzlich wird das exponentielle Backoff-Intervall berechnet.}},
 label={lst:retryPolicy}
 ]
 @Override
@@ -910,7 +937,8 @@ public boolean shouldRetry(Exception e, int attempt) {
             || e instanceof DataIntegrityViolationException) {
         return false;
     }
-    return e instanceof DataAccessException;
+    return e instanceof DataAccessException
+        || e instanceof CannotCreateTransactionException;
 }
 
 @Override
@@ -919,9 +947,9 @@ public long nextDelay(int attempt) {
             * Math.pow(backoffFactor, attempt - 1));
 }
 \end{lstlisting}
-Die Datenbank-Policy klassifiziert ausschließlich Datenbankzugriffsfehler (\texttt{DataAccessException}), wozu unter anderem
-die Nichterreichbarkeit der Datenbank zählt, als potenziell transient und begrenzt gleichzeitig die maximale Anzahl der
-Wiederholungsversuche.
+Die Datenbank-Policy klassifiziert ausschließlich Datenbankzugriffsfehler (\texttt{DataAccessException} und \texttt{CannotCreateTransactionException}),
+wozu unter anderem die Nichterreichbarkeit der Datenbank zählt, als potenziell transient und begrenzt gleichzeitig die
+maximale Anzahl der Wiederholungsversuche.
 Die \texttt{DataIntegrityViolationException} wird dabei explizit ausgeschlossen, obwohl sie eine Unterklasse der
 \texttt{DataAccessException} ist.
 Sie entsteht bei der Verletzung von Datenbank-Constraints und stellt daher keinen transienten, sondern einen permanenten
@@ -941,7 +969,8 @@ Die jeweilige Operation wird hierzu als Lambda-Ausdruck an den RetryExecutor üb
 \begin{lstlisting}[
 language=Java,
     style=java,
-caption={Nutzung des RetryExecutors},
+caption={[Verwendung des RetryExecutors beim Datenbankzugriff]{Einbindung des generischen \texttt{RetryExecutors} zur automatischen
+    Wiederholung einer Operation bei einem als retrybar klassifizierten Fehler.}},
 label={lst:retryUsage}
 ]
 Job job = retryExecutor.execute(
@@ -963,8 +992,8 @@ Während der RecoveryService die periodische Suche nach wiederherzustellenden Jo
 die eigentliche Recovery-Logik innerhalb einer Datenbanktransaktion.\\
 Die in \cref{lst:recoveryService} dargestellte zentrale Methode des \texttt{RecoveryService} wird mithilfe der
 Spring-Annotation \texttt{@Scheduled} in festen Zeitabständen ausgeführt.
-Im entwickelten System erfolgt ein Recovery-Zyklus alle 30 Sekunden.
-Dabei werden zunächst sämtliche Jobs ermittelt, deren Lease bereits abgelaufen ist und deren Status weiterhin \textit{Running} lautet.
+Die Abstände zwischen den Recovery-Zyklen kann dabei über den Anwendungskontext konfiguriert werden.
+In einem solchen Zyklus werden zunächst sämtliche Jobs ermittelt, deren Lease bereits abgelaufen ist und deren Status weiterhin \textit{Running} lautet.
 Hierzu wird die bereits in \cref{subsec:impl_persistenz} vorgestellte Repository-Abfrage verwendet.
 Die Abfrage liefert ausschließlich die Identifikatoren der betroffenen Jobs zurück und verwendet bewusst keine Sperren.
 Dadurch werden während der Suche keine Datenbankzeilen unnötig blockiert und konkurrierende Worker können ihre Verarbeitung
@@ -973,13 +1002,13 @@ Für jede gefundene Job-ID wird anschließend der \texttt{RecoveryExecutor} aufg
 \begin{lstlisting}[
     language=Java,
     style=java,
-    caption={Periodischer Recovery-Zyklus},
+    caption={[Periodischer Recovery-Zyklus]{Periodische Suche nach Jobs mit abgelaufenem Lease und dem Status
+    \textit{Running} sowie anschließende Übergabe der gefundenen Jobs an den transaktionalen Recovery-Mechanismus.}},
     label={lst:recoveryService}
 ]
-@Scheduled(fixedDelay = 30, timeUnit = TimeUnit.SECONDS)
+@Scheduled(fixedDelayString = "${recovery.intervall}", timeUnit = TimeUnit.SECONDS)
 public void recoverCycle() {
-    List<UUID> ids =
-        repository.findByStatusAndLease_untilBefore(
+    List<UUID> ids = repository.findByStatusAndLease_untilBefore(
             JobStatus.RUNNING, Instant.now());
 
     for (UUID id : ids) {
@@ -1006,7 +1035,9 @@ der Änderungszeitpunkt aktualisiert.
 \begin{lstlisting}[
     language=Java,
     style=java,
-    caption={Transaktionale Wiederherstellung eines Jobs},
+    caption={[Transaktionale Wiederherstellung eines Jobs]{Transaktionale Wiederherstellung eines verwaisten Jobs mit erneuter
+    Prüfung des aktuellen Zustands und Überführung nach \textit{Queued} beziehungsweise \textit{Failed} abhängig von der
+    erreichten Anzahl an Verarbeitungsversuchen.}},
     label={lst:recoverJob}
 ]
 @Transactional
