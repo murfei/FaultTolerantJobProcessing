@@ -29,40 +29,54 @@ den Ausfall von Workern und verhindert das Verbleiben verwaister Jobs.
 \cref{subsec:idempotenteErgebnisgenerierung} schließt den Entwurf ab, indem das \textit{Fencing}-Prinzip zur Vermeidung
 von Mehrfachverarbeitungen im Fehlerfall dargelegt wird.
 
-\subsection{Architekturentwurf} %TODO: Bis jetzt felt bie mir irgendwie der Weg von Datenbank zu relational zu PostgreSQL --> ich mache das weil ich z.B. ACID-Garantien nutzen möchte weil diese viel für mich übernehmen.
-                                % bei fällt das im Moment noch einfach vom Himmel, dass ich Postgres nutze. Das muss auf jeden Fall!!! vernünftig begründet/hergeleitet werden
+\subsection{Architekturentwurf}
 \label{subsec:architekturentwurf}
-\notiz{Hier muss noch der Weg von Datenbank -> relationale Datenbank offengelegt werden}
 In \cref{subsec:backgroundJobs} wurde bereits dargelegt, dass das Queue-Based Load Leveling Pattern eine mögliche und etablierte
-Option ist, die ausstehenden Jobs innerhalb eines Backend-Job-Processing-Systems zwischenzuspeichern.
+Option ist, ausstehende Jobs innerhalb eines Backend-Job-Processing-Systems zwischenzuspeichern.
 Eine verbreitete Variante, dieses Pattern für Nachrichten, oder wie im Fall dieser Arbeit für Jobs, umzusetzen,
 ist die Implementierung mithilfe dedizierter Message Broker \parencite[Kap.~11 Abschnitt \glqq Message brokers\grqq]{kleppmann_designing_2017}.
-Das im Rahmen dieser Arbeit entwickelte System nutzt hingegen bewusst eine relationale PostgreSQL-Datenbank als zentralen Job-Store.
-Durch die Nutzung PostgreSQL-spezifischer Mechanismen wie \textit{SKIP LOCKED} in Kombination mit den vollständigen \gls{acid}-Transaktionsgarantien
-relationaler Datenbanken lässt sich bereits ein Teil der in \cref{ch:anforderungen} erhobenen Anforderungen mittels der inhärenten
-Datenbankfunktionen realisieren.
-Die Datenbank übernimmt dabei nicht ausschließlich die Rolle eines persistenten Datenspeichers, sondern fungiert gleichzeitig als
-Warteschlange sowie als Synchronisationsmechanismus zwischen konkurrierenden Workern.
-Funktional orientiert sich die Architektur somit an den Prinzipien eines klassischen Message Brokers, nutzt jedoch die Konsistenzgarantien
-einer relationalen Datenbank als Grundlage für die Umsetzung der definierten Zusicherungen.
-\notiz{Hier nochmal überarbeiten: im folgenden ist nicht die Nutzung eines datenbankbasierten Job-Stores das \glqq Problem\grqq, sondern die Nutzung einer
-Datenbank die auf den Sekundärspeicher schreibt.}
-Die Wahl eines datenbankbasierten Job-Stores stellt dabei einen bewussten Architektur-Trade-off dar.
-Im Vergleich zu In-Memory-basierten Messaging-Systemen entstehen durch den permanenten Zugriff auf einen externen persistenten Datenspeicher
-zusätzliche Latenzen und ein geringerer maximaler Nachrichtendurchsatz.
-%TODO: --> Redis nochmal angucken: ist eine nosql in-Memory Datenbank; das was ich geschrieben habe ist bedingt durch PostgreSQL weil es auf sekundärspeicher schreibt
-% nicht durch die Nutzung eines datenbankbasierten Job-Store. Hier die Begründung wieso ich diesen Tradeoff eingehe nochmal entsprechend überarbeiten
-Demgegenüber ermöglicht die relationale Datenbank jedoch eine dauerhafte Speicherung sämtlicher Jobs sowie atomare Zustandsübergänge und
-eine konsistente Wiederherstellung des Systemzustands nach Fehlern.
-Zusätzlich bietet eine relationale Datenbank mehr Sicherheiten vor verloren gegangenen Jobs, als typische In-Memory Message Broker,
-die dafür aufwändige Mechanismen benötigen.
-Die Haltung des Jobstatus in einer Datenbank hat außerdem für sehr rechenintensive Operationen den Vorteil, dass eine angefangene Operation
-nach einem Teilausfall sehr einfach fortgesetzt werden kann, anstatt den Job vollständig neu starten zu müssen, indem zur Wiederaufnahme
-der letzte bekannte Status des Jobs bei der Datenbank angefragt wird
-\parencite[Kap.~11, Abschnitt \glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
-Gerade für kleine bis mittelgroße Systeme, in deren Anwendungskontext kein Jobverlust auftreten darf, stellt dies eine geeignete und
-praktikable Architektur dar, da auf eine aufwändige Clusterstruktur zur Absicherung von Jobverlusten verzichtet werden kann
-\parencite[Kap.~8 Abschnitt \glqq HowBrokers Work (In A Nutshell)\grqq]{newman_building_2026}.
+Wie bereits in \cref{sec:problemstellung} motiviert, wird im Rahmen dieser Arbeit hingegen untersucht, ob sich die benötigten
+Zusicherungen auch ohne eine solche zusätzliche Broker-Infrastruktur, allein mittels einer Datenbank, umsetzen lassen.
+
+Aus den verschiedenen möglichen Datenbanksystemen fällt die Wahl auf eine relationale Datenbank.
+Ausschlaggebend hierfür ist, dass mehrere der in \cref{sec:zusicherungen} hergeleiteten Zusicherungen starke Konsistenzgarantien voraussetzen.
+Die exklusive Beanspruchung eines Jobs durch genau einen Worker (\ref{zus:exklusive_rechte}) erfordert eine Sperrmechanik auf Zeilenebene,
+während atomare Persistierung von Statusänderung und fachlichem Ergebnis (\ref{zus:atomare_wirkung}) eine Transaktion voraussetzt,
+die mehrere Schreiboperationen unteilbar zusammenfasst.
+Viele der etablierten relationalen Datenbanksysteme stellen diese Eigenschaften in Form der \gls{acid}-Garantien als Bestandteil
+ihres Transaktionsmodells bereit, wodurch sie sich für die vorliegende Problemstellung unmittelbar anbieten.
+
+Als konkretes relationales Datenbanksystem wird PostgreSQL eingesetzt.
+Ausschlaggebend hierfür ist die Kombination aus freier Verfügbarkeit, weiter Verbreitung sowie einer ausgereiften und
+gut dokumentierten Unterstützung genau der Funktionalitäten, die für die vorliegende Architektur benötigt werden: exklusive
+Zeilensperren mittels \texttt{SELECT ... FOR UPDATE} sowie deren nicht blockierende Variante mit \texttt{SKIP LOCKED},
+die mehreren Workern eine effiziente, gegenseitig nicht blockierende Datenauswahl ermöglicht.
+Durch den Einsatz dieser Mechanismen lässt sich bereits ein Teil der in \cref{sec:zusicherungen} erhobenen Anforderungen unmittelbar
+durch inhärente Datenbankfunktionen realisieren.
+Die Wahl von PostgreSQL stellt dabei einen bewussten Architektur-Trade-off dar.
+Im Gegensatz zu In-Memory-Lösungen wie Redis entstehen durch das Schreiben auf den
+Sekundärspeicher deutlich höhere Latenzen und Zugriffszeiten als bei reinen Hauptspeicherzugriffen.
+Demgegenüber garantiert PostgreSQL die Dauerhaftigkeit eines Datensatzes, der in einer durch ein erfolgreichen Commit
+abgeschlossenen Transaktion persistiert wurde.
+Dieser Kompromiss wird bewusst eingegangen, weil Dauerhaftigkeit im Rahmen von \ref{zus:verarbeitungsgarantie} eine
+zentrale Anforderung des entwickelten Systems ist.
+Eine rein speicherresidente Alternative müsste entweder Datenverlust bei einem Absturz in Kauf nehmen oder ihrerseits einen
+eigenen, synchronen Persistenzmechanismus implementieren, wodurch derselbe Latenz- und Durchsatzkompromiss nur potenziell
+an eine andere Stelle verschoben wird.
+Die grundsätzliche Eignung des gewählten Ansatzes ist jedoch nicht auf PostgreSQL beschränkt, sondern auf die Klasse
+relationaler Datenbanksysteme mit entsprechender Unterstützung für nicht blockierende Sperrmechanismen und \gls{acid}-Garantien übertragbar.
+
+Die Datenbank übernimmt im System nicht ausschließlich die Rolle eines persistenten Datenspeichers, sondern fungiert gleichzeitig
+als Warteschlange sowie als Synchronisationsmechanismus zwischen konkurrierenden Workern.
+Funktional orientiert sich die Architektur damit an den Prinzipien eines klassischen Message Brokers, nutzt jedoch die
+Konsistenzgarantien einer relationalen Datenbank als Grundlage für die Umsetzung der definierten Zusicherungen.
+Die Kombination aus Job-Store und fachlichen Daten in derselben relationalen Datenbank hat den Vorteil, dass
+atomare Zustandsübergänge und eine konsistente Wiederherstellung des Systemzustands nach Fehlern ermöglicht werden,
+ohne dass dabei die in \cref{sec:problemstellung} beschriebene Konsistenzproblematik zwischen getrennten Systemen auftritt.
+
+Gerade für kleine bis mittelgroße Systeme, in deren Anwendungskontext kein Jobverlust auftreten darf, stellt der gewählte
+Ansatz damit eine geeignete und praktikable Architektur dar, da auf eine aufwändige Clusterstruktur zur Absicherung von
+Jobverlusten verzichtet werden kann \parencite[Kap.~8 Abschnitt \glqq How Brokers Work (In A Nutshell)\grqq]{newman_building_2026}.
 
 Die resultierende Gesamtarchitektur ist in \cref{fig:componentDiagram} dargestellt.
 Der Client bildet den Einstiegspunkt des Systems und erzeugt neue Jobs, die entsprechend \ref{req:rest} über eine
