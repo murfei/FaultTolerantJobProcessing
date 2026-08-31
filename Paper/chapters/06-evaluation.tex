@@ -426,11 +426,78 @@ Dadurch kann es nicht passieren, dass ein Job dauerhaft durch später erstellte 
 
 \section{Bewertung der Hypothesen}
 \label{sec:hypothesenbewertung}
-%Auf Grundlage der Ergebnisse wird abschließend geprüft, inwieweit die in \cref{ch:anforderungen} formulierten Hypothesen H1
-%bis H3 durch die durchgeführten Untersuchungen gestützt werden.
-%Für jede Hypothese wird zunächst angegeben, welche Zusicherungen und Tests zu ihrer Überprüfung herangezogen werden.
-%Anschließend wird das beobachtete Ergebnis den formulierten Erwartungen gegenübergestellt.
+\textbf{\ref{item:h1}} nimmt an, dass sich durch die Kombination eines persistenten Statusmodells mit
+transaktionsbasiertem Zugriff und Locking sowie Idempotenz-Mechanismen ein System entwerfen lässt, das auch bei
+unerwarteten Prozessabbrüchen und Teilausfällen keine Jobs verliert und keine falschen beziehungsweise doppelten Ergebnisse
+erzeugt.
 
-\notiz{H1, H2 und H3 jeweils explizit bewerten: Welche Tests stützen die Hypothese?
-Welche Ergebnisse wurden beobachtet?
-Wird die Hypothese bestätigt, teilweise gestützt oder nicht gestützt?}
+Die durchgeführten Testfälle stützen diese Hypothese.
+Die exklusive Beanspruchung eines Jobs sowie die exklusive Ergebnisspeicherung wurden für \ref{zus:exklusive_rechte} in
+beiden Testfällen über jeweils 100 Wiederholungen ohne eine einzige Verletzung nachgewiesen.
+Die für \ref{zus:atomare_wirkung} und \ref{zus:endzustaende} beobachteten Ergebnisse bestätigen zusätzlich, dass weder
+Teiländerungen noch ein Rückfall aus einem bereits erreichten Endzustand auftreten.
+Letzteres wird durch die konstruktive Betrachtung der drei zustandsverändernden Codepfade zusätzlich bestärkt.
+Der tatsächliche, harte Absturz eines Worker-Prozesses führte ebenfalls nicht zum Verlust des betroffenen Jobs.
+Der Job wurde nach Ablauf des Leases automatisch wieder freigegeben, erfolgreich fortgesetzt und schloss mit inhaltlich
+korrektem, nicht durch den abgebrochenen ersten Versuch verfälschtem Ergebnis ab.
+Dass dabei zu keinem Zeitpunkt mehr als ein Ergebnis pro Job persistiert wurde, auch nicht bei einem verspäteten,
+eigentlich überholten Verarbeitungsversuch (\ref{zus:idempotenz}), bestätigt zusätzlich, dass zu jedem Job genau ein Ergebnis
+persistiert wird.
+
+Verloren geht ein einmal persistierter Job also nicht, jedoch sei hier einschränkend erwähnt, dass nicht garantiert wird, dass
+zu jedem persistierten Job ein Ergebnis erzeugt wird.
+Tritt bei der Verarbeitung wiederholt ein Fehler auf, erreicht der Job im Rahmen von \ref{zus:terminierung} nach endlich
+vielen Versuchen bewusst einen definierten Fehlerzustand, statt unbegrenzt oft wiederholt zu werden.
+Diese bewusste Grenze wird in Kapitel 7 nochmals vertiefend eingeordnet. %TODO: Kapitelreferenz richtigstellen
+
+\textbf{\ref{item:h2}} hat als Annahme, dass Retry-Strategien mit exponentiellem Backoff in Verbindung mit einer
+Fehlerklassifikation in transiente und permanente Fehler die Robustheit des Systems gegenüber
+kurzzeitigen Infrastrukturausfällen erhöhen, ohne dabei die definierten Zusicherungen zu verletzen.
+
+Die Untersuchung von \ref{zus:retries} stützt diese Hypothese direkt.
+Ein kurzzeitiger Datenbankausfall wurde korrekt als retrybar klassifiziert und mit exponentiell steigenden Wartezeiten
+automatisch überbrückt, sodass die ursprüngliche Anfrage letztlich erfolgreich abgeschlossen wurde, ohne dass ein
+manuelles Eingreifen erforderlich wurde.
+Ein permanenter Fehler wurde dagegen korrekt als nicht retrybar erkannt und ohne einen einzigen weiteren Ausführungsversuch
+sofort beantwortet.
+Die Fehlerklassifikation griff also in beide Richtungen zuverlässig.
+Die ergänzend durchgeführte Gegenprobe bezüglich \ref{zus:duplikaterkennung} und \ref{zus:retries} zeigt außerdem,
+dass die Resistenzsteigerung nicht auf Kosten anderer Zusicherungen geht.
+Ein durch einen Retry ausgelöster doppelter Persistierungsauftrag eines neuen Jobs wurde erfolgreich abgewiesen und eine
+Anfrage mit einem als transient klassifizierten Fehler wurde nach Erschöpfung der konfigurierten Wiederholungsversuche
+kontrolliert mit einem Fehlerstatus beantwortet, anstatt die Ausführung unbegrenzt weiter zu versuchen.
+
+H2 wird durch die vorliegenden Ergebnisse bestätigt.
+
+\textbf{\ref{item:h3}} behauptet, dass sich die definierten Zusicherungen durch automatisierte Tests mittels gezielter
+Fehlerinjektion reproduzierbar überprüfen und nachweisen lassen.
+
+Für jede der neun Zusicherungen Z-1 bis Z-9 wurde, wie in \cref{ch:methodik} methodisch festgelegt, mindestens
+ein automatisierter Testfall mit gezielter Fehlerinjektion umgesetzt und erfolgreich durchgeführt (vgl.\cref{tab:testmatrix}).
+Sämtliche Testfälle laufen dabei gegen einen für jeden Durchlauf neu hergestellten, isolierten Ausgangszustand (vgl. \cref{sec:versuchsaufbau})
+und lassen sich beliebig oft wiederholt ausführen, ohne dass eine manuelle Anpassung erforderlich ist.
+Besondere Relevanz für die Reproduzierbarkeit hat dabei die Wiederholung der Testfälle zu \ref{zus:exklusive_rechte}
+und \ref{zus:endzustaende}.
+Da diese im Gegensatz zu den übrigen Testfällen aufgrund der Abhängigkeit vom Thread-Scheduling nicht-deterministisch sind,
+würde ein einmalig bestandener Testlauf nur eines von potenziell mehreren möglichen Ergebnissen zeigen.
+Für \ref{zus:exklusive_rechte} ist dabei durchgehend nur ein einziger Ausgang zulässig.
+Unabhängig davon, welcher der konkurrierenden Worker im Einzelfall die Zeilensperre zuerst erhält, darf stets nur genau
+einer erfolgreich sein.
+Die Wiederholung bestätigt hier, dass dieses Kriterium unabhängig von der konkreten Schedule zuverlässig eingehalten wird,
+statt nur einmalig zufällig zuzutreffen.
+Bei \ref{zus:endzustaende} sind dagegen zwei unterschiedliche Ausgänge möglich, je nachdem, ob \texttt{finishJob} oder
+\texttt{recoverJob} die Zeilensperre zuerst erhält.
+Über die Wiederholungen hinweg traten hier tatsächlich beide Ausgänge in einem nahezu ausgeglichenen Verhältnis auf.
+Das belegt, dass der Test so konzipiert ist, dass tatsächlich unterschiedliche Ausführungsreihenfolgen erfasst werden,
+statt durch eine zufällig feste Reihenfolge nur eine mögliche Ausführungsreihenfolge zu erzeugen.
+Ein Fehler, der nur unter einer bestimmten, seltener auftretenden Ausführungsreihenfolge sichtbar würde, wäre dadurch mit
+hoher Wahrscheinlichkeit erkannt worden.
+Das jeweils definierte Prüfkriterium wurde dabei in jedem einzelnen der Durchläufe eingehalten.
+Bei den restlichen Tests ist eine Wiederholung nicht notwendig, da diese durchweg deterministisch konstruiert sind und
+eine mehrfache Ausführung daher keinen Mehrwert bringen würde.
+
+\Ref{item:h3} wird somit als erfüllt betrachtet.
+
+Insgesamt stützen die in \cref{sec:ergebnisse} dokumentierten Ergebnisse alle drei Hypothesen.
+Kein durchgeführter Testfall lieferte einen Befund, der einer der drei Hypothesen widerspricht.
+Eine Diskussion des damit verbundenen Erkenntnisgewinns sowie der Grenzen der gewählten Vorgehensweise erfolgt im folgenden Kapitel.
