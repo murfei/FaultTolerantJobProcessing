@@ -3,28 +3,42 @@
 
 \chapter{Diskussion und Fazit}
 \label{ch:diskussion}
-\notiz{To be done. Hier sind bis jetzt nur Notizen}
 
 \section{Gewonnene Erkenntnisse}
 \label{sec:erkenntnisse}
+\begin{itemize}
+\item Fencing braucht zwei unabhängige Bedingungen, nicht nur eine. claimed\_by (Identität) allein hätte nicht ausgereicht – erst die zusätzliche, rein zeitbasierte Lease-Prüfung verhindert, dass ein durch eine lange Pause verzögerter, aber formal noch "berechtigter" Worker nach seinem Aufwachen schreibt, bevor Recovery ihn überhaupt erreicht hat. Eine schöne, konkrete Erkenntnis aus eurem eigenen Z-8(b)-Test, die über die reine Beschreibung des Mechanismus hinausgeht.
+
+\item Connection-Pooling kann Fehlerinjektion unbemerkt aushebeln. Die Erfahrung mit Hikaris Standard-connectionTimeout (30 s) sowie bereits gepoolten, offenen Verbindungen, die einen per Toxiproxy gekappten Zugriff umgingen, ist eine übertragbare methodische Erkenntnis: Ein Retry-Test gegen eine reale Infrastruktur kann grün sein, ohne den beabsichtigten Fehlerfall überhaupt zu erreichen, wenn man Pooling-Verhalten nicht explizit berücksichtigt.
+
+\item DB-Zustandsmanipulation und echter Prozessabsturz sind komplementär, nicht redundant. Die deterministische DB-Manipulation prüft die Zustandslogik selbst günstig und wiederholbar; der einzelne echte Prozessabsturz validiert zusätzlich, dass die zugrunde liegenden Annahmen (wie ein Absturz sich aus Sicht der Datenbank tatsächlich darstellt) auch über Prozessgrenzen hinweg zutreffen. Beide Ebenen liefern unterschiedliche, sich ergänzende Aussagekraft.
+
+\item Die neun Zusicherungen sind im Mechanismus nicht vollständig orthogonal. Ein einzelner Test (der echte Worker-Crash) lieferte gleichzeitig primäre Evidenz für Z-7 und Teilevidenz für Z-8 und Z-9. Das zeigt: Die saubere Trennung in der Spezifikation bildet sich nicht 1:1 in unabhängigen Testfällen ab – Mechanismen wie Lease und Fencing tragen mehrere Zusicherungen gleichzeitig.
+
+\item Der eigentliche Kostenfaktor ist synchrones Schreiben auf Sekundärspeicher, nicht die Kategorie "Datenbank vs. Broker". Diese Präzisierung (aus der Redis-Korrektur in Kapitel 5) ist selbst eine Erkenntnis wert, die über die reine Architekturbegründung hinausgeht: Sie relativiert die verbreitete Annahme, In-Memory-Systeme seien kategorisch schneller, weil sie keine Datenbanken sind.
+
+\item Nicht alle Zusicherungen stehen auf demselben epistemischen Fundament. Z-1, Z-4 und Z-5 sind sowohl konstruktiv bewiesen als auch empirisch bestätigt, während z. B. Z-2 und Z-6 ausschließlich empirisch getestet wurden. Diese Differenzierung lohnt sich explizit zu benennen, statt implizit zu lassen – sie zeigt ein reflektiertes Verständnis davon, welche Aussagen der Arbeit stärker abgesichert sind als andere.
+\end{itemize}
+
 
 \section{Einschränkungen und Grenzen der Arbeit}
 \label{sec:einschraenkungen}
-\textbf{Ausschließlich Notizen}\\
-%Diese Arbeit betrachtet die Fehlertoleranz ab dem Zeitpunkt, zu dem ein Job persistent im Job-Store vorliegt;
-%die zuverlässige Auftragserzeugung/Client-Kommunikation (z.B. Outbox, Messaging) ist nicht Gegenstand.
-%"Consumers may crash at any time, so it could happen that a broker delivers a message to a consumer
-%but the consumer never processes it, or only partially processes it before crashing. In order to
-%ensure that the message is not lost, message brokers use \textit{acknowledgments}: a client must
-%explicitly tell the broker when it has finished processing a message so that the broker can remove
-%it from the queue." \parencite[Kap.11 --> Acknowledgments and redelivery bzw. Message brokers]{kleppmann_designing_2017}
+\begin{itemize}
+\item Kein Jitter in der Backoff-Strategie – das Thundering-Herd-Problem aus der Einleitung bleibt nur abgemildert, nicht gelöst. Das ist der naheliegendste, aber aktuell fehlende Rückbezug: Ihr habt das Problem einleitend als Motivation aufgebaut, aber nirgends in der Diskussion wieder aufgegriffen, dass die eigene Lösung es nur teilweise adressiert (rein exponentiell, ohne Randomisierung der Wartezeiten).
 
-%REST hat keinen Puffer und ist synchron --> Client und Server muss während der ganzen Kommunikation laufen, damit
-%Kommunikation funktioniert. Weitere Nachteile in Referenz: \parencite[Kap.3.2.2]{richardson_microservices_2018}
+\item Lease-Dauer als konkretes Tuning-Dilemma, nicht nur "fine-tuning möglich". Eure bestehende Notiz dazu ist noch generisch. Konkreter: Eine zu kurze Lease erhöht das Risiko, einen noch lebenden, nur langsamen Worker fälschlich für abgestürzt zu halten – und genau das verschärft das bereits notierte Seiteneffekt-Problem (doppelter Mailversand o. Ä.), weil Fencing zwar doppelte \textit{Ergebnisse} verhindert, aber nicht doppelte \textit{externe Wirkungen} des ursprünglichen, eigentlich noch laufenden Versuchs.
 
-%Kein Fokus auf Kommunikation im allgemeinen, weder wie oben genannt die Erstellung von Jobs, als auch die Benachrichtigung
-%bei Fertigstellung. Dafür bräuchte es Transaktionales messaging bspw. mittels transactional outbox pattern \parencite[Kap.3.3.7]{richardson_microservices_2018} oder
-%asynchrones Messaging \parencite[Kap.3.4.2]{richardson_microservices_2018}
+\item Die behauptete Übertragbarkeit auf andere relationale Datenbanken wurde nie geprüft. In Kapitel 5 steht explizit, der Ansatz sei nicht auf PostgreSQL beschränkt, sondern auf DBMS mit SKIP LOCKED-Unterstützung (z. B. MySQL) übertragbar – das ist aber reine Behauptung, nie empirisch getestet. Präziser als die bestehende, allgemeine "PostgreSQL als konkretes System"-Notiz.
+
+\item Der Fairness-/Anti-Starvation-Teil von Z-9 (Sortierung nach created\_at) bleibt rein analytisch, nie empirisch getestet. Das steht bereits explizit so im Ergebnistext, gehört aber auch namentlich in die Einschränkungen, nicht nur beiläufig im Ergebniskapitel.
+
+\item Das Seiteneffekt-Problem wurde nur benannt, nie untersucht. Weil die simulierte Fachlogik keine echten, nicht-idempotenten Seiteneffekte erzeugt, bleibt die Aussage zu doppelt versendeten E-Mails o. Ä. eine reine Plausibilitätsüberlegung – das würde ich explizit von der "simulierte Fachlogik"-Notiz und der "kein Rollback"-Notiz absetzen, indem ihr sie bewusst miteinander verknüpft.
+
+\item "Fencing" wird in einem engeren Sinn verwendet als bei Kleppmann. Euer Mechanismus prüft Besitz und Lease innerhalb derselben Zeile/Transaktion, statt einen extern mitgeführten, monoton steigenden Token gegen eine unabhängige Ressource zu prüfen. Eine kurze, selbstkritische Präzisierung dieser Begriffsverwendung wirkt reif, nicht wie ein Fehler.
+
+\item Die gewählte Evaluationsmethodik (echte Docker-Container, echte Prozessstarts, 100-fache Wiederholungen) ist für schnelles CI-Feedback ungeeignet. Das ist ein eigener Punkt, unabhängig von der bereits notierten Aussage zu DB-Durchsatz bei großen Systemen – hier geht es um die Praktikabilität der \textit{Testsuite selbst} im Entwicklungsalltag, nicht um Systemperformance im Betrieb.
+\end{itemize}
+
 
 Es gibt keine perfekte reliability \parencite[Kap.~1, Abschnitt \glqq Reliability\grqq]{kleppmann_designing_2017}
 
@@ -57,10 +71,6 @@ recovered da sonst Konflikt mit \ref{zus:terminierung}
 - viel fine tuning möglich, was zum einen die Konfiguration der Parameter für Retries angeht (backoff factor, initial delay, maxAttempts)
 und zum anderen die genaue Klassifikation der Fehler in transient und permanent, hier vor allem nur zu Vorführungszwecken exemplarisch implementiert
 
-%Die vorgestellte Architektur garantiert die Konsistenz der Jobverwaltung und der Ergebnispersistenz.
-%Seiteneffekte innerhalb der eigentlichen Fachlogik liegen dagegen außerhalb des Verantwortungsbereichs des Frameworks.
-%Soll die Verarbeitung externer Ressourcen ebenfalls fehlertolerant erfolgen, muss die Fachlogik selbst geeignete Mechanismen wie Transaktionen,
-%Kompensationsoperationen oder idempotente Operationen einsetzen.
 
 bekanntes Zitat von Dijkstra, sinngemäß: \textit{Testen kann die Anwesenheit von Fehlern zeigen, niemals ihre Abwesenheit.} --> Testing liefert hier grundsätzlich nur notwendige, keine hinreichende Evidenz
 
@@ -71,12 +81,6 @@ Einschränkungen:
 Prototyp statt produktives System
 \item
 PostgreSQL als konkretes Datenbanksystem
-%\item
-%begrenzte Anzahl an Workern
-%\item
-%künstlich injizierte Fehler
-%\item
-%keine byzantinischen Fehler
 \item
 kein Heartbeat
 \item
@@ -85,10 +89,43 @@ simulierte Fachlogik
 kontrollierte Testumgebung
 \item
 Race Conditions werden durch künstliche Verzögerungen wahrscheinlicher gemacht
-%\item
-%Ergebnisse können nicht unmittelbar auf beliebige verteilte Systeme übertragen werden
+
 \end{itemize}
 
+\section{Fazit}
+\label{sec:fazit}
+\begin{itemize}
+\item Kurzer, expliziter Rückbezug auf die Hauptforschungsfrage aus 1.2: die Antwort in einem prägnanten Satz zusammenfassen (Zustandsmodell + zeilenbasierte Sperren + lease-basierte Recovery + Fencing als die notwendigen Architekturmechanismen)
+
+\item Explizit benennen, dass alle vier Teilfragen TF1–TF4 beantwortet wurden, mit knapper Zuordnung, welches Kapitel/welche Zusicherungsgruppe welche TF trägt (TF1 → Z-1 bis Z-9 als Zusicherungskatalog, TF2 → Z-6/Z-9-Ergebnisse zu Idempotenz/Retry/Recovery, TF3 → Z-3/Z-4/Z-5 zu Transaktionen und Locking, TF4 → Z-7/Z-8 zur Wiederaufnahme nach Prozessabbruch)
+
+\item Verweis auf 6.5: alle drei Hypothesen wurden im Rahmen der durchgeführten Tests bestätigt
+
+\item Den Kreis zur Einleitung schließen: die dort aufgeworfene leitende Überlegung ("reicht eine Datenbank allein, ohne Broker-Infrastruktur?") wird hier positiv beantwortet – das ist der eigentliche Kernbeitrag der Arbeit
+
+\item Kurze Einordnung des Geltungsbereichs dieser Aussage (Prototyp, keine Produktivumgebung) – nur ein Satz, keine Wiederholung von 7.2
+\end{itemize}
+
+
+
+\section{Ausblick}
+\label{sec:ausblick}
 Ausblick:
 -Performance-Test --> ist das System in der Praxis brauchbar?
 -Test, wie das System skaliert --> wie performt es bei vielen Anfragen auf die Datenbank? Literatur weist auf hohe Latenzen hin
+\begin{itemize}
+\item Jitter in der Backoff-Strategie ergänzen – schließt direkt an den Thundering-Herd-Punkt aus 7.2 an, adressiert das Problem dann vollständig statt nur teilweise
+
+\item Performance- und Skalierungstest unter höherer Last – das stand tatsächlich schon ganz am Anfang eurer eigenen alten Notizen ("ist das System in der Praxis brauchbar? wie performt es bei vielen Anfragen auf die Datenbank?"), gehört aber inhaltlich exakt hierher, nicht in die Einschränkungen
+
+\item Empirische Prüfung der behaupteten Portierbarkeit auf andere relationale Datenbanksysteme mit SKIP LOCKED-Unterstützung (z. B. MySQL) – testet, was in Kapitel 5 bisher nur behauptet wird
+
+\item Heartbeat-Mechanismus als Alternative zum reinen Lease-Timeout empirisch untersuchen und mit dem gewählten Ansatz vergleichen – wird in 5.1.7 zwar als Alternative diskutiert, aber nie tatsächlich verglichen
+
+\item Schutzmechanismus gegen mehrfache externe Seiteneffekte, z. B. Weiterreichung eines Idempotency-Keys an aufgerufene externe Systeme – direkte Konsequenz aus dem in 7.2 benannten, nie untersuchten Seiteneffekt-Problem
+
+\item Leichtgewichtigere, schnellere Testebene ergänzen, die sich für den Einsatz in einer CI-Pipeline eignet, ergänzend zur aktuellen, realitätsnahen aber langsamen Suite mit echten Containern und Prozessstarts
+
+\item Formale Verifikation (z. B. mittels TLA+) als ergänzender Nachweis neben den durchgeführten Tests – insbesondere für die Finalitäts-/Nebenläufigkeitseigenschaften (Z-5), bei denen Tests wie in 7.2 diskutiert nur notwendige, keine hinreichende Evidenz liefern
+\end{itemize}
+
