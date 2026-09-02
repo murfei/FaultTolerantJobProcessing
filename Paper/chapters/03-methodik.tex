@@ -1,5 +1,5 @@
 %! Author = murfe
-%! Date = 27.08.2026
+%! Date = 31.08.2026
 
 \chapter{Methodik}
 \label{ch:methodik}
@@ -13,7 +13,48 @@ definierten Zusicherungen und Anforderungen einhält.
 
 \section{Literaturrecherche}
 \label{sec:literaturrecherche}
-\notiz{Datenbanken, Suchbegriffe/-string, Auswahlkriterien, Schneeballverfahren}
+Die grundlegende Literaturliste für diese Arbeit wurde durch ein mehrstufiges Verfahren generiert.
+Zuerst wurden der Problemkontext und die in \cref{sec:problemstellung} formulierte Forschungs- inklusive Teilfragen nach
+den zugrundeliegenden Themen und vorkommenden Schlagworten analysiert.
+Diese Liste umfasste Begriffe wie asynchrone Verarbeitung, verteilte Systeme, Fehlertoleranz und Teilausfälle.
+Da die vorliegende Arbeit stark architektur- und praxisgetrieben ist, fokussierte sich die systematische Suche primär
+auf Grundlagenwerke der Softwarearchitektur und verteilter Systeme sowie auf offizielle technische Dokumentationen.
+
+Ein Teil der grundlegenden Literatur, insbesondere zu Transaktionsverwaltung und Nebenläufigkeitskontrolle in
+relationalen Datenbanksystemen (u.\,a. \textcite{saake_datenbanken_2018}), war bereits aus vorangegangenen
+Lehrveranstaltungen des Studiums bekannt und wurde auf Relevanz für die Verwendung in dieser Arbeit lediglich erneut geprüft,
+statt recherchiert zu werden.
+
+Zur Identifikation der weiteren theoretischen Grundlagen wurden zunächst Google Scholar und die Hochschul- und
+Kreisbibliothek Bonn-Rhein-Sieg herangezogen.
+Die verwendeten Suchbegriffe orientierten sich dabei an der zuvor erarbeiteten Liste an Fachbegriffen, die sowohl in englischer
+als auch deutscher Sprache genutzt wurden.
+Anhand von Suchkombinationen wie beispielsweise
+
+\enquote{partial failure} AND \enquote{distributed systems} AND (\enquote{unreliable} OR \enquote{network faults})
+
+wurden zentrale Standardwerke ermittelt.
+Für spezifische Problemstellungen, wie etwa typische Ausfallursachen in Cloud-Umgebungen, wurde ergänzend in den
+Datenbanken der ACM Digital Library und IEEE Xplore mit gezielten Suchanfragen recherchiert, beispielsweise
+
+(\enquote{component failure} OR \enquote{network failures}) AND (\enquote{cloud systems} OR \enquote{distributed systems})
+AND (\enquote{empirical} OR \enquote{analysis}).
+
+Zusätzlich wurden KI-gestützte Recherchewerkzeuge eingesetzt, um ergänzend potenziell relevante Literatur vorzuschlagen.
+Die auf diesem Weg vorgeschlagenen Quellen wurden vor ihrer Übernahme denselben im Folgenden beschriebenen Auswahlkriterien
+unterzogen wie die übrige recherchierte Literatur und eigenständig auf inhaltliche Korrektheit sowie Relevanz für die vorliegende Arbeit geprüft.
+
+Aus der so generierten Ergebnismenge wurde händisch gefiltert.
+Zuerst wurden anhand des Titels offensichtlich themenfremde Ergebnisse entfernt.
+Bei Fachbüchern erfolgte die Auswahl anhand des Inhaltsverzeichnisses und der Relevanz der Kapitel für die Forschungsfragen
+dieser Arbeit.
+Bei den wissenschaftlichen Publikationen wurden nach kurzer inhaltlicher Durchsicht der Abstracts nicht relevante Werke aussortiert.
+Wichtig für den Einbezug der Literatur war ein Bezug zur Architektur und zu Fehlern in verteilten Systemen, asynchroner Verarbeitung
+oder Fehlertoleranz in verteilten Systemen.
+
+Ausgehend von den so identifizierten Werken wurden mithilfe einer rückwärtsgerichteten Schneeballsuche, weitere relevante
+Publikationen identifiziert.
+Ergänzt wurde die Liste außerdem durch technische Dokumentationen der verwendeten und verglichenen Technologien.
 
 \section{Systementwurf}
 \label{sec:systementwurf}
