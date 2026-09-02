@@ -74,21 +74,18 @@ Architektur für Background-Job-Processing zusammenführen und deren Verhalten u
 Ebenso implementieren bestehende Frameworks diese Mechanismen häufig als interne Abstraktionen, wodurch deren Zusammenspiel und Auswirkungen
 auf die Zuverlässigkeit des Gesamtsystems für Entwickler nur eingeschränkt nachvollziehbar sind.
 Daraus ergibt sich die dieser Arbeit zugrundeliegende Hauptforschungsfrage:\\
-Welche Architekturmechanismen und Entwurfsentscheidungen sind notwendig, um in
-einem Java/Spring-basierten Job-Processing-Backend definierte Konsistenzzusicherungen
-unter typischen Teilausfallszenarien nachweisbar einzuhalten?\\
+Welche Architekturmechanismen und Entwurfsentscheidungen ermöglichen es, in einem Java/Spring-basierten Job-Processing-System
+definierte Konsistenzzusicherungen unter typischen Teilausfallszenarien nachweisbar einzuhalten?\\
 Zur Beantwortung dieser Frage werden folgende Teilfragen untersucht:
-\begin{enumerate}[label=TF\arabic*:, ref=TF\arabic*] %TODO: unbedingt noch auf alle Teilfragen /-ziele eingehen!
+\begin{enumerate}[label=TF\arabic*:, ref=TF\arabic*]
     \item \label{item:tf1} Welche Zusicherungen muss das System gewährleisten, damit Jobs stets
     korrekt und ohne Inkonsistenzen verarbeitet werden?
     \item \label{item:tf2} Welchen Beitrag leisten Idempotenz, Retry-Strategien und Recovery-Mechanismen
     zur Robustheit unter definierten Fehlerszenarien?
     \item \label{item:tf3} Wie müssen Transaktionen und Locking-Strategien genutzt werden, damit
-    bei paralleler Arbeit mehrerer Worker keine Doppelverarbeitung oder
-    inkonsistenten Zustände entstehen?
-    \item \label{item:tf4} Wie lässt sich sicherstellen, dass Jobs nach einem unerwarteten
-    Prozessabbruch korrekt wiederaufgenommen werden, ohne dass Aufträge
-    verloren gehen?
+    bei paralleler Arbeit mehrerer Worker keine Doppelverarbeitung oder inkonsistente Zustände entstehen?
+    \item \label{item:tf4} Wie lässt sich sicherstellen, dass Jobs nach einem unerwarteten Prozessabbruch korrekt
+    \item wiederaufgenommen werden, ohne dass Aufträge verloren gehen?
 \end{enumerate}
 
 \section{Zielsetzung}

@@ -1,131 +1,216 @@
 %! Author = murfe
-%! Date = 28.07.2026
+%! Date = 02.09.2026
 
 \chapter{Diskussion und Fazit}
 \label{ch:diskussion}
-
+%TODO: Einleitung
 \section{Gewonnene Erkenntnisse}
 \label{sec:erkenntnisse}
-\begin{itemize}
-\item Fencing braucht zwei unabhängige Bedingungen, nicht nur eine. claimed\_by (Identität) allein hätte nicht ausgereicht – erst die zusätzliche, rein zeitbasierte Lease-Prüfung verhindert, dass ein durch eine lange Pause verzögerter, aber formal noch "berechtigter" Worker nach seinem Aufwachen schreibt, bevor Recovery ihn überhaupt erreicht hat. Eine schöne, konkrete Erkenntnis aus eurem eigenen Z-8(b)-Test, die über die reine Beschreibung des Mechanismus hinausgeht.
+Aus der Entwicklung und Evaluation des Systems lassen sich mehrere zentrale Erkenntnisse für die Gestaltung fehlertoleranter
+Hintergrundverarbeitung ableiten.
 
-\item Connection-Pooling kann Fehlerinjektion unbemerkt aushebeln. Die Erfahrung mit Hikaris Standard-connectionTimeout (30 s) sowie bereits gepoolten, offenen Verbindungen, die einen per Toxiproxy gekappten Zugriff umgingen, ist eine übertragbare methodische Erkenntnis: Ein Retry-Test gegen eine reale Infrastruktur kann grün sein, ohne den beabsichtigten Fehlerfall überhaupt zu erreichen, wenn man Pooling-Verhalten nicht explizit berücksichtigt.
+\subsection{Beantwortung der Hauptforschungsfrage}
+\label{subsec:beantwortungHauptfrage}
+Die Hauptforschungsfrage dieser Arbeit lautet, welche Architekturmechanismen und Entwurfsentscheidungen es ermöglichen,
+in einem Java/Spring-basierten Job-Processing-System definierte Konsistenzzusicherungen auch unter typischen Teilausfallszenarien einzuhalten.
 
-\item DB-Zustandsmanipulation und echter Prozessabsturz sind komplementär, nicht redundant. Die deterministische DB-Manipulation prüft die Zustandslogik selbst günstig und wiederholbar; der einzelne echte Prozessabsturz validiert zusätzlich, dass die zugrunde liegenden Annahmen (wie ein Absturz sich aus Sicht der Datenbank tatsächlich darstellt) auch über Prozessgrenzen hinweg zutreffen. Beide Ebenen liefern unterschiedliche, sich ergänzende Aussagekraft.
+Auf Grundlage des entworfenen und evaluierten Prototyps lässt sich diese Frage für das betrachtete Fehlermodell dahingehend
+beantworten, dass hierzu mehrere aufeinander abgestimmte Mechanismen erforderlich sind.
+Das persistente Zustandsmodell bildet die Grundlage für die nachvollziehbare Verwaltung des Lebenszyklus eines Jobs.
+Transaktionen und zeilenbasierte Sperren stellen die konsistente Verarbeitung konkurrierender Zugriffe sicher.
+Idempotenz verhindert die mehrfache persistierte Annahme desselben Auftrags, während Retry-Strategien die Wiederholung
+transient fehlgeschlagener Operationen ermöglichen.
+Die lease-basierte Recovery sorgt dafür, dass nach einem Worker-Ausfall übernommene Jobs wieder für die Verarbeitung
+freigegeben werden können.
+Fencing begrenzt schließlich die Auswirkungen verspäteter Worker, indem Zugriffe nach Verlust der Berechtigung auf den Job abgelehnt werden.
 
-\item Die neun Zusicherungen sind im Mechanismus nicht vollständig orthogonal. Ein einzelner Test (der echte Worker-Crash) lieferte gleichzeitig primäre Evidenz für Z-7 und Teilevidenz für Z-8 und Z-9. Das zeigt: Die saubere Trennung in der Spezifikation bildet sich nicht 1:1 in unabhängigen Testfällen ab – Mechanismen wie Lease und Fencing tragen mehrere Zusicherungen gleichzeitig.
+Die Evaluation zeigt, dass diese Mechanismen im betrachteten System gemeinsam dazu beitragen, die definierten Zusicherungen
+auch unter den untersuchten Fehlerbedingungen einzuhalten.
+Damit lässt sich für das betrachtete Fehlermodell zeigen, dass ein fehlertolerantes Background-Job-Processing-System
+auch auf Basis einer relationalen Datenbank ohne dedizierten Message Broker realisiert werden kann.
 
-\item Der eigentliche Kostenfaktor ist synchrones Schreiben auf Sekundärspeicher, nicht die Kategorie "Datenbank vs. Broker". Diese Präzisierung (aus der Redis-Korrektur in Kapitel 5) ist selbst eine Erkenntnis wert, die über die reine Architekturbegründung hinausgeht: Sie relativiert die verbreitete Annahme, In-Memory-Systeme seien kategorisch schneller, weil sie keine Datenbanken sind.
+\subsection{Beantwortung der Teilfragen}
+\label{subsec:beantwortungTeilfragen}
+\ref{item:tf1} hinterfragt, welche Zusicherungen ein System gewährleisten muss, damit Jobs korrekt und ohne Inkonsistenzen
+verarbeitet werden können.
+Hierzu wurden in \cref{sec:zusicherungen} konkrete Zusicherungen für die Joberstellung, Idempotenz, Nebenläufigkeitskontrolle,
+transaktionale Konsistenz, Recovery und Terminierung abgeleitet.
+Die Evaluation zeigt, dass diese Zusicherungen für die betrachteten Fehlerszenarien in beobachtbare Prüfkriterien überführt
+und anhand des implementierten Systems überprüft werden können.
+Insbesondere wird sichergestellt, dass konkurrierende Worker einen Job nicht gleichzeitig erfolgreich übernehmen, dass
+Ergebnisse nicht mehrfach persistiert werden und dass verwaiste Jobs nach einem Worker-Ausfall erneut verarbeitet werden können.
+Die Zusicherungen sind dabei nicht als allgemeingültige Garantie für beliebige Ausfälle zu verstehen, sondern beziehen sich
+auf das in \cref{sec:abgrenzungFehlermodell} definierte Fehlermodell.
 
-\item Nicht alle Zusicherungen stehen auf demselben epistemischen Fundament. Z-1, Z-4 und Z-5 sind sowohl konstruktiv bewiesen als auch empirisch bestätigt, während z. B. Z-2 und Z-6 ausschließlich empirisch getestet wurden. Diese Differenzierung lohnt sich explizit zu benennen, statt implizit zu lassen – sie zeigt ein reflektiertes Verständnis davon, welche Aussagen der Arbeit stärker abgesichert sind als andere.
-\end{itemize}
+\ref{item:tf2} betrachtet den Beitrag von Idempotenz, Retry-Strategien und Recovery-Mechanismen zur Robustheit.
+Die Untersuchung zeigt, dass diese Mechanismen unterschiedliche Fehlerklassen adressieren und sich daher gegenseitig ergänzen.
+Idempotenz verhindert, dass eine wiederholte Anfrage aufgrund einer verlorenen Antwort zu einer mehrfachen Joberstellung führt.
+Retries ermöglichen die automatische Neuausführung von Operationen, wenn ein Fehler als transient eingestuft wird, während permanente
+Fachfehler nicht unnötig wiederholt werden.
+Recovery übernimmt dagegen die Wiederaufnahme von Jobs, bei denen kein lokaler Retry mehr möglich ist, beispielsweise nach
+einem vollständigen Ausfall eines Workers.
 
+\ref{item:tf3} bezieht sich auf den Einsatz von Transaktionen und Locking-Strategien bei paralleler Verarbeitung durch mehrere Worker.
+Die Ergebnisse zeigen, dass kurze, transaktionsgesicherte Zustandsübergänge ausreichen, um die entscheidenden konkurrierenden
+Operationen auf Datenbankebene zu synchronisieren.
+Beim Beanspruchen eines Jobs verhindert die Kombination aus Transaktion und Zeilensperre, dass mehrere Worker denselben
+Job gleichzeitig erfolgreich übernehmen.
+Auch bei der abschließenden Ergebnispersistierung wird der Job innerhalb einer Transaktion exklusiv gesperrt und vor der
+Speicherung auf seinen aktuellen Zustand und seine Besitzverhältnisse geprüft.
+Dadurch können konkurrierende Abschluss- und Recovery-Operationen so koordiniert werden, dass ein bereits erreichter
+terminaler Zustand nicht durch eine konkurrierende Operation zurückgesetzt wird.
+
+\ref{item:tf4} befasst sich mit der Wiederaufnahme von Jobs nach einem unerwarteten Prozessabbruch.
+Die Untersuchung zeigt, dass hierfür die Kombination aus persistentem Zustandsmodell, zeitbasiertem Lease,
+Recovery-Mechanismus und Fencing wesentlich ist.
+Fällt ein Worker während der Verarbeitung aus, verbleibt der Job zunächst im Zustand \textit{Running}.
+Nach Ablauf des Leases kann der Recovery-Service erkennen, dass die Verarbeitung nicht innerhalb des vorgesehenen Zeitraums
+abgeschlossen wurde und den Job erneut zur Verarbeitung freigeben.
+Dadurch kann ein anderer Worker die Verarbeitung übernehmen, ohne dass der Job dauerhaft im aktiven Zustand verbleibt.
+
+Für die idempotente Ergebnisgenerierung bei der Wiederaufnahme ist dabei insbesondere die Kombination aus Lease und Fencing entscheidend.
+Ein Worker kann nach einer längeren Verzögerung weiterhin als Besitzer im Jobzustand eingetragen sein, obwohl sein Lease
+bereits abgelaufen oder der Job zwischenzeitlich durch einen anderen Worker übernommen worden ist.
+Die alleinige Prüfung der Worker-Identität wäre daher nicht ausreichend.
+Die zusätzliche Prüfung der Lease-Gültigkeit stellt sicher, dass ein verspäteter Worker ein Ergebnis nicht mehr speichern
+kann, wenn seine Berechtigung zur Verarbeitung bereits erloschen ist.
+Die Evaluation bestätigt dieses Verhalten: Ein Worker, dessen Lease abgelaufen ist, kann einen Job auch dann nicht erfolgreich
+abschließen, wenn seine Worker-ID weiterhin im Jobzustand hinterlegt ist.
+Ebenso wird ein verspäteter Speicherversuch eines ursprünglichen Besitzers nach einer Recovery durch die Besitz- und
+Zustandsprüfung zurückgewiesen.
+
+\subsection{Weitere architektonische Erkenntnisse}
+\label{subsec:weitereErkenntnisse}
+Eine zentrale Erkenntnis der Untersuchung ist, dass ein relationaler Datenbank-Job-Store nicht ausschließlich als
+persistenter Speicher, sondern zugleich als Koordinationsmechanismus für die nebenläufige Verarbeitung eingesetzt werden kann.
+Die Datenbank übernimmt dabei sowohl die dauerhafte Speicherung des Jobzustands als auch die Synchronisation konkurrierender Worker.
+Durch die Verwendung von Transaktionen und Zeilensperren können Zustandsänderungen und Ergebnispersistierung atomar durchgeführt werden.
+Dadurch lässt sich ein wesentlicher Teil der für die betrachteten Zusicherungen erforderlichen Koordination innerhalb einer
+bereits vorhandenen Infrastruktur realisieren.
+
+Für die untersuchte Systemgröße ergibt sich daraus ein weiterer Vorteil: Die Architektur benötigt keinen zusätzlichen Message Broker
+als eigenständige Infrastrukturkomponente.
+Insbesondere müssen Jobzustand und Verarbeitungsergebnis nicht zwischen zwei getrennten Persistenzsystemen synchronisiert werden.
+Die Nutzung einer gemeinsamen relationalen Datenbank ermöglicht stattdessen, zusammengehörige Änderungen über lokale
+\gls{acid}-Transaktionen abzusichern.
+Dies reduziert die infrastrukturelle Komplexität, hat aber auch Auswirkungen auf die Skalierbarkeit, die im folgenden Kapitel
+thematisiert werden.
+
+Gleichzeitig zeigt die Untersuchung, dass Fehlertoleranz nicht als absolute Eigenschaft eines Systems verstanden werden kann.
+Die implementierten Mechanismen adressieren gezielt die im Rahmen dieser Arbeit betrachteten Fehlerfälle.
+Sie reduzieren die Auswirkungen dieser Fehler, können jedoch keine allgemeingültige Garantie gegenüber jedem denkbaren Ausfall liefern.
+Die Aussagekraft der erzielten Ergebnisse ist daher stets an die definierten Systemannahmen und Fehlerbedingungen gebunden.
 
 \section{Einschränkungen und Grenzen der Arbeit}
 \label{sec:einschraenkungen}
-\begin{itemize}
-\item Kein Jitter in der Backoff-Strategie – das Thundering-Herd-Problem aus der Einleitung bleibt nur abgemildert, nicht gelöst. Das ist der naheliegendste, aber aktuell fehlende Rückbezug: Ihr habt das Problem einleitend als Motivation aufgebaut, aber nirgends in der Diskussion wieder aufgegriffen, dass die eigene Lösung es nur teilweise adressiert (rein exponentiell, ohne Randomisierung der Wartezeiten).
+Die Aussagekraft der Ergebnisse ist durch den prototypischen Charakter des Systems, das zugrunde gelegte Fehlermodell sowie
+die gewählte Evaluationsumgebung begrenzt.
 
-\item Lease-Dauer als konkretes Tuning-Dilemma, nicht nur "fine-tuning möglich". Eure bestehende Notiz dazu ist noch generisch. Konkreter: Eine zu kurze Lease erhöht das Risiko, einen noch lebenden, nur langsamen Worker fälschlich für abgestürzt zu halten – und genau das verschärft das bereits notierte Seiteneffekt-Problem (doppelter Mailversand o. Ä.), weil Fencing zwar doppelte \textit{Ergebnisse} verhindert, aber nicht doppelte \textit{externe Wirkungen} des ursprünglichen, eigentlich noch laufenden Versuchs.
+\textbf{Prototypischer Charakter und begrenztes Fehlermodell.}
+Das entwickelte System dient der Untersuchung ausgewählter Fehlertoleranzmechanismen und stellt kein vollständig
+produktionsreifes Job-Processing-System dar.
+Besonders die Konfiguration der Retry-Policies bezüglich der Klassifizierung transienter Fehler ist als \textit{Proof-of-concept}
+anstatt einer Lösung mit Anspruch auf Vollständigkeit zu sehen.
+Des Weiteren werden Fehler außerhalb des definierten Modells, beispielsweise der dauerhafte Verlust des Job-Stores oder
+der Ausfall eines gesamten Standorts, nicht betrachtet.
 
-\item Die behauptete Übertragbarkeit auf andere relationale Datenbanken wurde nie geprüft. In Kapitel 5 steht explizit, der Ansatz sei nicht auf PostgreSQL beschränkt, sondern auf DBMS mit SKIP LOCKED-Unterstützung (z. B. MySQL) übertragbar – das ist aber reine Behauptung, nie empirisch getestet. Präziser als die bestehende, allgemeine "PostgreSQL als konkretes System"-Notiz.
+\textbf{Zeitbasierte Leases ohne Heartbeat.}
+Die prototypische Implementierung verwendet zeitbasierte Leases und keinen Heartbeat-Mechanismus.
+Ein ungewöhnlich aufwendiger Job oder ein aktiver, aber langsamer Worker kann dadurch dazu führen, dass die Verarbeitung
+eines Jobs immer wieder durch die Recovery abgebrochen und niemals beendet wird.
+Außerdem verhindert Fencing in diesem Fall zwar die Persistierung eines veralteten Ergebnisses, nicht jedoch bereits während der
+Verarbeitung ausgelöste externe Seiteneffekte.
+Die Wahl der Lease-Dauer stellt somit eine Abwägung zwischen schneller Recovery und dem Risiko einer vorzeitigen Freigabe dar.
 
-\item Der Fairness-/Anti-Starvation-Teil von Z-9 (Sortierung nach created\_at) bleibt rein analytisch, nie empirisch getestet. Das steht bereits explizit so im Ergebnistext, gehört aber auch namentlich in die Einschränkungen, nicht nur beiläufig im Ergebniskapitel.
+\textbf{Begrenzte Aussagekraft der empirischen Evaluation.}
+Die Evaluation erfolgt in einer kontrollierten Testumgebung und basiert auf einer endlichen Anzahl von Testwiederholungen.
+Insbesondere für nebenläufigkeitsabhängige Szenarien kann daher nicht ausgeschlossen werden, dass unter anderen Ausführungsbedingungen
+weitere bisher nicht beobachtete Effekte auftreten.
+Die wiederholte Ausführung der entsprechenden Tests erhöht die Wahrscheinlichkeit, relevante Nebenläufigkeitseffekte zu erfassen,
+stellt jedoch keinen Beweis für deren vollständiges Ausbleiben dar.
+Zudem werden Race Conditions durch gezielte Synchronisation reproduzierbarer gemacht, sodass die Testbedingungen nicht unmittelbar
+mit einem beliebigen Produktionssystem gleichzusetzen sind.
+Des Weiteren kann mit Tests nur das Vorhandensein eines Fehlers bewiesen werden, nicht jedoch die Abwesenheit.
+Trotz der erfolgreichen Tests kann die Funktionsfähigkeit des Systems daher auch bezüglich des betrachteten Fehlermodells
+nicht vollständig garantiert werden.
 
-\item Das Seiteneffekt-Problem wurde nur benannt, nie untersucht. Weil die simulierte Fachlogik keine echten, nicht-idempotenten Seiteneffekte erzeugt, bleibt die Aussage zu doppelt versendeten E-Mails o. Ä. eine reine Plausibilitätsüberlegung – das würde ich explizit von der "simulierte Fachlogik"-Notiz und der "kein Rollback"-Notiz absetzen, indem ihr sie bewusst miteinander verknüpft.
-
-\item "Fencing" wird in einem engeren Sinn verwendet als bei Kleppmann. Euer Mechanismus prüft Besitz und Lease innerhalb derselben Zeile/Transaktion, statt einen extern mitgeführten, monoton steigenden Token gegen eine unabhängige Ressource zu prüfen. Eine kurze, selbstkritische Präzisierung dieser Begriffsverwendung wirkt reif, nicht wie ein Fehler.
-
-\item Die gewählte Evaluationsmethodik (echte Docker-Container, echte Prozessstarts, 100-fache Wiederholungen) ist für schnelles CI-Feedback ungeeignet. Das ist ein eigener Punkt, unabhängig von der bereits notierten Aussage zu DB-Durchsatz bei großen Systemen – hier geht es um die Praktikabilität der \textit{Testsuite selbst} im Entwicklungsalltag, nicht um Systemperformance im Betrieb.
-\end{itemize}
-
-
-Es gibt keine perfekte reliability \parencite[Kap.~1, Abschnitt \glqq Reliability\grqq]{kleppmann_designing_2017}
-
-Performance von DB gegenüber Message Queues
-
-Keine Fehlertoleranz in Bezug auf Datenbeständigkeit (z.\,B. Festplatte des Job-Stores geht kaputt), Naturkatastrophen (Ganzer Standort fällt aus z.B. wegen Überschwemmung) \parencite[Kap.~9]{newman_building_2026}
-
-Es gibt keine Möglichkeit absolute Garantien zu geben, nur viele Möglichkeiten der Risikoreduktion \parencite[Kap.~7 Abschnitt \glqq The Meaning of ACID\grqq --> Ende]{kleppmann_designing_2017}
-
-um performance zu verbessern könnte man verschiedene checkpoints in die verarbeitung einbringen, sodass bei einem Abbrechen einer Task nicht die gesamte Task neu gestartet wird
-sondern ab einem bestimmten punkt wieder angefangen wird \parencite[Abschnitt \glqq Reliability considerations\grqq]{microsoft_corporation_hrsg_best_2026}.
-
-vorsicht bei dingen bei denen kein rollback gemacht werden kann: versendet ein worker eine email, stürzt ab und die operation wird wiederholt wird potenziell noch eine
-email versendet. das muss gesondert abgefangen werden
-
-Es können Probleme entstehen, wenn zu viele Anfragen rein kommen, die die DB nicht gleichzeitig verarbeiten kann (vgl. Exmaple \parencite{microsoft_corporation_hrsg_queue-based_2026})
-Dafür bräuchte es separates Queue-Based Load Leveling für das Messaging an sich, das System konzentriert sich auf Queue-Based Load Leveling bzgl der Jobverarbeitung. Es werden zwar
-Clientseitige Retries durchgeführt, das ist aber keine Garantie, dass die Nachricht trotz hoher Last ankommt
-
-bietet sich vor allem an, wenn man sowieso schon eine db nutzt, man braucht keine zusätzliche Infrastuktur (im Vergleich zum Message Broker, der als eigener Server läuft)
-
-Bei sehr großen Systemen kann die Datenbank aufgrund einer hohen Anzahl Zugriffsversuche jedoch zum limitierenden Faktor werden, sodass dedizierte Messaging-Systeme hinsichtlich des
-erreichbaren Durchsatzes Vorteile bieten \parencite[Kap.~11, Abschnitt \glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
-
-vermeidung komplexität verteilter Transaktionen durch Nutzung lokaler ACID-Transaktionen da alles in dersselben Datenbank liegt
-
-Einschränkung \ref{zus:verarbeitungsgarantie} nur bis zu einem bestimmten Grad --> Kein Job kann verloren gehen, aber ein job wird nicht unendlich oft
-recovered da sonst Konflikt mit \ref{zus:terminierung}
-
-- viel fine tuning möglich, was zum einen die Konfiguration der Parameter für Retries angeht (backoff factor, initial delay, maxAttempts)
-und zum anderen die genaue Klassifikation der Fehler in transient und permanent, hier vor allem nur zu Vorführungszwecken exemplarisch implementiert
-
-
-bekanntes Zitat von Dijkstra, sinngemäß: \textit{Testen kann die Anwesenheit von Fehlern zeigen, niemals ihre Abwesenheit.} --> Testing liefert hier grundsätzlich nur notwendige, keine hinreichende Evidenz
-
-
-Einschränkungen:
-\begin{itemize}
-\item
-Prototyp statt produktives System
-\item
-PostgreSQL als konkretes Datenbanksystem
-\item
-kein Heartbeat
-\item
-simulierte Fachlogik
-\item
-kontrollierte Testumgebung
-\item
-Race Conditions werden durch künstliche Verzögerungen wahrscheinlicher gemacht
-
-\end{itemize}
+\textbf{Keine Untersuchung von Performance und Skalierbarkeit.}
+Die Arbeit untersucht die funktionale Fehlertoleranz und Konsistenz des entwickelten Systems, nicht dessen Verhalten unter hoher Last.
+Insbesondere wurde nicht untersucht, wie sich das System unter hoher Last verhält.
+Die Verwendung eines datenbankbasierten Job-Stores kann bei einer hohen Anzahl an Zugriffen aufgrund der Latenz und für den
+parallelen Zugriff benötigten Ressourcen zum limitierenden Faktor werden.
+Für größere Systeme können dedizierte Messaging-Systeme hinsichtlich Durchsatz und Skalierbarkeit daher Vorteile bieten.
 
 \section{Fazit}
 \label{sec:fazit}
-\begin{itemize}
-\item Kurzer, expliziter Rückbezug auf die Hauptforschungsfrage aus 1.2: die Antwort in einem prägnanten Satz zusammenfassen (Zustandsmodell + zeilenbasierte Sperren + lease-basierte Recovery + Fencing als die notwendigen Architekturmechanismen)
+Ziel dieser Arbeit war es, zu untersuchen, welche Architekturmechanismen und Entwurfsentscheidungen es ermöglichen, in einem
+Java-/Spring-basierten Job-Processing-Backend definierte Konsistenzzusicherungen auch unter typischen Teilausfallszenarien einzuhalten.
+Die Untersuchung zeigt, dass sich diese Zusicherungen im betrachteten Fehlermodell durch das Zusammenspiel eines persistenten
+Zustandsmodells, transaktionsgesicherter Datenbankoperationen mit geeigneten Locking-Mechanismen, Idempotenz, Retry-Strategien
+sowie einer lease-basierten Recovery mit Besitz- und Lease-Prüfung umsetzen lassen.
 
-\item Explizit benennen, dass alle vier Teilfragen TF1–TF4 beantwortet wurden, mit knapper Zuordnung, welches Kapitel/welche Zusicherungsgruppe welche TF trägt (TF1 → Z-1 bis Z-9 als Zusicherungskatalog, TF2 → Z-6/Z-9-Ergebnisse zu Idempotenz/Retry/Recovery, TF3 → Z-3/Z-4/Z-5 zu Transaktionen und Locking, TF4 → Z-7/Z-8 zur Wiederaufnahme nach Prozessabbruch)
+Die formulierten Teilfragen konnten durch die hergeleiteten Zusicherungen, den darauf aufbauenden Architekturentwurf und
+die durchgeführte Evaluation beantwortet werden.
+Die Untersuchung verdeutlicht, dass Idempotenz, Retries und Recovery unterschiedliche Fehlerfälle adressieren und sich dabei ergänzen.
+Transaktionen und Locking ermöglichen die kontrollierte Koordination konkurrierender Worker, während Leases und Recovery die
+Wiederaufnahme von Jobs nach einem unerwarteten Prozessabbruch ermöglichen.
+Die zusätzliche Prüfung der Besitz- und Lease-Gültigkeit verhindert dabei, dass ein veralteter Worker nach Verlust seiner
+Berechtigung noch ein Ergebnis persistieren kann.
 
-\item Verweis auf 6.5: alle drei Hypothesen wurden im Rahmen der durchgeführten Tests bestätigt
+Die in der Evaluation durchgeführten Tests bestätigen die formulierten Hypothesen.
+Insbesondere konnte gezeigt werden, dass die betrachteten Fehlerfälle durch geeignete Kombinationen aus Zustandsmodell,
+Transaktionalität, Nebenläufigkeitskontrolle, Retry und Recovery beherrscht werden können.
 
-\item Den Kreis zur Einleitung schließen: die dort aufgeworfene leitende Überlegung ("reicht eine Datenbank allein, ohne Broker-Infrastruktur?") wird hier positiv beantwortet – das ist der eigentliche Kernbeitrag der Arbeit
-
-\item Kurze Einordnung des Geltungsbereichs dieser Aussage (Prototyp, keine Produktivumgebung) – nur ein Satz, keine Wiederholung von 7.2
-\end{itemize}
-
-
+Damit lässt sich auch die in der Einleitung aufgeworfene Frage beantworten, ob ein fehlertolerantes Background-Job-Processing
+ohne zusätzliche Message-Broker-Infrastruktur realisiert werden kann.
+Für das in dieser Arbeit betrachtete Fehlermodell und die definierten Zusicherungen ist dies grundsätzlich möglich.
+Eine relationale Datenbank kann dabei nicht nur als persistenter Job-Store, sondern zugleich zur Synchronisation konkurrierender
+Worker und zur transaktionsgesicherten Verwaltung von Jobzuständen und Ergebnissen eingesetzt werden.
 
 \section{Ausblick}
 \label{sec:ausblick}
-Ausblick:
--Performance-Test --> ist das System in der Praxis brauchbar?
--Test, wie das System skaliert --> wie performt es bei vielen Anfragen auf die Datenbank? Literatur weist auf hohe Latenzen hin
-\begin{itemize}
-\item Jitter in der Backoff-Strategie ergänzen – schließt direkt an den Thundering-Herd-Punkt aus 7.2 an, adressiert das Problem dann vollständig statt nur teilweise
+Aus den Ergebnissen und den aufgezeigten Einschränkungen ergeben sich mehrere Ansatzpunkte für weiterführende Untersuchungen.
 
-\item Performance- und Skalierungstest unter höherer Last – das stand tatsächlich schon ganz am Anfang eurer eigenen alten Notizen ("ist das System in der Praxis brauchbar? wie performt es bei vielen Anfragen auf die Datenbank?"), gehört aber inhaltlich exakt hierher, nicht in die Einschränkungen
+Ein zentraler nächster Schritt wäre eine Untersuchung der Performance und Skalierbarkeit des Systems.
+Die vorliegende Evaluation konzentriert sich auf die Korrektheit und Fehlertoleranz und betrachtet keine hohe Systemlast.
+Insbesondere wäre zu untersuchen, wie sich eine steigende Anzahl gleichzeitig eintreffender und zu verarbeitender Jobs auf Datenbanklast,
+Latenz und Durchsatz auswirkt und ab welchem Systemumfang eine dedizierte Messaging-Infrastruktur Vorteile gegenüber dem
+datenbankbasierten Ansatz bietet.
 
-\item Empirische Prüfung der behaupteten Portierbarkeit auf andere relationale Datenbanksysteme mit SKIP LOCKED-Unterstützung (z. B. MySQL) – testet, was in Kapitel 5 bisher nur behauptet wird
+Darüber hinaus könnte die Retry- und Recovery-Strategie weiterentwickelt werden.
+Die Ergänzung eines Jitters zur exponentiellen Backoff-Strategie könnte eine weitere Reduktion synchronisierter Wiederholungsversuche ermöglichen.
+Ebenso wäre ein empirischer Vergleich der verwendeten Lease-Strategie mit einem Heartbeat-basierten Ansatz interessant,
+insbesondere im Hinblick auf die Unterscheidung zwischen tatsächlich ausgefallenen und lediglich langsam arbeitenden Workern.
 
-\item Heartbeat-Mechanismus als Alternative zum reinen Lease-Timeout empirisch untersuchen und mit dem gewählten Ansatz vergleichen – wird in 5.1.7 zwar als Alternative diskutiert, aber nie tatsächlich verglichen
+Ein weiterer Untersuchungsgegenstand ist der Umgang mit externen Seiteneffekten. Während die vorliegende Arbeit die konsistente
+Persistierung von Job-Ergebnissen betrachtet, können bei einer Wiederaufnahme eines Jobs nicht-idempotente externe Operationen,
+beispielsweise der Versand einer E-Mail, mehrfach ausgeführt werden.
+Hier wäre zu untersuchen, wie solche Seiteneffekte durch Mechanismen wie die Weitergabe von Idempotency-Keys oder eine geeignete
+Koordination mit externen Systemen abgesichert werden können.
 
-\item Schutzmechanismus gegen mehrfache externe Seiteneffekte, z. B. Weiterreichung eines Idempotency-Keys an aufgerufene externe Systeme – direkte Konsequenz aus dem in 7.2 benannten, nie untersuchten Seiteneffekt-Problem
+Schließlich wäre eine Untersuchung der Übertragbarkeit auf weitere relationale Datenbanksysteme sinnvoll.
+Insbesondere könnte geprüft werden, inwieweit die verwendeten Transaktions- und Locking-Mechanismen auf andere Systeme mit
+vergleichbarer Unterstützung für die benötigten Operationen übertragbar sind.
 
-\item Leichtgewichtigere, schnellere Testebene ergänzen, die sich für den Einsatz in einer CI-Pipeline eignet, ergänzend zur aktuellen, realitätsnahen aber langsamen Suite mit echten Containern und Prozessstarts
 
-\item Formale Verifikation (z. B. mittels TLA+) als ergänzender Nachweis neben den durchgeführten Tests – insbesondere für die Finalitäts-/Nebenläufigkeitseigenschaften (Z-5), bei denen Tests wie in 7.2 diskutiert nur notwendige, keine hinreichende Evidenz liefern
-\end{itemize}
-
+%\item Kein Jitter in der Backoff-Strategie – das Thundering-Herd-Problem aus der Einleitung bleibt nur abgemildert, nicht gelöst. Das ist der naheliegendste, aber aktuell fehlende Rückbezug: Ihr habt das Problem einleitend als Motivation aufgebaut, aber nirgends in der Diskussion wieder aufgegriffen, dass die eigene Lösung es nur teilweise adressiert (rein exponentiell, ohne Randomisierung der Wartezeiten).
+%
+%Es gibt keine perfekte reliability \parencite[Kap.~1, Abschnitt \glqq Reliability\grqq]{kleppmann_designing_2017}
+%
+%Es gibt keine Möglichkeit absolute Garantien zu geben, nur viele Möglichkeiten der Risikoreduktion \parencite[Kap.~7 Abschnitt \glqq The Meaning of ACID\grqq --> Ende]{kleppmann_designing_2017}
+%
+%um performance zu verbessern könnte man verschiedene checkpoints in die verarbeitung einbringen, sodass bei einem Abbrechen einer Task nicht die gesamte Task neu gestartet wird
+%sondern ab einem bestimmten punkt wieder angefangen wird \parencite[Abschnitt \glqq Reliability considerations\grqq]{microsoft_corporation_hrsg_best_2026}.
+%
+%Es können Probleme entstehen, wenn zu viele Anfragen rein kommen, die die DB nicht gleichzeitig verarbeiten kann (vgl. Exmaple \parencite{microsoft_corporation_hrsg_queue-based_2026})
+%Dafür bräuchte es separates Queue-Based Load Leveling für das Messaging an sich, das System konzentriert sich auf Queue-Based Load Leveling bzgl der Jobverarbeitung. Es werden zwar
+%Clientseitige Retries durchgeführt, das ist aber keine Garantie, dass die Nachricht trotz hoher Last ankommt
+%
+%Bei sehr großen Systemen kann die Datenbank aufgrund einer hohen Anzahl Zugriffsversuche jedoch zum limitierenden Faktor werden, sodass dedizierte Messaging-Systeme hinsichtlich des
+%erreichbaren Durchsatzes Vorteile bieten \parencite[Kap.~11, Abschnitt \glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
+%
+%Einschränkung \ref{zus:verarbeitungsgarantie} nur bis zu einem bestimmten Grad --> Kein Job kann verloren gehen, aber ein job wird nicht unendlich oft
+%recovered da sonst Konflikt mit \ref{zus:terminierung}
+%
+%- viel fine tuning möglich, was zum einen die Konfiguration der Parameter für Retries angeht (backoff factor, initial delay, maxAttempts)
+%und zum anderen die genaue Klassifikation der Fehler in transient und permanent, hier vor allem nur zu Vorführungszwecken exemplarisch implementiert
