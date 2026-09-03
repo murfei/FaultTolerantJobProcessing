@@ -1,5 +1,5 @@
 %! Author = murfe
-%! Date = 28.08.2026
+%! Date = 03.09.2026
 
 % Packages
 \usepackage[T1]{fontenc}
@@ -120,17 +120,21 @@
 %   fehlende SQL-Schlüsselwörter
     morekeywords={FOR, SKIP, LOCKED}
 }
-
-%% Konfiguration für Log-Dateien
-%\lstdefinestyle{logstyle}{
-%    style=code,
-%    breakatwhitespace=false,
-%    rulecolor=\color{gray!50},
-%    keywordstyle=\color{blue},
-%    commentstyle=\color{green!60!black},
-%    stringstyle=\color{purple},
-%    columns=fixed
-%}
-
-\newcommand{\notiz}[1]{\textcolor{red}{\textbf{[TODO: #1]}}} %TODO: entfernen
-%\includeonly{chapters/03-methodik.tex, chapters/06-evaluation.tex}
+\lstdefinestyle{logs}{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    breakatwhitespace=false,
+    columns=fullflexible,
+    keepspaces=true,
+    frame=single,
+    numbers=none,
+    literate=
+        {ä}{{\"a}}1
+        {ö}{{\"o}}1
+        {ü}{{\"u}}1
+        {Ä}{{\"A}}1
+        {Ö}{{\"O}}1
+        {Ü}{{\"U}}1
+        {ß}{{\ss}}1
+        {�}{{\textbf{?}}}1
+}

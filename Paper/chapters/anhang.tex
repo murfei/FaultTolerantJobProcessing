@@ -1,7 +1,11 @@
 %! Author = murfe
-%! Date = 24.08.2026
+%! Date = 03.09.2026
+\appendix
 
-\chapter{Anhang}\label{ch:anhang}%TODO: Wird in Inhaltsverzeichnis nummeriert
+\chapter*{Anhang}\label{ch:anhang}
+\addcontentsline{toc}{chapter}{Anhang}
+\renewcommand{\thesection}{\Alph{section}}
+
 \section{Testzuordnung}
 \label{sec:testzuordnung}
 \begin{table}[htbp]
@@ -13,67 +17,264 @@
         \ref{zus:duplikaterkennung} & \texttt{JoberstellungTest.duplicateRequestTest()} \\ \hline
         \ref{zus:exklusive_rechte} (a) & \texttt{ConcurrencyTest.onlyOneWorkerClaimsContendedJob()} \\ \hline
         \ref{zus:exklusive_rechte} (b) & \makecell[l]{\texttt{ConcurrencyTest.}\\
-                                            \texttt{concurrentFinishAttemptsYieldExactlyOneStoredResult()}} \\ \hline
+        \texttt{concurrentFinishAttemptsYieldExactlyOneStoredResult()}} \\ \hline
         \ref{zus:atomare_wirkung} & \texttt{WorkerCrashRecoveryTest.atomicSaveTest()} \\ \hline
         \ref{zus:endzustaende} & \makecell[l]{\texttt{JobStatusModellTest.}\\
-                                    \texttt{finishJobAndRecoveryRaceNeverReversesTerminalState()}} \\ \hline
+        \texttt{finishJobAndRecoveryRaceNeverReversesTerminalState()}} \\ \hline
         \ref{zus:retries} (a) & \makecell[l]{\texttt{DatabaseRetryTest.}\\
-                                    \texttt{jobCreationRecoversAfterTransientDbOutage()}} \\ \hline
+        \texttt{jobCreationRecoversAfterTransientDbOutage()}} \\ \hline
         \makecell[l]{\ref{zus:retries} (a\\Gegenprobe)} & \makecell[l]{\texttt{DatabaseRetryTest.}\\
-                                            \texttt{jobCreationFailsAfterExhaustedRetriesOnPermanentOutage()}} \\ \hline
+        \texttt{jobCreationFailsAfterExhaustedRetriesOnPermanentOutage()}} \\ \hline
         \ref{zus:retries} (b) & \makecell[l]{\texttt{DatabaseRetryTest.}\\
-                                    \texttt{testRetryNotAppliedOnConstraintViolation()}} \\ \hline
+        \texttt{testRetryNotAppliedOnConstraintViolation()}} \\ \hline
         \ref{zus:verarbeitungsgarantie}, \ref{zus:idempotenz}, \ref{zus:terminierung} & \makecell[l]{\texttt{JobRecoveryForWorkerCrashTest.}\\
-                                                                                            \texttt{jobSurvivesRealWorkerProcessCrash()}} \\ \hline
+        \texttt{jobSurvivesRealWorkerProcessCrash()}} \\ \hline
         \ref{zus:idempotenz} (a) & \texttt{WorkerCrashRecoveryTest.recoveryComponentTest()} \\ \hline
         \ref{zus:idempotenz} (b) & \makecell[l]{\texttt{WorkerCrashRecoveryTest.}\\
-                                    \texttt{finishRejectedWhenLeaseExpiredButNotYetRecovered()}} \\ \hline
+        \texttt{finishRejectedWhenLeaseExpiredButNotYetRecovered()}} \\ \hline
         \ref{zus:terminierung} & \makecell[l]{\texttt{JobTerminationTest.}\\
-                                    \texttt{terminationAfterTooManyFailuresTest()}} \\ \hline
+        \texttt{terminationAfterTooManyFailuresTest()}} \\ \hline
     \end{tabularx}
     \caption[Zuordnung von Zusicherungen zu den jeweiligen Testmethoden]{Zuordnung der definierten Systemzusicherungen zu den Testmethoden, mit denen
     ihre Einhaltung im Rahmen der Evaluation überprüft wird.}
     \label{tab:zuordnung_zusicherungen_tests}
 \end{table}
-\section{Testlogs}
-%TODO: Logs einfügen
+
+
+\section{Gekürzte Testlogs}
 \label{sec:testlogs}
+Die dargestellten Logauszüge sind aus Gründen der Übersichtlichkeit gekürzt.
+Ausgelassene Logzeilen beziehungsweise nicht relevante Teile einzelner Logzeilen werden durch ``\dots'' gekennzeichnet.
+Die vollständigen Logs sind als Begleitdatei unter \texttt{Testlogs.md} beigefügt.
+\newpage
 
-\paragraph{JoberstellungTest.invalidPayloadTest()}
+\subsection*{JoberstellungTest.invalidPayloadTest()}
 \label{subsec:testlog_z1}
+\begin{lstlisting}[language={}, style=logs, numbers=none]
+...
+Anzahl Jobs vor dem Test: 0
+Starte Versuch: 1 für Aufruf: jobClient.service.JobClient$$Lambda/0x0000025401f3a9a8
+2026-08-24T18:05:33.734+02:00  WARN 7096 ... Validation failed for argument [0] ... default message [payload]]; default message [darf nicht leer sein]] ]
+Policy lehnt einen neuen Verarbeitungsversuch für Aufruf: jobClient.service.JobClient$$Lambda/0x0000025401f3a9a8 ab.
+...
+Der Job konnte nicht erfolgreich zugestellt werden. Der letzte Fehler war: 400 BAD_REQUEST: Fehler bei Anfrage der Job-Processing Backend-API. Retry nicht sinnvoll.
+Starte Versuch: 1 für Aufruf: jobClient.service.JobClient$$Lambda/0x0000025401f3a9a8
+PayloadValidator: Payload ist ungültig
+Policy lehnt einen neuen Verarbeitungsversuch für Aufruf: jobClient.service.JobClient$$Lambda/0x0000025401f3a9a8 ab.
+...
+Der Job konnte nicht erfolgreich zugestellt werden. Der letzte Fehler war: 400 BAD_REQUEST: Fehler bei Anfrage der Job-Processing Backend-API. Retry nicht sinnvoll.
+...
+Anzahl Jobs nach dem Test: 0
+\end{lstlisting}
 
-\paragraph{JoberstellungTest.duplicateRequestTest()}
+\subsection*{JoberstellungTest.duplicateRequestTest()}
 \label{subsec:testlog_z2}
+\begin{lstlisting}[language={}, style=logs, numbers=none]
+Anzahl Jobs vor dem Test: 0
+Starte Versuch: 1 für Aufruf: jobClient.service.JobClient$$Lambda/0x000001d721ec08d8
+Starte Versuch: 1 für Aufruf: backend.api.JobController$$Lambda/0x000001d721f29f88
+Warte 200ms bis zum nächsten Retry...
+Starte Versuch: 2 für Aufruf: jobClient.service.JobClient$$Lambda/0x000001d721ec08d8
+Starte Versuch: 1 für Aufruf: backend.api.JobController$$Lambda/0x000001d721f29f88
+...
+Policy lehnt einen neuen Verarbeitungsversuch für Aufruf: backend.api.JobController$$Lambda/0x000001d721f29f88 ab.
+Letzter Versuch scheiterte an: could not execute statement [ERROR: duplicate key value violates unique constraint "jobs_idempotency_key_key"
+...
+Statuscode: 200 OK
+Anzahl Jobs nach dem Test: 1
+\end{lstlisting}
 
-\paragraph{ConcurrencyTest.onlyOneWorkerClaimsContendedJob()}
+\subsection*{ConcurrencyTest.onlyOneWorkerClaimsContendedJob()}
 \label{subsec:testlog_z3_a}
+\begin{lstlisting}[language={}, style=logs, numbers=none]
+-------------------Testdurchlauf-------------------
+Kein Job gefunden
+Kein Job gefunden
+Kein Job gefunden
+Kein Job gefunden
+Kein Job gefunden
+Kein Job gefunden
+Kein Job gefunden
+Job: Zustandsübergang von QUEUED nach RUNNING für Job 58c5f4fc-f3c2-438f-91d0-94b986c2941d
+-------------------Testdurchlauf-------------------
+Kein Job gefunden
+Job: Zustandsübergang von QUEUED nach RUNNING für Job df272db6-5891-464d-8aec-2263aa580a56
+Kein Job gefunden
+Kein Job gefunden
+Kein Job gefunden
+Kein Job gefunden
+Kein Job gefunden
+Kein Job gefunden
+...
+\end{lstlisting}
 
-\paragraph{ConcurrencyTest.concurrentFinishAttemptsYieldExactlyOneStoredResult()}
+\subsection*{ConcurrencyTest.concurrentFinishAttemptsYieldExactlyOneStoredResult()}
 \label{subsec:testlog_z3_b}
+\begin{lstlisting}[language={}, style=logs, numbers=none]
+-------------------Testdurchlauf-------------------
+Job: Zustandsübergang von QUEUED nach RUNNING für Job 2e8ded50-a651-4653-8b19-63c484881bdc
+Job: Zustandsübergang von RUNNING nach SUCCEEDED für Job 2e8ded50-a651-4653-8b19-63c484881bdc
+Job 2e8ded50-a651-4653-8b19-63c484881bdc erfolgreich beendet durch Worker f7b71f3e-5529-447b-8199-8f3023c1aab9
+WorkerService: Job hat nicht den Status RUNNING sondern SUCCEEDED, obwohl Worker Ergebnis speichern wollte
+-------------------Testdurchlauf-------------------
+Job: Zustandsübergang von QUEUED nach RUNNING für Job 233d68c9-8e2c-4617-9d40-ddc74332bd94
+Worker hat keine Berechtigung, diesen Job zu bearbeiten. Besitzer: bb6f5dc3-15e0-4a19-b81a-8a8225973d72 Worker: 28410689-8325-4593-9981-5a9bf0aacb96
+Job: Zustandsübergang von RUNNING nach SUCCEEDED für Job 233d68c9-8e2c-4617-9d40-ddc74332bd94
+Job 233d68c9-8e2c-4617-9d40-ddc74332bd94 erfolgreich beendet durch Worker bb6f5dc3-15e0-4a19-b81a-8a8225973d72
+...
+\end{lstlisting}
 
-\paragraph{WorkerCrashRecoveryTest.atomicSaveTest()}
+\subsection*{WorkerCrashRecoveryTest.atomicSaveTest()}
 \label{subsec:testlog_z4}
+\begin{lstlisting}[language={}, style=logs, numbers=none]
+Job: Zustandsübergang von QUEUED nach RUNNING für Job 1470f275-f3c0-4570-ba72-2a7d23c9c311
+Job: Zustandsübergang von RUNNING nach SUCCEEDED für Job 1470f275-f3c0-4570-ba72-2a7d23c9c311
+Testhook hat Fehler geworfen
+Job:
+Idempotenz-Key: 1470f275-f3c0-4570-ba72-2a7d23c9c311
+Status: RUNNING
+Ergebnis: null
+\end{lstlisting}
 
-\paragraph{JobStatusModellTest.finishJobAndRecoveryRaceNeverReversesTerminalState()}
+\subsection*{JobStatusModellTest.finishJobAndRecoveryRaceNeverReversesTerminalState()}
 \label{subsec:testlog_z5}
+\begin{lstlisting}[language={}, style=logs, numbers=none]
+    -------------------Testdurchlauf-------------------
+Job: Zustandsübergang von QUEUED nach RUNNING für Job b92c9403-0075-4779-8532-922a5021bef2
+Job: Zustandsübergang von RUNNING nach FAILED für Job b92c9403-0075-4779-8532-922a5021bef2
+Recovery: Job b92c9403-0075-4779-8532-922a5021bef2 wird aufgrund zu vieler Versuche als FAILED markiert
+WorkerService: Job hat nicht den Status RUNNING sondern FAILED, obwohl Worker Ergebnis speichern wollte
+-------------------Testdurchlauf-------------------
+Job: Zustandsübergang von QUEUED nach RUNNING für Job 0df60694-2457-409a-a76a-d6cad620809c
+Job: Zustandsübergang von RUNNING nach FAILED für Job 0df60694-2457-409a-a76a-d6cad620809c
+Recovery: Job 0df60694-2457-409a-a76a-d6cad620809c wird aufgrund zu vieler Versuche als FAILED markiert
+WorkerService: Job hat nicht den Status RUNNING sondern FAILED, obwohl Worker Ergebnis speichern wollte
+...
+\end{lstlisting}
 
-\paragraph{DatabaseRetryTest.jobCreationRecoversAfterTransientDbOutage()}
+\subsection*{DatabaseRetryTest.jobCreationRecoversAfterTransientDbOutage()}
 \label{subsec:testlog_z6_a}
+\begin{lstlisting}[language={}, style=logs, numbers=none]
+Datenbankverbindung unterbrochen
+Starte Versuch: 1 für Aufruf: backend.api.JobController$$Lambda/0x000001f42506a0b0
+...
+2026-08-24T18:54:11.298+02:00  WARN 11360 --- [JobProcessing] [o-auto-1-exec-1] org.hibernate.orm.jdbc.error             : HikariPool-1 - Connection is not available, request timed out after 1008ms (total=0, active=0, idle=0, waiting=0)
+Warte 200ms bis zum nächsten Retry...
+...
+Warte 800ms bis zum nächsten Retry...
+Datenbankverbindung wiederhergestellt
+Starte Versuch: 4 für Aufruf: backend.api.JobController$$Lambda/0x000001f42506a0b0
+Response: 201 CREATED
+Created at 2026-08-24T16:54:14.764452Z
+\end{lstlisting}
 
-\paragraph{DatabaseRetryTest.jobCreationFailsAfterExhaustedRetriesOnPermanentOutage()}
+\subsection*{DatabaseRetryTest.jobCreationFailsAfterExhaustedRetriesOnPermanentOutage()}
 \label{subsec:testlog_z6_a_gegenprobe}
+\begin{lstlisting}[language={}, style=logs, numbers=none]
+Starte Versuch: 1 für Aufruf: backend.api.JobController$$Lambda/0x0000013e9903d348
+Warte 200ms bis zum nächsten Retry...
+...
+Warte 1600ms bis zum nächsten Retry...
+Starte Versuch: 5 für Aufruf: backend.api.JobController$$Lambda/0x0000013e9903d348
+...
+Policy lehnt einen neuen Verarbeitungsversuch für Aufruf: backend.api.JobController$$Lambda/0x0000013e9903d348 ab.
+Letzter Versuch scheiterte an: Could not open JPA EntityManager for transaction
+\end{lstlisting}
 
-\paragraph{DatabaseRetryTest.testRetryNotAppliedOnConstraintViolation()}
+\subsection*{DatabaseRetryTest.testRetryNotAppliedOnConstraintViolation()}
 \label{subsec:testlog_z6_b}
+\begin{lstlisting}[language={}, style=logs, numbers=none]
+...
+Job erstellt
+Starte Versuch: 1 für Aufruf: backend.api.JobController$$Lambda/0x000001c23b048000
+...
+Policy lehnt einen neuen Verarbeitungsversuch für Aufruf: backend.api.JobController$$Lambda/0x000001c23b048000 ab.
+Letzter Versuch scheiterte an: could not execute statement [ERROR: duplicate key value violates unique constraint "uc_jobs_idempotencykey"
+  Detail: Key (idempotency_key)=(2cdaa5ff-fc4e-43d6-a2eb-b42b6f04b756) already exists.] ...
+\end{lstlisting}
 
-\paragraph{JobRecoveryForWorkerCrashTest.jobSurvivesRealWorkerProcessCrash()}
+\subsection*{JobRecoveryForWorkerCrashTest.jobSurvivesRealWorkerProcessCrash()}
 \label{subsec:testlog_z7}
+\begin{lstlisting}[language={}, style=logs, numbers=none]
+Worker1 gestartet
+Job erstellt
+...
+Starte Versuch: 1 f�r Aufruf: backend.worker.Worker$$Lambda/0x0000018c81b96808
+...
+Job: Zustands�bergang von QUEUED nach RUNNING f�r Job 0ed7018e-0237-4cf9-b333-2746ca09d6e7
+Worker: e1c36102-4cf7-469f-9bca-72a1c5fef337 starte Verarbeitung von Job: 0ed7018e-0237-4cf9-b333-2746ca09d6e7
+Job beansprucht durch Worker mit ID: e1c36102-4cf7-469f-9bca-72a1c5fef337
+Worker1 abgebrochen
+Status des von Worker1 bearbeiteten Jobs: RUNNING
+Worker2 gestartet
+...
+Starte Versuch: 1 f�r Aufruf: backend.worker.Worker$$Lambda/0x0000018b23b91c20
+Worker: d7d75d72-02af-4e47-854e-2e538f7d256b kein Job verf�gbar
+Job: Zustands�bergang von RUNNING nach QUEUED f�r Job 0ed7018e-0237-4cf9-b333-2746ca09d6e7
+Recovery: Job 0ed7018e-0237-4cf9-b333-2746ca09d6e7 recovered und Status zur�ck auf QUEUED gesetzt
+Starte Versuch: 1 f�r Aufruf: backend.worker.Worker$$Lambda/0x0000018b23b91c20
+Job: Zustands�bergang von QUEUED nach RUNNING f�r Job 0ed7018e-0237-4cf9-b333-2746ca09d6e7
+Worker: d7d75d72-02af-4e47-854e-2e538f7d256b starte Verarbeitung von Job: 0ed7018e-0237-4cf9-b333-2746ca09d6e7
+Starte Versuch: 1 f�r Aufruf: backend.worker.Worker$$Lambda/0x0000018b23c7a400
+Job: Zustands�bergang von RUNNING nach SUCCEEDED f�r Job 0ed7018e-0237-4cf9-b333-2746ca09d6e7
+Job 0ed7018e-0237-4cf9-b333-2746ca09d6e7 erfolgreich beendet durch Worker d7d75d72-02af-4e47-854e-2e538f7d256b
+...
+Job erfolgreich abgeschlossen
+SUCCEEDED
+{"result": "Testergebnis", "Zeitpunkt": "2026-08-24T17:23:16.614501300Z"}
+\end{lstlisting}
 
-\paragraph{WorkerCrashRecoveryTest.recoveryComponentTest()}
+\subsection*{WorkerCrashRecoveryTest.recoveryComponentTest()}
 \label{subsec:testlog_z8_a}
+\begin{lstlisting}[language={}, style=logs, numbers=none]
+Job: Zustandsübergang von QUEUED nach RUNNING für Job b438bf74-171b-4d53-8d4a-aa3090859477
+Job: Zustandsübergang von RUNNING nach QUEUED für Job b438bf74-171b-4d53-8d4a-aa3090859477
+Recovery: Job b438bf74-171b-4d53-8d4a-aa3090859477 recovered und Status zurück auf QUEUED gesetzt
+Starte Versuch: 1 für Aufruf: backend.worker.Worker$$Lambda/0x0000021ec1cf9130
+Job: Zustandsübergang von QUEUED nach RUNNING für Job b438bf74-171b-4d53-8d4a-aa3090859477
+Worker: b011617c-cd10-4bac-ac5e-ba8018796ced starte Verarbeitung von Job: b438bf74-171b-4d53-8d4a-aa3090859477
+Simulierter Zugriff eines unberechtigten Workers:
+Worker hat keine Berechtigung, diesen Job zu bearbeiten. Besitzer: b011617c-cd10-4bac-ac5e-ba8018796ced Worker: 41a043b8-154a-445c-8777-5dc443ac1bf8
+Starte Versuch: 1 für Aufruf: backend.worker.Worker$$Lambda/0x0000021ec1e34000
+Job: Zustandsübergang von RUNNING nach SUCCEEDED für Job b438bf74-171b-4d53-8d4a-aa3090859477
+...
+Worker: b011617c-cd10-4bac-ac5e-ba8018796ced hat Job: b438bf74-171b-4d53-8d4a-aa3090859477 erfolgreich beendet
+Starte Versuch: 1 für Aufruf: backend.worker.Worker$$Lambda/0x0000021ec1cf9130
+Worker: b011617c-cd10-4bac-ac5e-ba8018796ced kein Job verfügbar
+Simulierter Zugriff eines zu langsamen Workers:
+WorkerService: Job hat nicht den Status RUNNING sondern SUCCEEDED, obwohl Worker Ergebnis speichern wollte
+\end{lstlisting}
 
-\paragraph{WorkerCrashRecoveryTest.finishRejectedWhenLeaseExpiredButNotYetRecovered()}
+\subsection*{WorkerCrashRecoveryTest.finishRejectedWhenLeaseExpiredButNotYetRecovered()}
 \label{subsec:testlog_z8_b}
+\begin{lstlisting}[language={}, style=logs, numbers=none]
+...
+Job: Zustandsübergang von QUEUED nach RUNNING für Job 83273539-1521-4ea7-aa42-221f70c70329
+Lease abgelaufen! Worker hat keine Berechtigung mehr, diesen Job zu bearbeiten. Worker: b499dba8-3bb9-457b-b7e3-3658097f2804
+\end{lstlisting}
 
-\paragraph{JobTerminationTest.terminationAfterTooManyFailuresTest()}
+\subsection*{JobTerminationTest.terminationAfterTooManyFailuresTest()}
 \label{subsec:testlog_z9}
+\begin{lstlisting}[language={}, style=logs, numbers=none]
+Test gestartet. Idempotenz-Key: 7d711c92-85fe-42a7-ae4e-b84553950338
+...
+Sanity-Check erfolgreich abgeschlossen
+Status QUEUED
+Starte Versuch: 1 für Aufruf: backend.worker.Worker$$Lambda/0x0000022001d1dd40
+Job: Zustandsübergang von QUEUED nach RUNNING für Job 7d711c92-85fe-42a7-ae4e-b84553950338
+Worker: 6127375f-11a9-4634-9fab-0003a9ca67ad starte Verarbeitung von Job: 7d711c92-85fe-42a7-ae4e-b84553950338
+Worker: 6127375f-11a9-4634-9fab-0003a9ca67ad Verarbeitung Fehlgeschlagen mit Error: Simulierter permanenter Fachfehler
+...
+Job: Zustandsübergang von RUNNING nach QUEUED für Job 7d711c92-85fe-42a7-ae4e-b84553950338
+Recovery: Job 7d711c92-85fe-42a7-ae4e-b84553950338 recovered und Status zurück auf QUEUED gesetzt
+...
+Starte Versuch: 1 für Aufruf: backend.worker.Worker$$Lambda/0x0000022001d1dd40
+Job: Zustandsübergang von QUEUED nach RUNNING für Job 7d711c92-85fe-42a7-ae4e-b84553950338
+Worker: 6127375f-11a9-4634-9fab-0003a9ca67ad starte Verarbeitung von Job: 7d711c92-85fe-42a7-ae4e-b84553950338
+Worker: 6127375f-11a9-4634-9fab-0003a9ca67ad Verarbeitung Fehlgeschlagen mit Error: Simulierter permanenter Fachfehler
+...
+Job: Zustandsübergang von RUNNING nach FAILED für Job 7d711c92-85fe-42a7-ae4e-b84553950338
+Recovery: Job 7d711c92-85fe-42a7-ae4e-b84553950338 wird aufgrund zu vieler Versuche als FAILED markiert
+...
+Es dauerte 12.179 Sekunden, bis der Job abgeschlossen wurde
+\end{lstlisting}
