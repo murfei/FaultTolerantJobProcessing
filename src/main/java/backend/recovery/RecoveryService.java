@@ -1,7 +1,6 @@
-package backend.service;
+package backend.recovery;
 
 import backend.domain.JobStatus;
-import backend.recovery.RecoveryExecutor;
 import backend.repository.JobRepository;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;

@@ -5,10 +5,25 @@
 \chapter*{Anhang}\label{ch:anhang}
 \addcontentsline{toc}{chapter}{Anhang}
 \renewcommand{\thesection}{\Alph{section}}
+\renewcommand{\thefigure}{\thesection.\arabic{figure}}
+\renewcommand{\thetable}{\thesection.\arabic{table}}
+
+
+
+\section{Detaillierte Bausteinsicht}
+\label{sec:detailBausteinsicht}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/detaillierteBausteinsicht}
+    \caption[Detaillierte Bausteinsicht]{Detaillierte Bausteinsicht des Job-Processing Backends mit Innensicht und Abhängigkeiten
+    der unterschiedlichen Komponenten}
+    \label{fig:detailBausteinsicht}
+\end{figure}
+\newpage
 
 \section{Testzuordnung}
 \label{sec:testzuordnung}
-\begin{table}[htbp]
+\begin{table}[h]
     \centering
     \begin{tabularx}{\textwidth}{|w{l}{2.7cm}|X|}
         \hline
@@ -35,11 +50,10 @@
         \ref{zus:terminierung} & \makecell[l]{\texttt{JobTerminationTest.}\\
         \texttt{terminationAfterTooManyFailuresTest()}} \\ \hline
     \end{tabularx}
-    \caption[Zuordnung von Zusicherungen zu den jeweiligen Testmethoden]{Zuordnung der definierten Systemzusicherungen zu den Testmethoden, mit denen
-    ihre Einhaltung im Rahmen der Evaluation überprüft wird.}
+    \caption[Zuordnung von Fehlerinjektionen zu den jeweiligen Testmethoden]{Zuordnung der definierten Fehlerinjektionen
+    zu den Testmethoden, mit denen ihre Einhaltung im Rahmen der Evaluation überprüft wird.}
     \label{tab:zuordnung_zusicherungen_tests}
 \end{table}
-
 
 \section{Gekürzte Testlogs}
 \label{sec:testlogs}

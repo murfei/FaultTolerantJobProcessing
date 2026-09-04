@@ -10,7 +10,7 @@ import backend.infrastructure.JobFactory;
 import backend.infrastructure.TestHook;
 import backend.repository.JobRepository;
 import backend.repository.JobResultRepository;
-import backend.service.RecoveryService;
+import backend.recovery.RecoveryService;
 import backend.service.WorkerService;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.*;
