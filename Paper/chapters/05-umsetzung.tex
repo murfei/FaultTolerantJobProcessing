@@ -1,7 +1,7 @@
 %! Author = murfe
 %! Date = 28.08.2026
 %TODO: Schreibweise von Methodennamen in ganzer Arbeit nochmal prüfen: entweder einheutlich \texttt oder \textit
-\chapter{Umsetzung}%TODO: Verteilungssicht ergänzen oder in Kap. 3 explizit begründen wieso nicht genutzt
+\chapter{Umsetzung}
 \label{ch:umsetzung}
 Dieses Kapitel befasst sich mit dem Entwurf und der technische Umsetzung des in \cref{ch:anforderungen} definierten Systems.\\
 Der Aufbau des Kapitels gliedert sich dabei in zwei Abschnitte:
@@ -86,7 +86,7 @@ In der Praxis kann diese Komponente jedoch ebenso durch eine grafische Benutzero
 Anwendungssystem angesprochen werden.
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/componentDiagram}%TODO: Schreibweise Recovery-Service in Abb. ohne -
+    \includegraphics[width=0.8\textwidth]{images/componentDiagram}
     \caption[Bausteinsicht der Architektur des entwickelten Systems]{Bausteinsicht der Architektur des entwickelten
     Background-Job-Processing-Systems mit \gls{rest}-Schnittstelle, Job-Store sowie der Worker-Komponente und dem Recovery-Service.}
     \label{fig:componentDiagram}
@@ -124,7 +124,7 @@ außerhalb einer Datenbanktransaktion erfolgt.
 Dadurch werden konkurrierende Zugriffe auf den Job-Store reduziert und Datenbankressourcen geschont, was sich positiv
 auf die Skalierbarkeit des Systems auswirkt.\\
 Die in diesem System definierten Zustände sowie die zulässigen Zustandsübergänge sind in \cref{fig:statusmodell} dargestellt.
-\begin{figure}[h] %TODO: Hier ggfs. einen Zustandsautomaten nach UML Glasklar anstatt des jetzigen DEAs
+\begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/statusmodell}
     \caption[Zustandsmodell eines Jobs]{Zustandsmodell eines Jobs mit den Zuständen \textit{Queued}, \textit{Running},
@@ -396,12 +396,6 @@ Ein solches Verhalten könnte bei sehr aufwendigen Jobs verhindern, dass diese j
 Dem steht jedoch eine höhere Anzahl periodischer Schreibzugriffe auf den Job-Store gegenüber, wodurch die Datenbank zusätzlich belastet wird.
 Da der Heartbeat-Mechanismus für den im Rahmen dieser Arbeit entwickelten Prototypen und dessen Zielsetzung
 keinen nennenswerten Mehrwert bietet, werden lediglich zeitbasierte Leases genutzt.\\
-%\begin{figure}[h]
-%    \centering
-%    \includegraphics[width=0.5\textwidth]{images/recoverySequenz}
-%    \caption{Ablauf des Recovery-Mechanismus}
-%    \label{fig:recovery}
-%\end{figure}
 Für jeden erkannten verwaisten Job entscheidet der Recovery-Service anschließend über das weitere Vorgehen.
 Wurde die maximal zulässige Anzahl an Ausführungsversuchen noch nicht erreicht, wird der Job nach dem in \cref{subsec:transaktionsmodell}
 vorgestellten Transaktionsschema erneut zur Verarbeitung freigegeben.
@@ -484,6 +478,8 @@ Der atomare Abschluss von Jobs und die Absicherung gegen fehlerhafte Doppelverar
 \cref{subsec:impl_abschlussJoberverarbeitung} dargelegt.
 Schließlich widmen sich \cref{subsec:impl_retries} der konkreten Umsetzung des Retry-Mechanismus und \cref{subsec:impl_recovery}
 der Wiederherstellung verwaister Jobs.
+Eine detaillierte Bausteinsicht der wesentlichen Bestandteile der Backend-Komponente und ihrer Abhängigkeiten untereinander
+ist in \cref{fig:detailBausteinsicht} im Anhang zu finden und dient im Folgenden als Referenz für die Beschreibung der Implementierung.
 
 \subsection{Auswahl verwendeter Technologien}
 \label{subsec:technologien}
@@ -659,7 +655,7 @@ erneut übermittelt wurde, eindeutig erkennbar, dass der gewünschte Job im Syst
 \begin{lstlisting}[
     language=Java,
     style=java,
-    caption={[\gls{rest}-Endpunkt zur Joberstellung]{\gls{rest}-Endpunkt zur Joberstellung mit Validierung der Anfrage, Delegation an
+    caption={[REST-Endpunkt zur Joberstellung]{\gls{rest}-Endpunkt zur Joberstellung mit Validierung der Anfrage, Delegation an
     den \texttt{JobService} sowie Behandlung erfolgreicher und bereits vorhandener Joberstellungen.}},
     label={lst:endpoint}
 ]

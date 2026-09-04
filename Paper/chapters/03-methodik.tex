@@ -117,9 +117,13 @@ Die Kontextabgrenzung findet bereits im Rahmen der Anforderungserhebung statt un
 Die Bausteinsicht wird in \cref{fig:componentDiagram} im Rahmen des Architekturentwurfs dargestellt, während einzelne
 Laufzeitsichten in den \cref{sec:architektur} untergeordneten Kapiteln zu finden sind.
 Durch diese systematische Strukturierung können die einzelnen Architekturentscheidungen klar isoliert und jeweils hinsichtlich
-ihres Beitrags zur Erfüllung der zuvor definierten Zusicherungen bewertet und gegenüber möglichen Alternativen eingeordnet werden. %TODO: bei Bedarf Verteilungssicht nennen bzw. deren nicht Verwendung begründen
+ihres Beitrags zur Erfüllung der zuvor definierten Zusicherungen bewertet und gegenüber möglichen Alternativen eingeordnet werden.
 Der Entwurf umfasst dabei insbesondere die Struktur des Job-Stores, das Zustandsmodell, die Koordination konkurrierender
-Worker sowie Mechanismen für Idempotenz, Retry und Recovery.\\
+Worker sowie Mechanismen für Idempotenz, Retry und Recovery.
+Auf eine gesonderte Verteilungssicht wird bewusst verzichtet, da der Prototyp ausschließlich aus einem Client, einem Spring-Boot-Backend
+und einer Datenbank besteht.
+Eine Darstellung der Verteilungssicht über den bereits vorhandenen Systemkontext und die Bausteinsicht hinaus würde im Kontext
+der Arbeit und zur Beantwortung der Forschungsfrage daher keinen wesentlichen Mehrwert liefern.\\
 Die resultierende Architektur wird anschließend prototypisch implementiert.
 Dabei werden die im Entwurf vorgesehenen Komponenten und Mechanismen in Java und Spring umgesetzt.
 Die Implementierung dient nicht der Entwicklung einer vollständigen fachlichen Anwendung, sondern der prototypischen

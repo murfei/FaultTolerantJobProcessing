@@ -261,7 +261,7 @@ Da die Anzahl Worker und Jobs in diesem Test beide eins beträgt, ist diese Bedi
 \label{sec:ergebnisse}
 Die im Folgenden dargestellten Beobachtungen stützen sich auf die tatsächlich protokollierten Testläufe.
 Gekürzte, für die jeweilige Beobachtung repräsentative Auszüge der Logs finden sich im Anhang unter \cref{sec:testlogs}.
-Die vollständigen Protokolle aller Durchläufe sind der Arbeit unter Testlogs.md als Begleitdatei beigefügt.
+Die vollständigen Protokolle aller Durchläufe sind der Arbeit unter \texttt{Testlogs.md} als Begleitdatei beigefügt.
 
 \paragraph{Atomare Persistenz und Validität (\ref{zus:atomare_persistenz})}
 \label{erg:atomare_persistenz}
@@ -444,11 +444,11 @@ Dass dabei zu keinem Zeitpunkt mehr als ein Ergebnis pro Job persistiert wurde, 
 eigentlich überholten Verarbeitungsversuch (\ref{zus:idempotenz}), bestätigt zusätzlich, dass zu jedem Job genau ein Ergebnis
 persistiert wird.
 
-Verloren geht ein einmal persistierter Job also nicht, jedoch sei hier einschränkend erwähnt, dass nicht garantiert wird, dass
-zu jedem persistierten Job ein Ergebnis erzeugt wird.
+Ein einmal persistierter Job geht innerhalb des betrachteten Fehlermodells nicht verloren.
+Einschränkend ist jedoch festzuhalten, dass nicht garantiert wird, dass für jeden persistierten Job ein erfolgreiches Ergebnis erzeugt wird.
 Tritt bei der Verarbeitung wiederholt ein Fehler auf, erreicht der Job im Rahmen von \ref{zus:terminierung} nach endlich
 vielen Versuchen bewusst einen definierten Fehlerzustand, statt unbegrenzt oft wiederholt zu werden.
-Diese bewusste Grenze wird in Kapitel 7 nochmals vertiefend eingeordnet. %TODO: Kapitelreferenz richtigstellen
+Diese bewusste Grenze wird in \cref{sec:einschraenkungen} nochmals vertiefend eingeordnet.
 
 \textbf{\ref{item:h2}} hat als Annahme, dass Retry-Strategien mit exponentiellem Backoff in Verbindung mit einer
 Fehlerklassifikation in transiente und permanente Fehler die Robustheit des Systems gegenüber
