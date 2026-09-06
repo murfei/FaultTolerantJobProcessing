@@ -1,5 +1,5 @@
 %! Author = murfe
-%! Date = 28.07.2026
+%! Date = 06.09.2026
 \chapter{Anforderungen}
 \label{ch:anforderungen}
 Dieses Kapitel legt die Anforderungen an das im Rahmen der Arbeit entwickelte Background-Job-Processing-System fest und
@@ -16,6 +16,7 @@ Systemstruktur in \cref{fig:contextView} dargestellt ist.
 Über eine \gls{rest}-Schnittstelle können Aufträge durch einen Service oder ein Frontend erzeugt werden, die zunächst im Backend validiert
 und anschließend in einem relationalen Job-Store persistent gespeichert werden.
 Unabhängig vom ursprünglichen Aufruf übernehmen mehrere Worker-Prozesse anschließend die asynchrone Verarbeitung der gespeicherten Jobs.
+
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.5\textwidth]{images/contextView}
@@ -24,11 +25,13 @@ Unabhängig vom ursprünglichen Aufruf übernehmen mehrere Worker-Prozesse ansch
     persistent im Job-Store speichert. Anschließend werden die Jobs vom Backend asynchron verarbeitet.}
     \label{fig:contextView}
 \end{figure}
+
 Da der Schwerpunkt der Arbeit auf den Mechanismen des Job-Processings und nicht auf einer konkreten Fachanwendung liegt,
 wird die Fachlogik zum Zweck der Evaluation stark vereinfacht.
 Diese simuliert durch eine definierte Wartezeit einen lang laufenden Verarbeitungsschritt und erzeugt schließlich ein Dummy-Ergebnis.
 Ziel ist somit nicht die Entwicklung einer domänenspezifischen Fachanwendung, sondern einer allgemein einsetzbaren Architektur,
-deren Konzepte unabhängig vom gewählten Anwendungskontext auf andere Background-Job-Processing-Systeme übertragbar sind.\\
+deren Konzepte unabhängig vom gewählten Anwendungskontext auf andere Background-Job-Processing-Systeme übertragbar sind.
+
 Das betrachtete System vereint die wesentlichen Herausforderungen datenbankgestützter Background-Job-Processing-Systeme.
 Hierzu zählen insbesondere die zuverlässige und verlustfreie Persistierung eingehender Aufträge, die koordinierte Verarbeitung durch
 mehrere parallel arbeitende Worker sowie die Wiederaufnahme unterbrochener Verarbeitungen nach Teilausfällen.
@@ -49,7 +52,8 @@ Ziel dieser Arbeit ist der Entwurf einer fehlertoleranten Architektur für ein d
 Betrachtet werden daher ausschließlich Fehlerklassen, die während des regulären Betriebs auftreten können und deren Auswirkungen durch Mechanismen der
 Anwendungsarchitektur beherrscht werden können.
 Fehler, deren Behandlung zusätzliche Infrastruktur oder organisatorische Maßnahmen wie Backups, Replikation oder physische Redundanz erfordern,
-liegen außerhalb des Betrachtungsumfangs dieser Arbeit.\\
+liegen außerhalb des Betrachtungsumfangs dieser Arbeit.
+
 Die Abgrenzung der betrachteten Fehler ist in \cref{tab:fehlermodell} zusammengefasst.
 Innerhalb des Systementwurfs werden im Wesentlichen vier Kategorien von Fehlern behandelt.
 An erster Stelle stehen Ausfälle einzelner Systemkomponenten sowie transiente Infrastruktur- und Kommunikationsstörungen.
@@ -61,14 +65,15 @@ Dadurch kann es im System zu zwei Problemen kommen.
 Zum einen besteht die Gefahr, dass eine laufende Verarbeitung unterbrochen wird oder vorübergehend nicht fortgesetzt werden kann.
 Aufgrund der Charakteristik transienter Fehler wird dabei grundsätzlich davon ausgegangen, dass die betroffene Komponente oder
 Ressource nach kurzer Zeit wieder verfügbar ist.
-Zum anderen entsteht die Gefahr, dass eine Nachricht bzw. ein Job verloren geht.
-Durch diese Fehler gerät das Gesamtsystem in einen unklaren Zustand darüber, wie weit die Verarbeitung bereits fortgeschritten war
-bzw. ob der Job persistiert wurde.
+Zum anderen entsteht die Gefahr, dass eine Nachricht beziehungsweise ein Job verloren geht.
+Durch diese Fehler ist im Gesamtsystem unter Umständen unklar, wie weit die Verarbeitung bereits fortgeschritten war
+beziehungsweise ob der Job persistiert wurde.
 Da diese Störungen in verteilten Umgebungen regelmäßig auftreten können \parencite[Kap.~1 Abschnitt \glqq Failure Is Inevitable\grqq]{newman_building_2026}
 und, wie bereits eingangs in \cref{sec:problemstellung} gezeigt, gerade in Cloud-Systemen mit zu den häufigsten Fehlern
 zählen \parencite{alquraan_analysis_2018}, muss die Systemarchitektur in der Lage sein, diese autonom zu überbrücken.
 Unter dem Aspekt der Fehlertoleranz sollen zur Behandlung transienter Fehler daher automatische Retries eingesetzt werden,
 um die Notwendigkeit von manuellem Eingreifen zu reduzieren.
+
 \begin{table}[h]
     \centering
     \begin{tabularx}{\textwidth}{lcX}
@@ -90,14 +95,17 @@ um die Notwendigkeit von manuellem Eingreifen zu reduzieren.
     bzw. einer Begründung, wieso die Fehlerklasse nicht betrachtet wird.}
     \label{tab:fehlermodell}
 \end{table}
-\\Als direkte Folge solcher Infrastrukturprobleme und der darauf reagierenden Wiederholungsmechanismen der Clients entstehen doppelte Requests.
+
+Als direkte Folge solcher Infrastrukturprobleme und der darauf reagierenden Wiederholungsmechanismen der Clients entstehen doppelte Requests.
 Ein Client sendet eine Anfrage erneut, weil eine Bestätigung aufgrund eines Timeouts ausblieb.
 Die Architektur soll im Rahmen der Zuverlässigkeit eine Exactly-Once-Semantik als Ziel haben und muss daher im beschriebenen
-Szenario durch Duplikaterkennung verhindern, dass identische Jobs mehrfach im Job-Store persistiert werden.\\
+Szenario durch Duplikaterkennung verhindern, dass identische Jobs mehrfach im Job-Store persistiert werden.
+
 Eng damit verknüpft ist die doppelte Ausführung von Jobs.
 Bei der Wiederaufnahme eines zuvor abgebrochenen Jobs kann nach einem Fehler oft nicht eindeutig festgestellt werden, ob die vorherige Verarbeitung
 bereits Seiteneffekte erzielt hat.
-Die Architektur muss daher zwingend sicherstellen, dass wiederholte Ausführungen keine inkonsistenten Ergebnisse verursachen.\\
+Die Architektur muss daher zwingend sicherstellen, dass wiederholte Ausführungen keine inkonsistenten Ergebnisse verursachen.
+
 Des Weiteren werden konkurrierende Zugriffe betrachtet.
 Sobald Parallelverarbeitung mittels mehrerer, autonom agierender Worker eingesetzt wird,
 entsteht unweigerlich die Möglichkeit gleichzeitiger Zugriffe auf geteilte Datenstrukturen wie den zentralen Job-Store.
@@ -108,12 +116,14 @@ Dem gegenüber stehen Fehler, die bewusst außerhalb des Betrachtungsumfangs die
 Ein physischer Datenbankverlust sowie ein Totalausfall der Infrastruktur können nicht durch die Softwarearchitektur des Job-Processing-Systems gelöst werden.
 Ein Verlust der Persistenzschicht oder ein Ausfall des gesamten Rechenzentrums infolge von großflächigen Stromausfällen oder Bränden am Serverstandort
 erfordert stattdessen infrastrukturelle Maßnahmen wie geografische Redundanz, kontinuierliche Backups und umfassende Disaster-Recovery-Konzepte
-\parencite[Kap.~9]{newman_building_2026}.\\
+\parencite[Kap.~9]{newman_building_2026}.
+
 Ebenso werden Cyberangriffe im Rahmen dieser Arbeit ausgeschlossen.
 Obwohl Angriffe wie SQL-Injections oder Denial-of-Service-Szenarien direkte Auswirkungen auf die Zuverlässigkeit eines Systems haben können, betreffen sie
 primär das Qualitätsmerkmal der Sicherheit.
 Ihre Abwehr erfordert spezialisierte Mechanismen wie strikte Eingabevalidierung, Ratenbegrenzungen, Authentifizierung und Angriffserkennungssysteme.
-Der Fokus dieser Arbeit liegt stattdessen auf der Gewährleistung von Fehlertoleranz bei regulärem Systembetrieb.\\
+Der Fokus dieser Arbeit liegt stattdessen auf der Gewährleistung von Fehlertoleranz bei regulärem Systembetrieb.
+
 Schließlich werden auch byzantinische Fehler ausgeschlossen.
 Dies sind Fehler, bei denen kompromittierte oder defekte Komponenten willkürlich falsche oder manipulierte Informationen erzeugen und verbreiten
 \parencite[Kap.~8 Abschnitt \glqq Byzantine Faults\grqq]{kleppmann_designing_2017}.
@@ -131,6 +141,7 @@ bilden daher zusammen mit der Systembeschreibung aus \cref{sec:systemkontext} di
 Die sich aus dem in \cref{sec:systemkontext} beschriebenen Systemkontext und dem in \cref{sec:abgrenzungFehlermodell} definierten Fehlermodell
 ergebenden zentralen Anforderungen an das zu entwickelnde Background-Job-Processing-System sind in \cref{tab:traceability_anforderungen}
 zusammengefasst.
+
 \begin{table}[h]
     \centering
     \small
@@ -159,6 +170,7 @@ zusammengefasst.
     abgeleiteten Anforderungen an das Background-Job-Processing-System.}
     \label{tab:traceability_anforderungen}
 \end{table}
+
 Auf Basis dieser Anforderungen lassen sich Eigenschaften ableiten,
 die das entwickelte Background-Job-Processing-System zu jedem Zeitpunkt gewährleisten muss, um die fehlerfreie Funktion des Systems
 bezogen auf die Zielsetzung der Arbeit sicherzustellen.

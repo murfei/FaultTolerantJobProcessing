@@ -1,6 +1,5 @@
 %! Author = murfe
-%! Date = 31.08.2026
-
+%! Date = 06.09.2026
 \chapter{Evaluation}
 \label{ch:evaluation}
 Dieses Kapitel untersucht im Rahmen von \ref{item:tz4}, ob das implementierte Job-Processing-System die in \cref{ch:anforderungen} definierten
@@ -19,15 +18,17 @@ sondern auch das Zusammenspiel von \gls{rest}-Schnittstelle, Service-Schicht, Re
 Die Datenbank läuft dabei lokal über Docker auf einem Postgres 17 image, um die benötigte Datenbank reproduzierbar und
 unter kontrollierten Bedingungen bereitstellen zu können.
 Vor den jeweiligen Testdurchläufen wird außerdem sichergestellt, dass die relevanten Datenbanktabellen leer sind, sodass
-die einzelnen Testläufe unabhängig voneinander sind und sich nicht gegenseitig beeinflussen.\\
+die einzelnen Testläufe unabhängig voneinander sind und sich nicht gegenseitig beeinflussen.
+
 Die Anzahl an Wiederholungen der nebenläufigkeitsabhängigen Tests wird auf 100 Wiederholungen festgelegt.
-Die Wahl von 100 Wiederholungen stellt dabei einen Kompromiss zwischen der Testabdeckung unwahrscheinlicher Grenzfälle
+Die Wahl von 100 Wiederholungen stellt dabei einen Kompromiss zwischen der Testabdeckung unwahrscheinlicher Grenzfälle %TODO: 100 hier glaube ich schon in Methodik erwähnt
 und dem für die Durchführung erforderlichen Zeitaufwand dar.
 Ein erfolgreich abgeschlossener Testlauf wird dabei nicht als Beweis für das generelle Ausbleiben eines Fehlers interpretiert.
 Vielmehr wird überprüft, ob die für das jeweilige Szenario definierten Prüfkriterien über sämtliche Wiederholungen
 hinweg eingehalten werden.
 Bei Tests, bei denen unterschiedliche Ausgänge des Rennens möglich sind, wird zusätzlich überprüft, dass die vorgesehenen
-konkurrierenden Ausgänge tatsächlich im Verlauf der Wiederholungen auftreten.\\
+konkurrierenden Ausgänge tatsächlich im Verlauf der Wiederholungen auftreten.
+
 Die verwendeten Systemparameter sind für die getesteten Szenarios angepasst.
 Das Ziel dabei war die einzelnen Komponenten so aufeinander abzustimmen, dass die betrachteten Fehlerinjektionen zuverlässig
 und reproduzierbar durchgeführt werden können und dass insbesondere das Auftreten der Konkurrenzsituationen maximiert wird.
@@ -49,6 +50,8 @@ beispielsweise ein echter Netzwerkfehler oder ein Ausfall einer einzelnen Kompon
 Für jede Zusicherung wird mindestens ein Szenario durchgeführt, anhand dessen die jeweils relevanten Prüfkriterien
 ausgewertet werden können.
 Die Auswahl inklusive Begründung der betrachteten Fehlerklassen wurde bereits in \cref{sec:abgrenzungFehlermodell} beschrieben.
+
+%! suppress = EscapeAmpersand
 \begin{longtable}{@{}p{0.045\textwidth}p{0.20\textwidth}p{0.33\textwidth}p{0.34\textwidth}@{}}
     \toprule
     \textbf{Z} & \textbf{Fehlerinjektion} & \textbf{Umsetzung} & \textbf{Prüfkriterium / Metrik} \\
@@ -90,6 +93,7 @@ Die Auswahl inklusive Begründung der betrachteten Fehlerklassen wurde bereits i
     \addlinespace
     \ref{zus:terminierung} & Job schlägt dauerhaft fachlich fehl & Processor-Mock wirft für bestimmte Job-ID bei jedem Versuch eine Exception & \texttt{attempt\_count} erreicht Maximum, Job geht in \texttt{Failed} über; Zeit bis \texttt{Failed} $\leq$ \texttt{maxAttempts} $\times$ (Lease + Recovery-Intervall + Worker idle-Timeout) \\
 \end{longtable}
+
 Eine Zuordnung der in \cref{tab:testmatrix} beschriebenen Fehlerszenarien zu den konkret implementierten Testklassen und
 -methoden befindet sich im Anhang in \cref{tab:zuordnung_zusicherungen_tests}.
 
@@ -167,7 +171,8 @@ synchronisiert, sodass keiner der Aufrufe beginnt, bevor nicht alle beteiligten 
 Um die Worker synchronisieren zu können, wird im Rahmen der Tests ein separater Threadpool genutzt, dem die jeweiligen
 Operationen übergeben werden.
 Damit die Test-Jobs garantiert von den Operationen des Threadpools verarbeitet werden, wird die Anzahl der Worker in
-diesen Tests auf 0 gesetzt.\\
+diesen Tests auf 0 gesetzt.
+
 Da die getesteten Eigenschaften hier Zugriffs- und Schreibrechte der Worker auf spezifische Datensätze betreffen, ist
 eine notwendige Voraussetzung für die Aussagekraft dieser Tests, dass die konkurrierenden Zugriffe tatsächlich auf
 Datenbankebene aufeinandertreffen und nicht bereits vorher durch den Verbindungspool serialisiert werden.
@@ -185,7 +190,7 @@ Zum Test von \ref{zus:endzustaende} werden \texttt{finishJob} und der direkte Au
 Job angewendet, wobei der Job absichtlich mit bereits erreichter maximaler Versuchsanzahl präpariert wird, sodass je nach
 Ausgang des Wettlaufs entweder der erfolgreiche Abschluss oder der endgültige Fehlschlag eintritt.
 Der Verlierer des Rennens darf dann keine Änderung mehr vornehmen, da der Gewinner den Job bereits in einen finalen
-Zustand überführt hat.\\
+Zustand überführt hat.
 Für \ref{zus:endzustaende} wird zusätzlich zur mehrfachen Ausführung protokolliert, wie viele Durchläufe auf den jeweiligen Ausgang entfallen,
 um sicherzustellen, dass das Rennen tatsächlich beide möglichen Ausgänge erzeugt und nicht durch eine feste Reihenfolge vorentschieden ist.
 
@@ -197,8 +202,8 @@ Anschließend wird das System als eine zweite eigenständige Instanz als Prozess
 Dieser Prozess verfügt über einen laufenden Worker.
 Aus dem Test heraus wird ein Job erzeugt und bis zu dessen Übernahme durch den Worker-Prozess abgewartet.
 Sobald der Job in Bearbeitung ist, wird der Prozess hart beendet, ohne dass ein geordnetes Herunterfahren stattfindet.
-Daraufhin wird geprüft, ob der Worker Prozess den Job tatsächlich nicht beenden konnte und ein zweiter, unabhängiger Prozess
-mit laufendem Worker wird gestartet.
+Daraufhin wird geprüft, ob der Worker Prozess den Job tatsächlich nicht beenden konnte.
+Anschließend wird ein zweiter, unabhängiger Prozess mit laufendem Worker gestartet.
 Der \texttt{RecoveryService} sollte den Job im nächsten Durchlauf als verwaist erkennen und erneut zur Bearbeitung ausstellen.
 Der neue Worker sollte den verwaisten Job daraufhin übernehmen.
 Zusätzlich zum Erreichen des Zustands \texttt{Succeeded} wird für \ref{zus:idempotenz} geprüft, dass der gespeicherte Ergebnisinhalt dem
@@ -269,7 +274,7 @@ Die vollständigen Protokolle aller Durchläufe sind der Arbeit unter \texttt{Te
 Beide Requests wurden vom Backend mit dem HTTP-Status \texttt{400 Bad Request} abgelehnt, der erste aufgrund der
 syntaktischen, der zweite aufgrund der fachlichen Validierung.
 Die Anzahl der im Job-Store vorhandenen Jobs war vor und nach beiden Anfragen identisch, folglich kam es für keine der beiden
-ungültigen Requests zu einer Persistierung des Jobs.\\
+ungültigen Requests zu einer Persistierung des Jobs.
 Damit wurde das für \ref{zus:atomare_persistenz} definierte Prüfkriterium erfüllt.
 Die Atomarität der eigentlichen Persistierung wurde durch den Test nicht direkt überprüft, sondern ergibt sich konstruktiv
 aus der Verwendung von \texttt{@Transactional} mit PostgreSQL, da die Datenbank selbst \gls{acid} sicherstellt.
@@ -283,7 +288,7 @@ als Idempotenzfall, ohne diesen seinerseits erneut zu wiederholen.
 Der clientseitige Retry wurde also tatsächlich ausgeführt, während der resultierende Datenbankfehler auf Backendseite
 korrekt als nicht retrybar eingestuft wurde.
 Der zweite Client-Aufruf lieferte den HTTP-Status \texttt{200 OK} und denselben, bereits zuvor erzeugten Job zurück.
-Während des gesamten Tests erhöhte sich die Anzahl der Jobs im Job-Store lediglich von null auf eins.\\
+Während des gesamten Tests erhöhte sich die Anzahl der Jobs im Job-Store lediglich von null auf eins.
 Das für \ref{zus:duplikaterkennung} definierte Prüfkriterium ist damit erfüllt: Eine erneute Übermittlung derselben
 Anfrage wie hier beispielsweise nach einem verlorenen Response führt nicht zu einer zweiten Persistierung, sondern liefert
 den bereits vorhandenen Job zurück.
@@ -294,14 +299,15 @@ Bei der Untersuchung des Claimings (Testfall a) konnte in allen Durchläufen jew
 erfolgreich übernehmen, erkennbar am einmaligen Zustandsübergang von \textit{Queued} nach \textit{Running}.
 Die übrigen konkurrierenden Worker erhielten in keinem der Durchläufe einen Job.
 Folglich wurde ein mehrfacher Übergang desselben Jobs nach \textit{Running} in keinem Durchlauf beobachtet, was bedeutet,
-dass das Claiming exklusiv ablief.\\
+dass das Claiming exklusiv ablief.
+
 Bei der Untersuchung der Ergebnisspeicherung (Testfall b) konnte in allen Durchläufen jeweils nur der aktuell
 berechtigte Worker den Job erfolgreich abschließen.
 Der konkurrierende Aufruf mit abweichender Worker-ID wurde je nach Scheduling der Anfragen entweder abgewiesen, da der
 Job schon nicht mehr im Zustand \textit{Running} war, oder weil die Worker-ID nicht mit dem gespeicherten
 \texttt{claimed\_by}-Wert übereinstimmte.
 Nach jedem Testlauf existierte genau ein persistiertes \texttt{JobResult}, dessen Inhalt dem vom berechtigten Worker
-übermittelten Ergebnis entspricht.\\
+übermittelten Ergebnis entspricht.
 Damit wurde das für \ref{zus:exklusive_rechte} definierte Prüfkriterium in beiden Testfällen erfüllt: Ein
 verfügbarer Job wird höchstens einem Worker zur Verarbeitung zugeordnet und von zwei konkurrierenden Abschlussversuchen
 kann höchstens einer das Ergebnis persistieren.
@@ -310,7 +316,7 @@ kann höchstens einer das Ergebnis persistieren.
 \label{erg:atomare_wirkung}
 Nach dem durch den Test-Hook erzwungenen Fehlschlagen des Aufrufs befand sich der Job weiterhin im Zustand
 \textit{Running} und ein \texttt{JobResult} wurde nicht persistiert.
-Die zuvor im Persistenzkontext vorgenommene Statusänderung zu \textit{Succeeded} wurde vollständig verworfen.\\
+Die zuvor im Persistenzkontext vorgenommene Statusänderung zu \textit{Succeeded} wurde vollständig verworfen.
 Das für \ref{zus:atomare_wirkung} definierte Prüfkriterium ist damit erfüllt: Tritt innerhalb der gemeinsamen
 Transaktion ein Fehler wie beispielsweise zwischen Statusänderung und Ergebnispersistierung auf, bleiben keine Teiländerungen
 in der Datenbank bestehen.
@@ -323,7 +329,7 @@ Der Job erreichte den Zustand \textit{Succeeded}, die Ergebnisdaten wurden persi
 \texttt{recoverJob}-Aufruf wurde aufgrund des bereits erreichten Endzustands folgenlos beendet.
 In den übrigen 53 Durchläufen gewann \texttt{recoverJob}.
 Da die maximale Anzahl an Verarbeitungsversuchen bereits erreicht war, wurde der Job in den Zustand \textit{Failed} überführt
-und der konkurrierende \texttt{finishJob}-Aufruf wurde abgewiesen.\\
+und der konkurrierende \texttt{finishJob}-Aufruf wurde abgewiesen.
 Damit traten beide möglichen Ausgänge des konkurrierenden Zugriffs in den wiederholten Testläufen tatsächlich auf.
 Anhand der protokollierten Zustandsübergänge jedes Durchlaufs wurde zusätzlich sichergestellt, dass in keinem der
 100 Durchläufe ein Übergang zurück aus einem bereits erreichten Endzustand nach \textit{Queued} oder \textit{Running} erfolgte.
@@ -352,14 +358,13 @@ Nach Wiederherstellung der Datenbankverbindung schloss der vierte Versuch erfolg
 \texttt{201 Created} beantwortet wurde und der zurückgegebene Idempotency-Key dem des ursprünglichen Requests entsprach.
 Ergänzend wurde als Gegenprobe geprüft, wie sich das System bei einem anhaltenden als transient klassifizierten Fehler verhält.
 Die Anfrage wurde nach Erschöpfung aller konfigurierten Wiederholungsversuche mit dem HTTP-Status \texttt{500 Internal Server
-Error} beantwortet und es wurde kein erneuter Retry gestartet.\\
+Error} beantwortet und es wurde kein erneuter Retry gestartet.
+
 Im zweiten Testfall führte die erneute Verwendung eines bereits vorhandenen Idempotency-Keys zu einer
 \texttt{DataIntegrityViolationException}.
 Der \texttt{RetryExecutor} stufte diese als nicht retrybar ein, sodass kein weiterer Ausführungsversuch erfolgte.
-Der Controller behandelte den Fehler als Idempotenzfall und beantwortete die Anfrage mit \texttt{200 OK}.\\
-Das für \ref{zus:retries} definierte Verhalten -- Fehlerklassifikation, automatische Wiederholung bei transienten
-und unmittelbarer Abbruch bei permanenten Fehlern sowie eine definierte Terminierung bei dauerhaftem Ausfall --
-wurde damit unter den betrachteten Bedingungen beobachtet.
+Der Controller behandelte den Fehler als Idempotenzfall und beantwortete die Anfrage mit \texttt{200 OK}.
+Das für \ref{zus:retries} definierte Verhalten wurde damit tatsächlich beobachtet.
 
 \paragraph{Worker-Ausfall und Wiederaufnahme (\ref{zus:verarbeitungsgarantie}, \ref{zus:idempotenz}, \ref{zus:terminierung})}
 \label{erg:verarbeitungsgarantie}
@@ -371,11 +376,11 @@ Der zweite Worker übernahm den Job daraufhin und verarbeitete ihn erfolgreich.
 Der Job erreichte den Status \textit{Succeeded} mit einem \texttt{attempt\_count} von zwei, was die ursprüngliche
 Verarbeitung durch den ersten und die erneute Verarbeitung durch den zweiten Worker bestätigt.
 Der gespeicherte Ergebnisinhalt entsprach dabei nachweislich dem tatsächlich erfolgreichen, zweiten Verarbeitungsversuch
-und enthielt keine Reste des unterbrochenen ersten Versuchs.\\
+und enthielt keine Reste des unterbrochenen ersten Versuchs.
 Damit wurde das für \ref{zus:verarbeitungsgarantie} definierte Verhalten beobachtet: Der Ausfall eines Workers
 führt nicht zum Verlust eines bereits persistierten Jobs, sondern zur automatischen Wiederfreigabe durch den Recovery-Service
 und der anschließenden erneuten Verarbeitung.
-Die Persistenz des Jobs über den Prozessabbruch hinweg wird dabei die Durability-Eigenschaft von PostgreSQL abgesichert.
+Die Persistenz des Jobs über den Prozessabbruch hinweg wird dabei durch die Durability-Eigenschaft von PostgreSQL abgesichert.
 Während die Recovery dafür sorgt, dass der Job nicht in der Verarbeitung hängen bleibt, sorgt \gls{acid} dafür, dass die
 Jobdaten selbst nicht verloren gehen.
 Dass der Job zudem mit inhaltlich korrektem, nicht durch den abgebrochenen ersten Versuch verfälschtem Ergebnis abschließt,
@@ -390,15 +395,16 @@ und von einem anderen Worker übernommen.
 Der zuvor berechtigte, jetzt aber überholte Worker wurde bei seinem anschließenden \texttt{finishJob}-Aufruf abgewiesen.
 Der neue Worker schloss den Job dagegen erfolgreich ab.
 Auch der \texttt{finishJob}-Aufruf des überholten Workers nach der Fertigstellung wurde abgelehnt.
-Insgesamt wurde genau ein \texttt{JobResult} für den Job persistiert.\\
+Insgesamt wurde genau ein \texttt{JobResult} für den Job persistiert.
+
 In Testszenario (b) wurde der Aufruf von \texttt{finishJob} durch den weiterhin eingetragenen Worker aufgrund des abgelaufenen
-Leases mit einer \texttt{LeaseExpiredException} abgewiesen und kein Ergebnis persistiert.\\
+Leases mit einer \texttt{LeaseExpiredException} abgewiesen und kein Ergebnis persistiert.
 Damit ist sowohl der Fall eines bereits durch Recovery übernommenen als auch der Fall eines abgelaufenen, aber noch nicht
 durch die Recovery wiederhergestellten Jobs abgedeckt.
 In beiden Fällen konnte ein verspäteter Worker kein Ergebnis mehr speichern, während der gültige Verarbeitungsversuch aus
 Testfall (a) genau ein Ergebnis erzeugte.
 Anknüpfend an die im vorangegangenen Abschnitt beobachtete inhaltliche Korrektheit des gespeicherten Ergebnisses nach
-einem echten Prozessabbruch, zeigt dies den verbliebenen zu zeigenden Teil von \ref{zus:idempotenz}.\\
+einem echten Prozessabbruch, zeigt dies den verbliebenen zu zeigenden Teil von \ref{zus:idempotenz}.
 Das für \ref{zus:idempotenz} definierte Prüfkriterium wird damit erfüllt: Für einen Job existiert höchstens ein persistiertes
 Ergebnis und ein verspäteter Worker wird an der Ergebnispersistierung gehindert.
 Das beobachtete Verhalten realisiert damit die At-Most-Once-Eigenschaft der Ergebnisspeicherung.
@@ -411,15 +417,16 @@ Der zunächst verarbeitete Kontrolljob erreichte erwartungsgemäß den Status \t
 dass der konfigurierte \texttt{JobProcessor}-Spy die grundsätzliche Funktionsfähigkeit des Workers nicht beeinträchtigt.
 Für den anschließend erzeugten Testjob trat bei jedem Übernahmeversuch der simulierte permanente Fachfehler auf.
 Nach jedem fehlgeschlagenen Versuch lief das Lease ab, woraufhin der Recovery-Service den Job erneut in den Zustand \textit{Queued} überführte.
-Dieser Ablauf wiederholte sich, bis die konfigurierte maximale Anzahl an Verarbeitungsversuchen erreicht war.\\
+Dieser Ablauf wiederholte sich, bis die konfigurierte maximale Anzahl an Verarbeitungsversuchen erreicht war.
 Nach dem letzten fehlgeschlagenen Versuch überführte der Recovery-Service den Job nicht erneut nach \textit{Queued},
 sondern in den Endzustand \textit{Failed}.
-Der abschließende \texttt{attempt\_count} entsprach dabei genau dem konfigurierten Wert \texttt{maxAttempts}.\\
+Der abschließende \texttt{attempt\_count} entsprach dabei genau dem konfigurierten Wert \texttt{maxAttempts}.
 Das für \ref{zus:terminierung} definierte Kriterium ist damit erfüllt: Der dauerhaft fehlschlagende Job verbleibt
 nicht unbegrenzt im Wechsel zwischen \textit{Running} und \textit{Queued}, sondern wird nach Erreichen der
 maximalen Anzahl von Verarbeitungsversuchen endgültig in den Zustand \textit{Failed} überführt.
 Die hierfür benötigte Zeit betrug 12,179\,s und lag damit unterhalb der aus den konfigurierten Zeitparametern
-abgeleiteten oberen Schranke von 20\,s.\\
+abgeleiteten oberen Schranke von 20\,s.
+
 Für die Terminierung ist neben der Begrenzung der Anzahl der Verarbeitungsversuche auch die Reihenfolge der Jobauswahl relevant.
 Die Auswahl erfolgt wie in \cref{subsec:impl_persistenz} beschrieben anhand des Erstellungszeitpunkts durch die Sortierung
 der Jobs innerhalb der Datenbankanfrage nach dem Attribut \texttt{created\_at}.
@@ -468,7 +475,7 @@ Ein durch einen Retry ausgelöster doppelter Persistierungsauftrag eines neuen J
 Anfrage mit einem als transient klassifizierten Fehler wurde nach Erschöpfung der konfigurierten Wiederholungsversuche
 kontrolliert mit einem Fehlerstatus beantwortet, anstatt die Ausführung unbegrenzt weiter zu versuchen.
 
-H2 wird durch die vorliegenden Ergebnisse bestätigt.
+\ref{item:h2} wird durch die vorliegenden Ergebnisse bestätigt.
 
 \textbf{\ref{item:h3}} behauptet, dass sich die definierten Zusicherungen durch automatisierte Tests mittels gezielter
 Fehlerinjektion reproduzierbar überprüfen und nachweisen lassen.

@@ -1,10 +1,26 @@
 <component name="ProjectDictionaryState">
   <dictionary name="project">
     <words>
+      <w>Atomarität</w>
+      <w>Durchsatzkompromiss</w>
       <w>Ergebnispersistierung</w>
+      <w>Fehlerinjektionsbedingungen</w>
+      <w>Idempotenzfall</w>
+      <w>Idempotenzmechanismus</w>
       <w>Idempotenzschlüssel</w>
       <w>Konsistenzanforderungen</w>
+      <w>Konsistenzeigenschaften</w>
+      <w>Konsistenzgarantien</w>
       <w>Konsistenzzusicherungen</w>
+      <w>Korrektheitsbedingungen</w>
+      <w>Nebenläufigkeitsabhängige</w>
+      <w>Nebenläufigkeitseffekte</w>
+      <w>Nebenläufigkeitskontrolle</w>
+      <w>Netzwerkpartitionierungsfehler</w>
+      <w>Parallelitätsanomalien</w>
+      <w>Postgre</w>
+      <w>Resistenzsteigerung</w>
+      <w>retrybar</w>
     </words>
   </dictionary>
 </component>

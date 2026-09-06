@@ -1,9 +1,9 @@
 %! Author = murfe
-%! Date = 28.08.2026
-%TODO: Schreibweise von Methodennamen in ganzer Arbeit nochmal prüfen: entweder einheutlich \texttt oder \textit
+%! Date = 06.09.2026
+%TODO: Schreibweise von Methodennamen in ganzer Arbeit nochmal prüfen: entweder einheitlich \texttt oder \textit
 \chapter{Umsetzung}
 \label{ch:umsetzung}
-Dieses Kapitel befasst sich mit dem Entwurf und der technische Umsetzung des in \cref{ch:anforderungen} definierten Systems.\\
+Dieses Kapitel befasst sich mit dem Entwurf und der technische Umsetzung des in \cref{ch:anforderungen} definierten Systems.
 Der Aufbau des Kapitels gliedert sich dabei in zwei Abschnitte:
 Im ersten Teil wird die Architektur des Systems entwickelt und die fundamentalen Systementscheidungen begründet.
 Aufbauend auf diesem theoretischen Fundament dokumentiert der zweite Teil die konkrete Implementierung des Prototyps auf
@@ -13,7 +13,7 @@ Basis des Java- und Spring-Ökosystems.
 \label{sec:architektur}
 In diesem Kapitel wird die Architektur des entwickelten Job-Processing-Systems zur Erfüllung von \ref{item:tz2} beschrieben.
 Das primäre Ziel besteht darin, die in \cref{ch:anforderungen} erhobenen Anforderungen und Zusicherungen durch geeignete
-Entwurfsentscheidungen und den gezielten Einsatz von Entwurfsmustern zu erfüllen.\\
+Entwurfsentscheidungen und den gezielten Einsatz von Entwurfsmustern zu erfüllen.
 Zur strukturierten Darstellung der einzelnen Systemkomponenten gliedert sich das Kapitel in folgende Teilaspekte:
 \cref{subsec:architekturentwurf} führt zunächst in die abstrakte Gesamtsystemarchitektur ein, begründet die Wahl einer relationalen
 PostgreSQL-Datenbank als zentralen Job-Store und stellt die Interaktion zwischen den einzelnen Komponenten dar.
@@ -84,6 +84,7 @@ Der Client bildet den Einstiegspunkt des Systems und erzeugt neue Jobs, die ents
 Im Rahmen des entwickelten Prototyps erfolgt dies lediglich direkt über einen Service, der die Kommunikation mit dem Backend-\gls{api} kapselt.
 In der Praxis kann diese Komponente jedoch ebenso durch eine grafische Benutzeroberfläche oder ein beliebiges externes
 Anwendungssystem angesprochen werden.
+
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/componentDiagram}
@@ -91,11 +92,13 @@ Anwendungssystem angesprochen werden.
     Background-Job-Processing-Systems mit \gls{rest}-Schnittstelle, Job-Store sowie der Worker-Komponente und dem Recovery-Service.}
     \label{fig:componentDiagram}
 \end{figure}
+
 Die \gls{rest}-\gls{api} dient als Schnittstelle des Backends zur Erstellung neuer Jobs.
 Sie nimmt eingehende Anfragen entgegen, validiert diese (\ref{zus:atomare_persistenz}) und delegiert sie an die Servicelogik,
 die für die Persistierung neuer Jobs sowie die Verwaltung ihrer Zustände verantwortlich ist.
 Alle Jobs werden anschließend im zentralen Job-Store gespeichert (\ref{req:persistenz}), der neben den eigentlichen Jobdaten auch den aktuellen
-Bearbeitungszustand sowie gegebenenfalls erzeugte Ergebnisse enthält.\\
+Bearbeitungszustand sowie gegebenenfalls erzeugte Ergebnisse enthält.
+
 Die eigentliche Verarbeitung erfolgt durch mehrere parallel arbeitende Worker (\ref{req:worker}).
 Jeder Worker beansprucht einen Job exklusiv aus dem Job-Store, verarbeitet dessen Nutzdaten und speichert das erzeugte Ergebnis
 anschließend wieder in der Datenbank.
@@ -116,14 +119,15 @@ Zur Realisierung der in \cref{ch:anforderungen} definierten Zusicherungen \ref{z
 \ref{zus:verarbeitungsgarantie}, \ref{zus:idempotenz} und \ref{zus:terminierung} wird jeder Job durch ein explizites Zustandsmodell beschrieben.
 Der aktuelle Zustand eines Jobs wird dabei als Attribut des jeweiligen Datensatzes in der Datenbank gespeichert (vgl. \cref{subsec:datenbankentwurf})
 und beschreibt den Fortschritt der Verarbeitung.
-Das Zustandsmodell bildet die Grundlage für sämtliche Entscheidungen bezüglich der Bearbeitung, Wiederherstellung und Beendigung eines Jobs.\\
+Das Zustandsmodell bildet die Grundlage für sämtliche Entscheidungen bezüglich der Bearbeitung, Wiederherstellung und Beendigung eines Jobs.
 Ein wesentlicher Vorteil dieses Ansatzes besteht darin, dass Datenbankzeilen nicht über den gesamten Verarbeitungszeitraum
 exklusiv gesperrt werden müssen.
 Sperren sind lediglich während kurzer atomarer Zustandsübergänge erforderlich, während die eigentliche Verarbeitung
 außerhalb einer Datenbanktransaktion erfolgt.
 Dadurch werden konkurrierende Zugriffe auf den Job-Store reduziert und Datenbankressourcen geschont, was sich positiv
-auf die Skalierbarkeit des Systems auswirkt.\\
+auf die Skalierbarkeit des Systems auswirkt.
 Die in diesem System definierten Zustände sowie die zulässigen Zustandsübergänge sind in \cref{fig:statusmodell} dargestellt.
+
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/statusmodell}
@@ -131,11 +135,12 @@ Die in diesem System definierten Zustände sowie die zulässigen Zustandsüberg�
     \textit{Succeeded} und \textit{Failed} sowie den möglichen Zustandsübergängen während Annahme, Verarbeitung und Recovery.}
     \label{fig:statusmodell}
 \end{figure}
+
 Nachdem ein neuer Job über die \gls{rest}-Schnittstelle im Backend eingegangen ist, wird dieser persistent gespeichert
 und zunächst in den Zustand \textit{Queued} versetzt.
 In diesem Zustand wartet der Job auf seine Bearbeitung und kann von einem Worker beansprucht werden.
 Beansprucht ein Worker den Job erfolgreich, erfolgt der Zustandsübergang nach \textit{Running}.
-Dadurch wird sichergestellt, dass der Job während seiner Verarbeitung keinem weiteren Worker zur Verfügung steht.\\
+Dadurch wird sichergestellt, dass der Job während seiner Verarbeitung keinem weiteren Worker zur Verfügung steht.
 Zur Verarbeitung existieren drei mögliche Folgezustände.
 Kann der Worker den Job erfolgreich bearbeiten und das erzeugte Ergebnis dauerhaft in der Datenbank speichern, wird der
 Job in den Endzustand \textit{Succeeded} überführt.
@@ -156,6 +161,7 @@ und \ref{zus:verarbeitungsgarantie} geforderte Dauerhaftigkeit angenommener Jobs
 Sie übernimmt sowohl die Persistierung eingehender Jobs als auch die Verwaltung ihres aktuellen Bearbeitungszustands
 und gegebenenfalls erzeugter Verarbeitungsergebnisse.
 Das resultierende Datenbankschema ist in \cref{fig:dbSchema} dargestellt.
+
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/dbSchema}
@@ -163,20 +169,23 @@ Das resultierende Datenbankschema ist in \cref{fig:dbSchema} dargestellt.
     mit den zur Verwaltung von Jobs, Verarbeitungszuständen und Ergebnissen verwendeten Entitäten, Attributen und ihren Beziehungen.}
     \label{fig:dbSchema}
 \end{figure}
+
 Hauptbestandteil des Schemas ist die Tabelle \texttt{jobs}.
 Jeder Job besitzt zunächst einen von der Datenbank erzeugten Primärschlüssel, der zur internen Identifikation dient.
 Zusätzlich wird für jeden Job ein vom Client bereitgestellter Idempotenzschlüssel gespeichert.
 Dieser stellt die in \ref{zus:duplikaterkennung} geforderte Idempotenz in der Joberstellung sicher, auf die in
 \cref{subsec:joberstellung} näher eingegangen wird.
 Um das zu gewährleisten, müssen die Idempotenzschlüssel eindeutig sein.
-Daher ist die Spalte \textit{idempotency\_key} mit einem \texttt{UNIQUE}-Constraint belegt.\\
+Daher ist die Spalte \textit{idempotency\_key} mit einem \texttt{UNIQUE}-Constraint belegt.
+
 Neben den Identifikationsmerkmalen wird der eigentliche Inhalt des Jobs als Payload persistent gespeichert.
 Im Beispielsystem wird dieses Feld als JSON-String modelliert.
 Abhängig von der Art des Jobs und den Anforderungen an das System kann dies jedoch auch
 in jeglicher anderen Form umgesetzt werden, sofern die nötigen Informationen für die Durchführung des Jobs enthalten sind.
 Durch die Persistierung der Payload bleibt die vollständige Anfrage dauerhaft verfügbar und kann im Fehlerfall erneut verarbeitet werden,
 ohne dass der Client den Job nochmals übertragen muss.
-Das bildet die Grundlage für \ref{zus:verarbeitungsgarantie} und \ref{zus:idempotenz}.\\
+Das bildet die Grundlage für \ref{zus:verarbeitungsgarantie} und \ref{zus:idempotenz}.
+
 Zur Umsetzung des in \cref{subsec:zustandsmodell} vorgestellten Zustandsmodells besitzt jeder Job ein Statusattribut, welches
 den aktuellen Bearbeitungszustand beschreibt.
 Ergänzend hierzu werden weitere Metadaten gespeichert, die für die Umsetzung der Fehlertoleranz erforderlich sind.
@@ -188,14 +197,16 @@ Während der Bearbeitung wird im Attribut \texttt{claimed\_by} gespeichert, welc
 Diese Zuordnung stellt sicher, dass ausschließlich der Worker, der einen Job erfolgreich beansprucht hat, dessen Verarbeitung
 abschließen und das Ergebnis persistent speichern darf.
 Dadurch wird die in \ref{zus:idempotenz} geforderte idempotente Ergebnisspeicherung unterstützt und verhindert, dass konkurrierende
-Worker im Recovery-Fall denselben Job gleichzeitig abschließen.\\
+Worker im Recovery-Fall denselben Job gleichzeitig abschließen.
+
 Für die Recovery-Strategie wird zusätzlich die Anzahl bisheriger Bearbeitungsversuche im Attribut \texttt{attempt\_count} gespeichert.
 Dadurch kann die Anzahl automatischer Wiederholungsversuche begrenzt werden, sodass fehlerhafte Jobs nicht unbegrenzt erneut ausgeführt werden.
 Das Attribut \texttt{lease\_until} dient der Umsetzung zeitbasierter Leases.
 Es gibt an, bis zu welchem Zeitpunkt ein Worker den beanspruchten Job exklusiv bearbeiten darf.
 Überschreitet die Bearbeitung diese Zeitspanne, kann der Recovery-Service den Job als verwaist erkennen und ihn entsprechend
 der definierten Recovery-Strategie erneut zur Bearbeitung freigeben.
-Diese beiden Attribute werden für die Umsetzung von \ref{zus:verarbeitungsgarantie} und \ref{zus:terminierung} benötigt.\\
+Diese beiden Attribute werden für die Umsetzung von \ref{zus:verarbeitungsgarantie} und \ref{zus:terminierung} benötigt.
+
 Die Verarbeitungsergebnisse werden in einer separaten Tabelle \texttt{job\_result} gespeichert.
 Zwischen einem Job und seinem Ergebnis besteht dabei eine optionale Eins-zu-Eins-Beziehung.
 Ein Job besitzt höchstens ein Ergebnis, da die idempotente Verarbeitung sicherstellt, dass erfolgreiche Jobs nur einmal
@@ -214,6 +225,7 @@ Die Annahme neuer Jobs gehört zur Erstellungsphase neuer Jobs und bildet somit 
 Zur Umsetzung einer Exactly-Once Auslieferung, die aus den Zusicherungen \ref{zus:duplikaterkennung} und \ref{zus:retries} folgt,
 sind verschiedene Mechanismen nötig, die im Folgenden vorgestellt werden.
 Der Ablauf der Jobannahme ist in \cref{fig:jobannahme} dargestellt.
+
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/jobannahmeSequenzdiagramm}
@@ -221,6 +233,7 @@ Der Ablauf der Jobannahme ist in \cref{fig:jobannahme} dargestellt.
     zur Rückgabe einer Erfolgsnachricht an den Client inklusive Unterscheidung im Duplikatsfall des Idempotenz-Keys.}
     \label{fig:jobannahme}
 \end{figure}
+
 Zur Erstellung eines neuen Jobs sendet der Client eine Anfrage über die \gls{rest}-Schnittstelle an das Backend.
 Die Anfrage besteht aus zwei Bestandteilen: der eigentlichen Nutzlast (\textit{Payload}), welche die durchzuführende Arbeit beschreibt,
 sowie einem vom Client erzeugten Idempotenzschlüssel.
@@ -230,12 +243,13 @@ obwohl der ursprüngliche Job bereits erfolgreich gespeichert wurde.
 Ein solches Szenario kann beispielsweise auftreten, wenn das Acknowledgement des Backends bei der Übertragung verloren
 geht und der Client deshalb fälschlicherweise von einer fehlgeschlagenen Joberstellung ausgeht.
 Durch den Idempotenzschlüssel kann das Backend erkennen, dass der betroffene Job bereits existiert und eine doppelte Persistierung verhindern.
-Damit wird Zusicherung \ref{zus:duplikaterkennung} umgesetzt.\\
+Damit wird Zusicherung \ref{zus:duplikaterkennung} umgesetzt.
+
 Nach Eingang der Anfrage leitet die \gls{rest}-\gls{api} diese an den Job-Service weiter.
 Dieser versucht, den Job zusammen mit dem Idempotenzschlüssel zu speichern.
 Existiert der Idempotenzschlüssel noch nicht, liefert die Anfrage den Job als Ergebnis.
 Der Service gibt den erstellten Job an die \gls{rest}-\gls{api} zurück,
-welche dem Client mit dem HTTP-Statuscode \texttt{201 Created} als Bestätigung der erfolgreichen Joberstellung antwortet.\\
+welche dem Client mit dem HTTP-Statuscode \texttt{201 Created} als Bestätigung der erfolgreichen Joberstellung antwortet.
 Existiert dagegen bereits ein Job mit demselben Idempotenzschlüssel, wird ein Fehler aufgrund des
 \texttt{UNIQUE}-Constraints der Datenbank ausgelöst.
 Dieser wird durch den Service weitergegeben und schließlich vom Controller der \gls{rest}-\gls{api} abgefangen.
@@ -262,8 +276,9 @@ sowie der Persistierung des Ergebnisses beendet werden.
 Wie bereits in \cref{subsec:transaktionsgrenzen} erläutert, bringen lange Transaktionen einige Nachteile mit sich und werden daher
 auch für das in dieser Arbeit entworfene System nicht verwendet.
 Hintergrundjobs kapseln typischerweise langlaufende Berechnungen oder E/A-intensive Operationen \parencite{microsoft_corporation_hrsg_best_2026}.
-Während der gesamten Bearbeitungsdauer würden dadurch Datenbankverbindungen sowie Sperren unnötig lange gehalten werden müssen.
-Transaktionen sollten so lang wie nötig und so kurz wie möglich entworfen werden.\\
+Während der gesamten Bearbeitungsdauer würden dadurch Datenbankverbindungen sowie Sperren unnötig lange gehalten werden müssen. %TODO: hier sehr kurze unzusammenhängende Sätze
+Transaktionen sollten so lang wie nötig und so kurz wie möglich entworfen werden.
+
 Aus diesem Grund verfolgt das entwickelte System einen anderen Ansatz.
 Die eigentliche Fachlogik wird vollständig außerhalb einer Datenbanktransaktion ausgeführt.
 Datenbanktransaktionen werden ausschließlich zur atomaren Synchronisation der Zustandsübergänge verwendet und deshalb möglichst kurz gehalten.
@@ -271,6 +286,7 @@ Die Kombination aus dem in \cref{subsec:zustandsmodell} vorgestellten Zustandsmo
 ermöglicht eine exklusive Bearbeitung der Jobs, ohne Datenbankressourcen während der eigentlichen Verarbeitung zu blockieren.
 
 Der Verarbeitungsablauf gliedert sich hierzu in drei Phasen, die in \cref{fig:transaktionsmodell} visualisiert sind.
+
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.9\textwidth]{images/transaktionsmodell}
@@ -278,6 +294,7 @@ Der Verarbeitungsablauf gliedert sich hierzu in drei Phasen, die in \cref{fig:tr
     der einzelnen Phasen des Job-Lebenszyklus und den darin ausgeführten Operationen.}
     \label{fig:transaktionsmodell}
 \end{figure}
+
 Zunächst beansprucht ein Worker innerhalb einer Datenbanktransaktion einen freien Job.
 Hierzu wird mittels \textit{SELECT~…~FOR~UPDATE~SKIP~LOCKED} ein geeigneter Job ausgewählt und exklusiv gesperrt.
 Bereits von anderen Workern reservierte Jobs werden dadurch nicht blockierend abgewartet, sondern unmittelbar übersprungen.
@@ -332,7 +349,7 @@ transienten Infrastrukturfehlern betroffen sein.
 
 Auf Clientseite werden Wiederholungsversuche für die Kommunikation mit der \gls{rest}-Schnittstelle des Backends vorgesehen.
 Kann eine Anfrage aufgrund einer temporären Netzwerkstörung oder einer kurzfristigen Nichtverfügbarkeit des Backends
-nicht erfolgreich abgeschlossen werden bzw. bleibt die Erfolgsbestätigung aus, wird die Anfrage automatisch erneut übertragen.
+nicht erfolgreich abgeschlossen werden beziehungsweise bleibt die Erfolgsbestätigung aus, wird die Anfrage automatisch erneut übertragen.
 Da die Joberstellung durch den in \cref{subsec:joberstellung} beschriebenen Idempotenzmechanismus abgesichert ist,
 kann eine erneute Übertragung derselben Anfrage nicht zu einer mehrfachen Persistierung eines Jobs führen.
 Die Kombination aus Retry und Idempotenz schafft somit eine Exactly-Once-Semantik für die Joberstellung unter der Voraussetzung,
@@ -343,11 +360,13 @@ auf transiente Infrastrukturfehler zurückzuführen ist, beispielsweise kurzzeit
 vorübergehende Nichtverfügbarkeit der Datenbank.
 Kann eine Operation aufgrund eines solchen Fehlers nicht abgeschlossen werden, wird sie automatisch erneut ausgeführt.
 Dagegen werden fachliche Fehler während der eigentlichen Jobverarbeitung bewusst nicht wiederholt, da deren Ursache nicht
-durch einen erneuten Ausführungsversuch beseitigt werden kann.\\
+durch einen erneuten Ausführungsversuch beseitigt werden kann.
+
 Zur strukturellen Entkopplung der Wiederholungslogik wird diese in einem eigenständigen Retry-Teilsystem gekapselt.
 Wie in \cref{fig:retryClassDiagram} dargestellt, nutzen die jeweiligen Komponenten, wie beispielsweise der Client im Frontend
 zur Erstellung der Jobs, einen zentralen RetryExecutor, der die auszuführende Operation über die Methode \textit{execute(...)}
 entgegennimmt und deren Ausführung entsprechend einer konfigurierbaren Retry-Policy steuert.
+
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{images/retryClassDiagramm}
@@ -355,6 +374,7 @@ entgegennimmt und deren Ausführung entsprechend einer konfigurierbaren Retry-Po
     für den Client inklusive der Konfiguration durch unterschiedliche Policies.}
     \label{fig:retryClassDiagram}
 \end{figure}
+
 Der RetryExecutor enthält dabei selbst keine anwendungsspezifischen Entscheidungen darüber, wann eine Wiederholung erfolgen soll.
 Stattdessen fängt er Exceptions von der auszuführenden Operation und gibt sie an \textit{shouldRetry(...)} weiter.
 Die spezifische Policy entscheidet dann, ob ein Retry sinnvoll ist oder nicht, indem sie die Exception klassifiziert und einen
@@ -394,15 +414,16 @@ fälschlicherweise als ausgefallen eingestuft und erneut zur Bearbeitung freigeg
 Worker das Ergebnis nicht mehr speichern darf.
 Ein solches Verhalten könnte bei sehr aufwendigen Jobs verhindern, dass diese jemals erfolgreich beendet werden.
 Dem steht jedoch eine höhere Anzahl periodischer Schreibzugriffe auf den Job-Store gegenüber, wodurch die Datenbank zusätzlich belastet wird.
-Da der Heartbeat-Mechanismus für den im Rahmen dieser Arbeit entwickelten Prototypen und dessen Zielsetzung
-keinen nennenswerten Mehrwert bietet, werden lediglich zeitbasierte Leases genutzt.\\
+Da der Prototyp nur eine simulierte Fachlogik mit festgelegter Jobdauer nutzt, werden im Rahmen dieser Arbeit lediglich zeitbasierte Leases genutzt.
+Daraus resultierende Konsequenzen werden in \cref{sec:einschraenkungen} diskutiert.
+
 Für jeden erkannten verwaisten Job entscheidet der Recovery-Service anschließend über das weitere Vorgehen.
 Wurde die maximal zulässige Anzahl an Ausführungsversuchen noch nicht erreicht, wird der Job nach dem in \cref{subsec:transaktionsmodell}
 vorgestellten Transaktionsschema erneut zur Verarbeitung freigegeben.
 Anschließend kann der Job von einem beliebigen Worker erneut beansprucht werden.
 Wurde die konfigurierte Obergrenze der Wiederholungsversuche bereits erreicht, wird der Job stattdessen in den
 Endzustand \textit{Failed} überführt und nicht erneut verarbeitet.
-Dadurch wird verhindert, dass dauerhaft fehlerhafte Jobs unbegrenzt Systemressourcen belegen und nie terminieren (\ref{zus:terminierung}).\\
+Dadurch wird verhindert, dass dauerhaft fehlerhafte Jobs unbegrenzt Systemressourcen belegen und nie terminieren (\ref{zus:terminierung}).
 Durch diesen Mechanismus können insbesondere Worker-Abstürze, JVM-Abstürze, Container-Neustarts sowie dauerhaft blockierte
 Worker in Bezug auf die Jobausführung behandelt werden (\ref{zus:verarbeitungsgarantie}).
 Die eigentliche Terminierung oder der Neustart fehlerhafter Worker ist dagegen nicht Bestandteil des entwickelten Systems.
@@ -413,11 +434,12 @@ Die Wiederaufnahme eines Jobs erfolgt in der entwickelten Architektur grundsätz
 unterbrochenen Ausführungszustands, sondern durch eine vollständige Neuausführung auf Basis der ursprünglich persistierten Eingabedaten.
 Aus diesem Grund muss die Payload eines Jobs mindestens bis zum erfolgreichen Abschluss unverändert im Job-Store verbleiben.
 Dadurch kann jeder Wiederholungsversuch unter identischen Ausgangsbedingungen beginnen und unvollständig abgeschlossene
-Ausführungsversuche haben keine Auswirkungen auf den Erfolg oder das Ergebnis späterer Wiederholungen (\ref{zus:idempotenz}).\\
+Ausführungsversuche haben keine Auswirkungen auf den Erfolg oder das Ergebnis späterer Wiederholungen (\ref{zus:idempotenz}).
 Problematisch ist ein solches Vorgehen jedoch, wenn während der Verarbeitung externe Seiteneffekte entstehen.
 Wird beispielsweise wie in \cref{fig:seiteneffekte} im Rahmen eines Jobs eine E-Mail versendet und der Worker stürzt anschließend
 vor dem erfolgreichen Abschluss der Verarbeitung ab, so wird der Job durch den Recovery-Service erneut zur Verarbeitung freigegeben.
 Die erneute Ausführung würde in diesem Fall dieselbe E-Mail ein weiteres Mal versenden.
+
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.9\textwidth]{images/wiederholungenBeiSeiteneffekten}
@@ -426,6 +448,7 @@ Die erneute Ausführung würde in diesem Fall dieselbe E-Mail ein weiteres Mal v
     zu einer ungewollten Mehrfachausführung einer Operation führen.}
     \label{fig:seiteneffekte}
 \end{figure}
+
 Die entwickelte Infrastruktur garantiert daher ausschließlich die idempotente Verarbeitung der internen Fachlogik des Job-Processing-Systems.
 Für externe Seiteneffekte kann eine Exactly-Once-Ausführung dagegen grundsätzlich nicht gewährleistet werden.
 Wie schon in \cref{subsec:exactlyOnce} erwähnt ist dies nur möglich, wenn das jeweils aufgerufene Zielsystem selbst eine
@@ -468,7 +491,7 @@ Das in \cref{subsec:recoveryarchitektur} bereits erwähnte Problem bezüglich Se
 Die sich aus \ref{item:tz3} ergebende Implementierung des Systems orientiert sich unmittelbar an dem in \cref{sec:architektur}
 erarbeiteten Systementwurf zur Umsetzung der definierten Zusicherungen.
 Da einzelne Garantien, wie die atomare Verarbeitung oder die Idempotenz, erst durch das Zusammenwirken mehrerer
-Komponenten realisiert werden, erfolgt die Darstellung der Implementierung anhand der zentralen Bausteine und Mechanismen des Systems.\\
+Komponenten realisiert werden, erfolgt die Darstellung der Implementierung anhand der zentralen Bausteine und Mechanismen des Systems.
 Das Kapitel gliedert sich wie folgt:
 \cref{subsec:technologien} begründet zunächst die Auswahl der verwendeten Technologien.
 In \cref{subsec:impl_persistenz} wird die datenbankseitige Abbildung der Entitäten sowie die Kapselung der SQL-Zugriffe im Repository behandelt.
@@ -489,7 +512,8 @@ transaktionsbasierter Client-Server-Anwendungen bereitstellt und gleichzeitig vi
 Mechanismen direkt unterstützt.
 Darüber hinaus zählt Spring zu einem weit verbreiteten Frameworks für die Entwicklung von Unternehmensanwendungen und
 findet breite Anwendung in der industriellen Praxis.
-Dadurch entsteht eine realitätsnahe Entwicklungsumgebung, die gleichzeitig einen hohen Grad an Automatisierung bietet.\\
+Dadurch entsteht eine realitätsnahe Entwicklungsumgebung, die gleichzeitig einen hohen Grad an Automatisierung bietet.
+
 Für die Bereitstellung der \gls{rest}-Schnittstelle wird Spring Web verwendet.
 Die Abbildung der HTTP-Endpunkte sowie die Serialisierung und Deserialisierung von JSON-Nachrichten erfolgen dadurch
 deklarativ über Annotationen.
@@ -499,13 +523,15 @@ Implementierungsaufwand für Standardoperationen erheblich.
 Gleichzeitig bleibt über native Queries die Möglichkeit erhalten, Operationen feingranular zu steuern sowie gezielt auf
 datenbankspezifische Funktionen und optimierte SQL-Anweisungen zurückzugreifen.
 Die benötigten transaktionalen Eigenschaften werden mithilfe von Spring Transactions über \texttt{@Transactional}
-umgesetzt.\\
-Als Job-Store wird PostgreSQL eingesetzt.
+umgesetzt.
+
+Als Job-Store wird PostgreSQL eingesetzt. %TODO: Wird (zum Teil) schon im Architekturteil begründet
 Die Datenbank bietet die für das entwickelte System benötigten Mechanismen zur transaktionalen Verarbeitung und
 Synchronisation konkurrierender Zugriffe.
 Insbesondere die Unterstützung von \texttt{SELECT ... FOR UPDATE SKIP LOCKED} ermöglicht für einen pull-basierten Ansatz
 eine effiziente Koordination mehrere Worker in einer Job Queue, ohne dass Worker sich gegenseitig blockieren und
-Wartesituationen entstehen.\\
+Wartesituationen entstehen.
+
 Die Kommunikation zwischen Frontend und Backend erfolgt über den von Spring bereitgestellten \texttt{RestClient}.
 Die Verarbeitung der Jobs wird innerhalb des Backends durch einen konfigurierbaren Thread-Pool realisiert, der auf dem
 \texttt{ExecutorService} der Java-Concurrency-Bibliothek basiert.
@@ -519,19 +545,21 @@ es, den Fokus auf die Entwicklung und Evaluation der im Architekturentwurf besch
 \label{subsec:impl_persistenz}
 Für den Zugriff auf die relationale Datenbank wird Spring Data JPA verwendet.
 Die Abbildung der persistenten Daten erfolgt durch die Entitätsklassen \texttt{Job} und \texttt{JobResult}, die jeweils mit
-der Annotation \texttt{@Entity} versehen sind.\\
+der Annotation \texttt{@Entity} versehen sind.
 Der Status eines Jobs wird als Java-Enumeration modelliert und über JPA persistent gespeichert.
 Damit wird sichergestellt, dass ausschließlich die im Zustandsmodell definierten Zustände verwendet werden können.
 Die Nutzdaten eines Jobs werden als JSON in der Datenbank persistiert.
 Dadurch kann die \textit{Payload} eine Menge an strukturierten Informationen für die Jobspezifikation beinhalten.
 Alternativ könnte die \textit{Payload} auch in Abhängigkeit von der Domain und dem Systementwurf als eigene Entität
-modelliert werden mit einer 1:1-Beziehung zum Job.\\
+modelliert werden mit einer 1:1-Beziehung zum Job.
+
 Eine besondere Bedeutung besitzt der \textit{Idempotency-Key}, der zusätzlich zur technischen Identifikation eines Jobs gespeichert wird.
 Dieser Schlüssel wird vom Client als \texttt{\gls{uuid}} erzeugt und dient zur Erkennung mehrfach übermittelter Anfragen.
 Auf Datenbankebene wird daher ein \texttt{UNIQUE}-Constraint für das entsprechende Attribut definiert.
 Dadurch kann die Datenbank selbst sicherstellen, dass die Idempotency-Keys eindeutig sind.
 In Kombination mit der Kennzeichnung \textit{nullable=false} kann so die Eindeutigkeit erstellter Jobs auf Datenbankebene
-sichergestellt werden (\ref{zus:duplikaterkennung}).\\
+sichergestellt werden (\ref{zus:duplikaterkennung}).
+
 Die Verarbeitungsergebnisse werden durch die Entitätsklasse \texttt{JobResult} repräsentiert.
 Umgesetzt wird die 1:1-Beziehung zwischen \texttt{JobResult} und \texttt{Job} über die \texttt{@OneToOne}-Annotation.
 Dabei wird die Fremdschlüsselbeziehung über \texttt{@JoinColumn} in der Tabelle des Ergebnisses umgesetzt.
@@ -542,6 +570,7 @@ Der Datenbankzugriff wird über ein Repository-Interface gekapselt.
 Neben den von Spring Data JPA bereitgestellten Standardoperationen werden für das Job-Processing-System spezifische Abfragen
 definiert, die unmittelbar die Anforderungen an die konkurrierende Verarbeitung und die Recovery unterstützen.
 Für die Auswahl eines Jobs zur Verarbeitung wird beispielsweise die in \cref{lst:claiming} dargestellte native SQL-Abfrage definiert.
+
 \begin{lstlisting}[
     language=SQL,
     style=sql,
@@ -556,6 +585,7 @@ ORDER BY created_at
 LIMIT :limit
 FOR UPDATE SKIP LOCKED
 \end{lstlisting}
+
 Beim Aufruf der Anfrage wird sie mit einem Status und einer Anzahl parametrisiert und liefert maximal die übergebene Anzahl
 Datensätze die sich im übergebenen Zustand befinden zurück.
 Die Sortierung nach dem Erstellungszeitpunkt stellt dabei sicher, dass ältere Jobs bevorzugt verarbeitet werden (\ref{zus:terminierung}).
@@ -566,6 +596,7 @@ zu blockieren.
 
 Für den Abschluss einer Verarbeitung und Recovery-Szenarien wird der in \cref{lst:forUpdate} gezeigte Befehl
 zum gezielten Zugriff auf einzelne Jobs bereitgestellt, der mit der Auswahl eine Sperre für diesen Datensatz setzt.
+
 \begin{lstlisting}[
     language=SQL,
     style=sql,
@@ -578,11 +609,13 @@ FROM jobs
 WHERE id = :jobId
 FOR UPDATE
 \end{lstlisting}
+
 Auch dieser Befehl dient dazu, konkurrierende Änderungen an einem konkreten Job zu verhindern (\ref{zus:exklusive_rechte}).
 
 Zusätzlich stellt das Repository eine Abfrage bereit, mit der Jobs anhand der Kombination ihres Status und des Ablaufs ihres Leases
 identifiziert werden können.
 Damit bildet die Abfrage aus \cref{lst:verwaisteJobs} die Grundlage für die Erkennung verwaister Jobs durch den Recovery-Mechanismus.
+
 \begin{lstlisting}[
     language=SQL,
     style=sql,
@@ -595,6 +628,7 @@ FROM Job j
 WHERE j.status = :status
 AND j.lease_until < :timestamp
 \end{lstlisting}
+
 Wird der gesuchte Status auf \textit{Running} und der \texttt{timestamp} auf den aktuellen Zeitpunkt gesetzt, liefert
 die Anfrage die ID aller Jobs, die noch nicht beendet wurden und deren Lease zusätzlich abgelaufen ist.
 
@@ -618,6 +652,7 @@ Zusätzlich erzeugt der Client einen \gls{uuid}-basierten \textit{Idempotency-Ke
 \Cref{lst:createJob} zeigt, wie das Request-Objekt anschließend über den im Frontend implementierten \texttt{BackendRestClient}
 an die \gls{rest}-Schnittstelle des Backends übertragen wird.
 Die Anfrage wird als HTTP-POST-Request an den Endpunkt \texttt{/job} gesendet und enthält das zuvor erzeugte Request-Objekt im HTTP-Body.
+
 \begin{lstlisting}[
     language=Java,
     style=java,
@@ -634,6 +669,7 @@ public ResponseEntity<CreateJobResponse> createJob(CreateJobRequest request) {
         .toEntity(CreateJobResponse.class);
 }
 \end{lstlisting}
+
 Im Backend wird die Anfrage durch den mit Spring Web implementierten \texttt{JobController} entgegengenommen.
 Der entsprechende Endpunkt ist über \texttt{@PostMapping(\dq/job\dq)} definiert und in \cref{lst:endpoint} dargestellt.
 Der HTTP-Body wird durch \texttt{@RequestBody} automatisch in ein \texttt{CreateJobRequest}-Objekt überführt und in
@@ -652,6 +688,7 @@ mit dem HTTP-Status \texttt{200 OK} an den Client zurückgegeben.
 Andere Datenbankfehler werden dagegen nicht als Idempotenzfall interpretiert und führen zu einer Antwort mit \texttt{500 Internal Server Error}.
 Für den Client ist damit unabhängig davon, ob ein Job erstmals angelegt oder eine bereits erfolgreich ausgeführte Anfrage
 erneut übermittelt wurde, eindeutig erkennbar, dass der gewünschte Job im System vorhanden ist.
+
 \begin{lstlisting}[
     language=Java,
     style=java,
@@ -679,6 +716,7 @@ public ResponseEntity<CreateJobResponse> createJob(@Valid @RequestBody CreateJob
     }
 }
 \end{lstlisting}
+
 Die eigentliche Erstellung und Persistierung des Jobs übernimmt der \texttt{JobService}.
 Hierzu wird zunächst über eine Factory aus dem Request-\gls{dto} eine neue \texttt{Job}-Entität erzeugt.
 Anschließend wird diese innerhalb einer durch \texttt{@Transactional} gekapselten Serviceoperation atomar persistiert
@@ -693,6 +731,7 @@ Jeder Worker erhält dabei Zugriff auf den \texttt{WorkerService} sowie auf eine
 Die Initialisierung des Thread-Pools und das Starten der Worker erfolgt daher nach Erzeugung des Spring-Kontexts über die mit
 \texttt{@PostConstruct} annotierte Methode \textit{start()}, um zu garantieren, dass der \texttt{WorkerService} und der \texttt{Processor}
 bereits durch Spring injiziert wurden.
+
 \begin{lstlisting}[
 language=Java,
     style=java,
@@ -715,6 +754,7 @@ void start() {
     }
 }
 \end{lstlisting}
+
 Die Steuerung der eigentlichen Verarbeitung erfolgt innerhalb der \texttt{Worker}-Instanzen.
 Jeder Worker besitzt eine eigene \gls{uuid}, die bei seiner Erzeugung generiert wird.
 Diese wird beim Beanspruchen eines Jobs als \textit{claimed\_by} im Job-Store hinterlegt und ermöglicht dadurch die
@@ -727,6 +767,7 @@ einen verfügbaren Job zu beanspruchen.
 Wird kein Job gefunden, ist das \texttt{Optional}-Objekt leer.
 Der Worker wird daraufhin für eine kurze Zeit pausiert und führt anschließend eine erneute Abfrage durch.
 Beendet wird die Schleife erst, wenn der Thread unterbrochen wird.
+
 \begin{lstlisting}[
 language=Java,
     style=java,
@@ -753,8 +794,9 @@ public void run() {
     }
 }
 \end{lstlisting}
+
 Findet \textit{claimNextJob} hingegen einen Job, sperrt die Methode diesen und gibt ihn an die \texttt{Worker}-Instanz zurück.
-Anschließend wird der Job über den \texttt{Processor} verarbeitet und das Ergebnis gespeichert.\\
+Anschließend wird der Job über den \texttt{Processor} verarbeitet und das Ergebnis gespeichert.
 Die Implementierung von \textit{claimNextJob} ist in \cref{lst:claimNextJob} veranschaulicht.
 Sie ist als transaktionale Operation implementiert und umfasst sowohl die Auswahl eines freien Jobs als auch
 dessen Überführung in den Zustand \textit{Running}.
@@ -765,6 +807,7 @@ Andernfalls wird der Datensatz durch das \texttt{JobRepository} gesperrt, die f�
 Attribute (vgl. \cref{subsec:transaktionsmodell}) werden innerhalb einer gemeinsamen Transaktion aktualisiert und der \texttt{Job} wird zurückgegeben.
 Besonders wichtig ist neben dem Status die Aktualisierung von \textit{lease\_until} für die Recovery, indem eine festgelegte Dauer auf
 den über \texttt{Instant} angefragten aktuellen Zeitpunkt addiert wird.
+
 \begin{lstlisting}[
 language=Java,
     style=java,
@@ -789,10 +832,12 @@ public Optional<Job> claimNextJob(UUID workerId) {
     return Optional.of(job);
 }
 \end{lstlisting}
+
 Durch die transaktionale Kapselung werden Auswahl und Statusänderung atomar durchgeführt.
 Nach Abschluss der Methode wird die Transaktion beendet und der Job befindet sich im Job-Store im Zustand \textit{Running}.
 Die eigentliche Verarbeitung findet somit nicht innerhalb dieser Transaktion statt.
-Dadurch bleibt die Datenbankverbindung nur für die zur Reservierung erforderliche Zeit belegt.\\
+Dadurch bleibt die Datenbankverbindung nur für die zur Reservierung erforderliche Zeit belegt.
+
 Nach erfolgreichem Claiming übergibt der Worker den Job zur Verarbeitung an seine \texttt{Processor}-Instanz.
 Die eigentliche Fachlogik wird dadurch von der allgemeinen Worker-Infrastruktur getrennt.
 Das \texttt{Processor}-Interface definiert hierzu lediglich die Methode \texttt{process(Job)}, die einen \texttt{Job}
@@ -807,7 +852,8 @@ eine Datenbankverbindung oder eine Sperre auf dem Job zu halten.
 Erzeugt die Fachlogik erfolgreich ein \texttt{JobResult}, wird dieses anschließend von der \texttt{Worker}-Instanz
 an den \texttt{WorkerService} zur Persistierung übergeben.
 Die dabei verwendete Transaktion sowie die Prüfung der Berechtigung des Workers zur Ergebnisspeicherung werden
-in \cref{subsec:impl_abschlussJoberverarbeitung} behandelt.\\
+in \cref{subsec:impl_abschlussJoberverarbeitung} behandelt.
+
 Tritt während der eigentlichen Verarbeitung eine Exception auf, bricht die Verarbeitung ab und es wird kein Ergebnis gespeichert.
 Der Job verbleibt zunächst im Zustand \textit{Running}.
 Die weitere Behandlung erfolgt in diesem Fall über den Recovery-Mechanismus, dessen Umsetzung in \cref{subsec:impl_recovery}
@@ -818,9 +864,10 @@ behandelt wird.
 Nach erfolgreicher Ausführung der Fachlogik übergibt der Worker das erzeugte \texttt{JobResult} zusammen mit der Job-ID
 und seiner eigenen Worker-ID an den \texttt{WorkerService}.
 Die in \cref{lst:finishJob} dargestellte Methode \textit{finishJob(...)} übernimmt dabei die atomare Persistierung
-des Verarbeitungsergebnisses sowie den Abschluss der Jobverarbeitung.\\
+des Verarbeitungsergebnisses sowie den Abschluss der Jobverarbeitung.
 Wie bereits bei der Reservierung eines Jobs erfolgt auch dieser Schritt entsprechend dem Vorgehen aus
 \cref{subsec:transaktionsmodell} atomar innerhalb einer Datenbanktransaktion mittels \texttt{@Transactional}.
+
 \begin{lstlisting}[
 language=Java,
     style=java,
@@ -853,6 +900,7 @@ public Job finishJob(UUID jobId, UUID workerId, JobResult jobResult)
     return job;
 }
 \end{lstlisting}
+
 Zu Beginn der Methode wird der betreffende Job über \textit{findByIdForUpdate(...)} geladen.
 Die zugrunde liegende SQL-Abfrage verwendet \texttt{FOR UPDATE} und sperrt den Datensatz dadurch exklusiv bis zum Abschluss der Transaktion.
 Dadurch wird verhindert, dass Recovery-Prozesse oder andere konkurrierende Transaktionen den Job während seiner Finalisierung verändern können.
@@ -866,7 +914,8 @@ Hat der Job zwischenzeitlich einen anderen Besitzer erhalten, beispielsweise inf
 Zusätzlich wird geprüft, ob das zum Job gehörende Lease zum Zeitpunkt der Ergebnisspeicherung noch gültig ist.
 Ist das Lease bereits abgelaufen, wird eine \texttt{LeaseExpiredException} ausgelöst.
 Auch in diesem Fall wird kein Ergebnis persistiert, da nicht mehr sichergestellt werden kann, dass der Worker den Job weiterhin exklusiv besitzt.
-Die weitere Behandlung erfolgt anschließend durch den Recovery-Mechanismus.\\
+Die weitere Behandlung erfolgt anschließend durch den Recovery-Mechanismus.
+
 Erst nachdem sämtliche Prüfungen erfolgreich abgeschlossen wurden, erfolgt die eigentliche Persistierung des Verarbeitungsergebnisses.
 Hierzu wird zunächst der Jobstatus auf \textit{Succeeded} gesetzt.
 Anschließend wird das \texttt{JobResult} gespeichert und dem entsprechenden Job zugeordnet.
@@ -888,6 +937,7 @@ eines \texttt{Callable}-Objekts übergeben wird.
 Dadurch kann derselbe Mechanismus unabhängig davon verwendet werden, ob beispielsweise ein \gls{rest}-Aufruf, ein Datenbankzugriff
 oder eine andere Operation wiederholt werden soll.
 \Cref{lst:retryExecutor} zeigt den wesentlichen Aufbau der Implementierung.
+
 \begin{lstlisting}[
 language=Java,
     style=java,
@@ -910,18 +960,21 @@ public <T> T execute(Callable<T> callable) throws Exception {
     }
 }
 \end{lstlisting}
+
 Die Methode führt die übergebene Operation zunächst unmittelbar aus.
 Tritt dabei keine Exception auf, wird das Ergebnis direkt an den Aufrufer zurückgegeben.
 Wird dagegen eine Exception ausgelöst, entscheidet die spezifische \texttt{RetryPolicy}, ob ein weiterer Ausführungsversuch sinnvoll ist.
 Hierzu erhält sie sowohl die aufgetretene Exception als auch die aktuelle Versuchsnummer.
 Lehnt die Policy einen weiteren Versuch ab, wird die Exception unverändert an den Aufrufer weitergereicht.
 Andernfalls berechnet die Policy zunächst die Dauer des nächsten Backoff-Intervalls und pausiert den Worker anschließend für diese Zeit,
-bevor die Operation erneut ausgeführt wird.\\
+bevor die Operation erneut ausgeführt wird.
+
 Die konkrete Retry-Strategie wird über das Interface \texttt{RetryPolicy} beschrieben.
 Dieses definiert die beiden Methoden \texttt{shouldRetry(...)} und \texttt{nextDelay(...)}.
 Während \texttt{shouldRetry(...)} entscheidet, ob ein Fehler erneut ausgeführt werden soll, bestimmt \texttt{nextDelay(...)}
 die Wartezeit bis zum nächsten Versuch.
-Dadurch werden Fehlerklassifikation und die Steuerung der Wartezeit vollständig vom eigentlichen Retry-Mechanismus getrennt.\\
+Dadurch werden Fehlerklassifikation und die Steuerung der Wartezeit vollständig vom eigentlichen Retry-Mechanismus getrennt.
+
 Für die Berechnung des Backoff-Intervalls wird entsprechend dem Architekturentwurf ein exponentieller Backoff verwendet.
 Die Verzögerung ergibt sich aus
 \[
@@ -933,6 +986,7 @@ Mit jedem weiteren Fehlversuch vergrößert sich somit das Warteintervall expone
 
 Für die unterschiedlichen Einsatzzwecke werden jeweils eigene Implementierungen der \texttt{RetryPolicy} verwendet.
 \Cref{lst:retryPolicy} zeigt exemplarisch die Implementierung der für Datenbankzugriffe verwendeten Policy.
+
 \begin{lstlisting}[
 language=Java,
     style=java,
@@ -957,6 +1011,7 @@ public long nextDelay(int attempt) {
             * Math.pow(backoffFactor, attempt - 1));
 }
 \end{lstlisting}
+
 Die Datenbank-Policy klassifiziert ausschließlich Datenbankzugriffsfehler (\texttt{DataAccessException} und \texttt{CannotCreateTransactionException}),
 wozu unter anderem die Nichterreichbarkeit der Datenbank zählt, als potenziell transient und begrenzt gleichzeitig die
 maximale Anzahl der Wiederholungsversuche.
@@ -976,6 +1031,7 @@ Obwohl beide Policies unterschiedliche Fehlerarten behandeln, nutzen sie denselb
 Die Einbindung des Retry-Mechanismus erfolgt unmittelbar an den Stellen, an denen temporäre Infrastrukturfehler auftreten können.
 Die jeweilige Operation wird hierzu als Lambda-Ausdruck an den RetryExecutor übergeben.
 \Cref{lst:retryUsage} zeigt dies exemplarisch für einen Datenbankzugriff im Backend.
+
 \begin{lstlisting}[
 language=Java,
     style=java,
@@ -987,8 +1043,10 @@ Job job = retryExecutor.execute(
     () -> jobService.createJob(request)
 );
 \end{lstlisting}
+
 Wird Zeile 6 aus \cref{lst:endpoint} mit diesem Ausdruck ersetzt und die Datenbank ist beispielsweise nicht erreichbar,
-wird der Aufruf von \textit{creatJob(request)} automatisch erneut versucht.\\
+wird der Aufruf von \textit{creatJob(request)} automatisch erneut versucht.
+
 Neben der Joberstellung wird derselbe Mechanismus ebenfalls beim Claiming neuer Jobs sowie beim Abschluss einer Verarbeitung eingesetzt.
 Im Frontend kapselt der \texttt{RetryExecutor} darüber hinaus sämtliche \gls{rest}-Aufrufe an das Backend.
 Durch diese einheitliche Verwendung entsteht ein konsistentes Wiederholungsverhalten über alle Komponenten hinweg, ohne dass
@@ -999,7 +1057,8 @@ Retry-Logik mehrfach implementiert werden muss.
 \label{subsec:impl_recovery}
 Die Wiederherstellung verwaister Jobs wird durch die beiden Komponenten \texttt{RecoveryService} und \texttt{RecoveryExecutor} umgesetzt.
 Während der RecoveryService die periodische Suche nach wiederherzustellenden Jobs übernimmt, implementiert der RecoveryExecutor
-die eigentliche Recovery-Logik innerhalb einer Datenbanktransaktion.\\
+die eigentliche Recovery-Logik innerhalb einer Datenbanktransaktion.
+
 Die in \cref{lst:recoveryService} dargestellte zentrale Methode des \texttt{RecoveryService} wird mithilfe der
 Spring-Annotation \texttt{@Scheduled} in festen Zeitabständen ausgeführt.
 Die Abstände zwischen den Recovery-Zyklen kann dabei über den Anwendungskontext konfiguriert werden.
@@ -1009,6 +1068,7 @@ Die Abfrage liefert ausschließlich die Identifikatoren der betroffenen Jobs zur
 Dadurch werden während der Suche keine Datenbankzeilen unnötig blockiert und konkurrierende Worker können ihre Verarbeitung
 gegebenenfalls noch beenden.
 Für jede gefundene Job-ID wird anschließend der \texttt{RecoveryExecutor} aufgerufen.
+
 \begin{lstlisting}[
     language=Java,
     style=java,
@@ -1026,22 +1086,24 @@ public void recoverCycle() {
     }
 }
 \end{lstlisting}
+
 Die eigentliche Wiederherstellung erfolgt innerhalb der Methode \texttt{recoverJob()}, die mit \texttt{@Transactional} gekennzeichnet ist.
 Die Details zeigt \cref{lst:recoverJob}.
 Zu Beginn der Transaktion wird der betreffende Job erneut über seine ID geladen und dabei mittels \texttt{SELECT FOR UPDATE} exklusiv gesperrt.
-Die Sperre stellt sicher, dass Recovery und konkurrierende Worker den Zustand desselben Jobs nicht gleichzeitig verändern können.\\
+Die Sperre stellt sicher, dass Recovery und konkurrierende Worker den Zustand desselben Jobs nicht gleichzeitig verändern können.
 Da zwischen der Suche nach abgelaufenen Leases und dem Beginn der Recovery-Transaktion bereits Änderungen am Job erfolgt
 sein können, wird dessen aktueller Zustand erneut überprüft.
 Insbesondere kann ein Worker den Job zwischenzeitlich noch erfolgreich abgeschlossen haben.
 Befindet sich der Job daher nicht mehr im Zustand \textit{Running}, wird die Recovery ohne weitere Änderungen beendet.
 Die erneute Prüfung verhindert, dass bereits erfolgreich abgeschlossene Jobs aufgrund einer zwischenzeitlichen Zustandsänderung
-fälschlicherweise erneut in die Warteschlange aufgenommen werden.\\
+fälschlicherweise erneut in die Warteschlange aufgenommen werden.
 Anschließend wird anhand des \texttt{attempt\_count} entschieden, ob der Job erneut ausgeführt werden darf.
 Wurde die konfigurierte maximale Anzahl an Ausführungsversuchen noch nicht erreicht, wird der Job wieder in den Zustand \textit{Queued} überführt.
 Andernfalls wird er als \textit{Failed} markiert.
-Dadurch werden endlose Wiederholungszyklen dauerhaft fehlerhafter Jobs verhindert.\\
+Dadurch werden endlose Wiederholungszyklen dauerhaft fehlerhafter Jobs verhindert.
 Unabhängig von der aktuellen Versuchsanzahl werden die Attribute \texttt{claimed\_by} und \texttt{lease\_until} zurückgesetzt sowie
 der Änderungszeitpunkt aktualisiert.
+
 \begin{lstlisting}[
     language=Java,
     style=java,
@@ -1068,6 +1130,7 @@ public void recoverJob(UUID id) {
     job.setUpdatedAt(Instant.now());
 }
 \end{lstlisting}
+
 Da der Recovery-Mechanismus ausschließlich Jobs mit dem Status \texttt{RUNNING} betrachtet und alle anderen Zustände
 ignoriert, können über den Recovery-Prozess keine Zustandsänderungen bereits abgeschlossener Jobs erfolgen.
 Zusammen mit der Einschränkung, dass Worker ausschließlich Jobs im Zustand \texttt{QUEUED} übernehmen können, ergibt sich,
