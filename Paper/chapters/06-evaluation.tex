@@ -117,7 +117,8 @@ Zusätzlich prüft dieser Test die Durchführung eines automatischen clientseiti
 \subsection{Retry-Verhalten bei Infrastrukturfehlern (\ref{zus:retries})}
 \label{subsec:durchfuehrung_z6}
 Für die Untersuchung transienter Datenbankfehler wird die über Docker bereitgestellte PostgreSQL-Datenbank in einem Testcontainer ausgeführt.
-Die Datenbankanbindung der Anwendung wird dabei über einen von Toxiproxy bereitgestellten Proxy geführt.
+Die Datenbankanbindung der Anwendung wird dabei über einen von Toxiproxy, ein auch in der Literatur zur Fehlerinjektion
+bei Microservices empfohlenes Werkzeug \parencite{miranda_proposed_2024}, bereitgestellten Proxy geführt.
 Die Fehlerinjektion erfolgt durch das gezielte Unterbrechen der über den Proxy geführten Verbindung, während der
 Datenbank-Container selbst weiterläuft.
 Ein Neustart der Datenbank selbst hätte bezogen auf den Test der Retry-Funktionalität gegenüber der gewählten Fehlerinjektion keinen
