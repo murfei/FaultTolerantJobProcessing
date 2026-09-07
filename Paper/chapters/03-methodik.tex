@@ -21,7 +21,7 @@ Da die vorliegende Arbeit stark architektur- und praxisgetrieben ist, fokussiert
 auf Grundlagenwerke der Softwarearchitektur und verteilter Systeme sowie auf offizielle technische Dokumentationen.
 
 Ein Teil der grundlegenden Literatur, insbesondere zu Transaktionsverwaltung und Nebenläufigkeitskontrolle in
-relationalen Datenbanksystemen (u.\,a. \textcite{saake_datenbanken_2018}), war bereits aus vorangegangenen
+relationalen Datenbanksystemen (u.\,a.\textcite{saake_datenbanken_2018}), war bereits aus vorangegangenen
 Lehrveranstaltungen des Studiums bekannt und wurde auf Relevanz für die Verwendung in dieser Arbeit lediglich erneut geprüft,
 statt recherchiert zu werden.
 
@@ -60,11 +60,11 @@ Ergänzt wurde die Liste außerdem durch technische Dokumentationen der verwende
 \label{sec:systementwurf}
 Die Systementwicklung folgt einem schrittweisen, an den Anforderungen orientierten Vorgehen.
 Ausgehend von der Problemstellung werden in \cref{ch:anforderungen} zunächst Anforderungen an das zu entwickelnde System
-erhoben und daraus konkrete Zusicherungen abgeleitet (vgl. \ref{item:tz1}).
+erhoben und daraus konkrete Zusicherungen abgeleitet (vgl.~\ref{item:tz1}).
 Diese Zusicherungen beschreiben die Eigenschaften, die das System auch unter Fehlerbedingungen einhalten soll.
 Auf dieser Grundlage werden in \cref{ch:umsetzung} anschließend Architekturentscheidungen getroffen, die die Erfüllung
-der Zusicherungen ermöglichen (vgl. \ref{item:tz2}).
-Die ausgewählten Mechanismen werden anschließend in einem prototypischen System implementiert (vgl. \ref{item:tz3}).
+der Zusicherungen ermöglichen (vgl.~\ref{item:tz2}).
+Die ausgewählten Mechanismen werden anschließend in einem prototypischen System implementiert (vgl.~\ref{item:tz3}).
 
 Damit ergibt sich für den Systementwurf folgende methodische Reihenfolge:
 \begin{enumerate}
@@ -76,7 +76,7 @@ Damit ergibt sich für den Systementwurf folgende methodische Reihenfolge:
 \end{enumerate}
 Abschließend wird das implementierte System evaluiert.
 Die Evaluation überprüft anhand gezielt erzeugter Fehlersituationen, ob die aus den Anforderungen abgeleiteten Zusicherungen
-durch den entworfenen und implementierten Prototyp eingehalten werden (vgl. \ref{item:tz4}).
+durch den entworfenen und implementierten Prototyp eingehalten werden (vgl.~\ref{item:tz4}).
 Die konkrete Durchführung wird in \cref{ch:evaluation} beschrieben.
 
 \subsection{Anforderungserhebung und Ableitung der Zusicherungen}
@@ -180,24 +180,12 @@ Eigenschaften, die sich aus strukturellen Merkmalen der Implementierung ableiten
 Implementierungsmerkmale begründet.
 Die konkrete Zuordnung der jeweiligen Nachweismethode zu den einzelnen Zusicherungen erfolgt im Rahmen der Evaluation.
 
-Zur Überprüfung der entwickelten Mechanismen werden Komponenten- und Integrationstests eingesetzt, die unterschiedliche Zwecke verfolgen.%TODO: das hier wirkt kürzbar
-Im Rahmen der Entwicklung wurden isolierte Komponententests genutzt, um einzelne Mechanismen, wie die Entscheidungslogik
-der Retry-Komponenten, unabhängig von einer laufenden Datenbank oder Infrastruktur zu überprüfen.
-Ein erfolgreicher Komponententest zeigt dabei beispielsweise, dass eine \texttt{DataAccessException} grundsätzlich als
-retrybar klassifiziert wird, er zeigt jedoch nicht, ob eine reale Datenbankverbindung nach einer kurzzeitigen Störung
-tatsächlich wieder erfolgreich verwendet werden kann.
-Da sich die Evaluation auf die Fehlertoleranz des Systems unter gezielt herbeigeführten Fehlerbedingungen konzentriert,
-werden ausschließlich Integrationstests als Evaluationsevidenz herangezogen, die einer konkreten Zusicherung zugeordnet
-sind und das Zusammenspiel der beteiligten Komponenten unter den jeweiligen Fehlerbedingungen untersuchen.
-Komponententests wurden im Rahmen der Entwicklung eingesetzt, um einzelne Mechanismen isoliert zu überprüfen und die allgemeine
+Komponententests werden im Rahmen der Entwicklung eingesetzt, um einzelne Mechanismen isoliert zu überprüfen und die allgemeine
 Funktionsfähigkeit des Systems sicherzustellen.
-Dazu zählen beispielsweise Tests zur Klassifikation von Fehlern durch die Retry-Komponenten, Tests zur Überprüfung der
-grundsätzlichen Erreichbarkeit des Backends oder der fehlerfreien Joberstellung.
-Diese Tests sind jedoch nicht Bestandteil der eigentlichen Evaluation.
-Für die Evaluation wird entsprechend ein unter normalen Bedingungen funktionierendes System vorausgesetzt.
-Integrationstests werden gegen eine reale Instanz des verwendeten Datenbanksystems durchgeführt, um das Verhalten
-der Anwendung auch unter den tatsächlichen Laufzeitbedingungen der eingesetzten Datenbank zu untersuchen.
-Dadurch wird auch das Zusammenspiel der einzelnen Komponenten untereinander und mit der Datenbank getestet.
+Diese Tests sind jedoch nicht Bestandteil der Evaluation, deren Fokus auf der Fehlertoleranz liegt und daher
+ein unter normalen Bedingungen funktionierendes System voraussetzt.
+Stattdessen werden ausschließlich Integrationstests als Evaluationsevidenz herangezogen, die gezielt Fehler injizieren und
+dabei das Verhalten und Zusammenspiel der verschiedenen Komponenten überprüfen.
 Die konkrete technische Umsetzung der Testumgebung wird in \cref{sec:versuchsaufbau} beschrieben.
 
 \subsection{Fehlerinjektion und Testdurchführung}
@@ -224,14 +212,17 @@ Insbesondere Race Conditions hängen vom konkreten Scheduling der beteiligten Th
 Ein einmalig erfolgreicher Testlauf stellt daher für solche Szenarien keinen hinreichenden empirischen Nachweis dar.
 Die Tests bezüglich konkurrierender Verarbeitung werden deshalb wiederholt unter identischen Ausgangsbedingungen ausgeführt.
 Für jeden Lauf werden dabei dieselben Systemparameter und dieselben Fehlerinjektionsbedingungen verwendet.
-Ausgewertet wird anschließend die Anzahl der bestandenen Läufe im Verhältnis zur Gesamtzahl der Durchläufe.
 Die Anzahl der Wiederholungen wird dabei einheitlich auf 100 festgelegt.
 Diese Zahl stellt einen Kompromiss zwischen der Aussagekraft der Untersuchung und dem für die Testdurchführung erforderlichen
 Zeitaufwand dar.
 Eine höhere Wiederholungszahl erhöht die Wahrscheinlichkeit, selten auftretende Nebenläufigkeitseffekte zu beobachten,
 führt jedoch gleichzeitig zu einem höheren Zeitaufwand für die Testdurchführung.
+Ausgewertet wird, ob die für das jeweilige Szenario definierten Prüfkriterien über sämtliche Wiederholungen hinweg eingehalten werden.
+Bei Tests, bei denen unterschiedliche Ausgänge des Rennens möglich sind, wird zusätzlich überprüft, dass im Verlauf der Wiederholungen
+unterschiedliche Ausgänge auftreten.
+Dies soll sicherstellen, dass tatsächlich verschiedene Schedules entstehen.
 Ein erfolgreicher Durchlauf wird dabei nicht als Beweis für das generelle Ausbleiben eines Fehlers interpretiert.
-Vielmehr wird untersucht, ob die definierten Prüfkriterien über alle Wiederholungen hinweg eingehalten werden.
+Die wiederholte Durchführung dient vielmehr dazu, die Robustheit der beobachteten Ergebnisse gegenüber unterschiedlichen
+Ausführungsreihenfolgen zu untersuchen.
 Dieses Vorgehen bildet zugleich die methodische Grundlage für die Überprüfung von \ref{item:h3}.
 Die konkrete Durchführung, die verwendeten Parameter und die Ergebnisse der Testfälle werden in \cref{ch:evaluation} dokumentiert.
-Die dort dargestellten Werte bilden die konkrete Instanziierung der in diesem Kapitel beschriebenen methodischen Vorgehensweise.

@@ -50,7 +50,7 @@ Als konkretes relationales Datenbanksystem wird PostgreSQL eingesetzt.
 Ausschlaggebend hierfür ist die Kombination aus freier Verfügbarkeit, weiter Verbreitung sowie einer ausgereiften und
 gut dokumentierten Unterstützung genau der Funktionalitäten, die für die vorliegende Architektur benötigt werden: exklusive
 Zeilensperren mittels \texttt{SELECT ... FOR UPDATE} sowie deren nicht blockierende Variante mit \texttt{SKIP LOCKED},
-die mehreren Workern eine effiziente, gegenseitig nicht blockierende Datenauswahl ermöglicht.
+die mit einem pull-basierten Claiming mehreren Workern eine effiziente, gegenseitig nicht blockierende Datenauswahl ermöglicht.
 Durch den Einsatz dieser Mechanismen lässt sich bereits ein Teil der in \cref{sec:zusicherungen} erhobenen Anforderungen unmittelbar
 durch inhärente Datenbankfunktionen realisieren.
 Die Wahl von PostgreSQL stellt dabei einen bewussten Architektur-Trade-off dar.
@@ -269,22 +269,14 @@ eingehalten wird und somit kein direktes manuelles Eingreifen nach dem ersten fe
 
 \subsection{Exklusive Verarbeitung und Transaktionsmodell}
 \label{subsec:transaktionsmodell}
-Eine naheliegende Möglichkeit zur Absicherung der Hintergrundverarbeitung vor konkurrierenden Zugriffen besteht darin, eine
-Datenbanktransaktion über den gesamten Lebenszyklus eines Jobs geöffnet zu halten.
-Die Transaktion würde unmittelbar nach dem Beanspruchen eines Jobs beginnen und erst nach Abschluss der vollständigen Fachlogik
-sowie der Persistierung des Ergebnisses beendet werden.
-Wie bereits in \cref{subsec:transaktionsgrenzen} erläutert, bringen lange Transaktionen einige Nachteile mit sich und werden daher
-auch für das in dieser Arbeit entworfene System nicht verwendet.
-Hintergrundjobs kapseln typischerweise langlaufende Berechnungen oder E/A-intensive Operationen \parencite{microsoft_corporation_hrsg_best_2026}.
-Während der gesamten Bearbeitungsdauer würden dadurch Datenbankverbindungen sowie Sperren unnötig lange gehalten werden müssen. %TODO: hier sehr kurze unzusammenhängende Sätze
-Transaktionen sollten so lang wie nötig und so kurz wie möglich entworfen werden.
-
-Aus diesem Grund verfolgt das entwickelte System einen anderen Ansatz.
+Wie bereits in \cref{subsec:transaktionsgrenzen} erläutert, bringen lange Transaktionen einige Nachteile mit sich.
+Da Hintergrundjobs typischerweise langlaufende Berechnungen oder E/A-intensive Operationen kapseln \parencite{microsoft_corporation_hrsg_best_2026},
+ist die Nutzung einer einzigen Datenbanktransaktion über den gesamten Lebenszyklus eines Jobs für dieses System nicht sinnvoll.
+Anstatt den Job in einer einzelnen langlaufenden Transaktion zu verarbeiten, verfolgt das entwickelte System aus diesem Grund einen anderen Ansatz.
 Die eigentliche Fachlogik wird vollständig außerhalb einer Datenbanktransaktion ausgeführt.
-Datenbanktransaktionen werden ausschließlich zur atomaren Synchronisation der Zustandsübergänge verwendet und deshalb möglichst kurz gehalten.
+Datenbanktransaktionen werden ausschließlich zur atomaren Synchronisation der Zustandsübergänge verwendet und sind daher entsprechend kurz.
 Die Kombination aus dem in \cref{subsec:zustandsmodell} vorgestellten Zustandsmodell und kurzlaufenden Transaktionen
 ermöglicht eine exklusive Bearbeitung der Jobs, ohne Datenbankressourcen während der eigentlichen Verarbeitung zu blockieren.
-
 Der Verarbeitungsablauf gliedert sich hierzu in drei Phasen, die in \cref{fig:transaktionsmodell} visualisiert sind.
 
 \begin{figure}[h]
@@ -407,15 +399,11 @@ Hierzu werden sämtliche Jobs betrachtet, die sich weiterhin im Zustand \textit{
 Ein abgelaufenes Lease wird dabei als Indikator dafür verwendet, dass die ursprüngliche Verarbeitung nicht innerhalb
 der vorgesehenen Zeit abgeschlossen werden konnte.
 Die Architektur verzichtet im Rahmen der Prototypentwicklung bewusst auf einen Heartbeat-Mechanismus und nutzt stattdessen
-zeitbasierte Leases, da diese ohne zusätzliche Kommunikation zwischen Worker und Job-Store auskommen und den Implementierungsaufwand reduzieren.
-Als Alternative ist der Einsatz eines Heartbeat-Mechanismus aber denkbar.
-Durch regelmäßige Verlängerungen der Leases könnte dieser verhindern, dass lang laufende, aber weiterhin aktive Verarbeitungen
-fälschlicherweise als ausgefallen eingestuft und erneut zur Bearbeitung freigegeben werden, wodurch der noch arbeitende
-Worker das Ergebnis nicht mehr speichern darf.
-Ein solches Verhalten könnte bei sehr aufwendigen Jobs verhindern, dass diese jemals erfolgreich beendet werden.
-Dem steht jedoch eine höhere Anzahl periodischer Schreibzugriffe auf den Job-Store gegenüber, wodurch die Datenbank zusätzlich belastet wird.
-Da der Prototyp nur eine simulierte Fachlogik mit festgelegter Jobdauer nutzt, werden im Rahmen dieser Arbeit lediglich zeitbasierte Leases genutzt.
+zeitbasierte Leases, da diese ohne zusätzliche Kommunikation zwischen Worker und Job-Store auskommen.
+Dies belastet die Datenbank weniger und reduziert gleichzeitig den Implementierungsaufwand.
+Da der Prototyp nur eine simulierte Fachlogik mit festgelegter Jobdauer nutzt, fänden die Vorteile von Heartbeats hier keine Anwendung.
 Daraus resultierende Konsequenzen werden in \cref{sec:einschraenkungen} diskutiert.
+Für ein Produktivsystem ist die Nutzung eines Heartbeat-Mechanismus aber durchaus legitim und unter Umständen sogar sinnvoll.
 
 Für jeden erkannten verwaisten Job entscheidet der Recovery-Service anschließend über das weitere Vorgehen.
 Wurde die maximal zulässige Anzahl an Ausführungsversuchen noch nicht erreicht, wird der Job nach dem in \cref{subsec:transaktionsmodell}
@@ -507,12 +495,12 @@ ist in \cref{fig:detailBausteinsicht} im Anhang zu finden und dient im Folgenden
 \subsection{Auswahl verwendeter Technologien}
 \label{subsec:technologien}
 Die Implementierung des entwickelten Background-Job-Processing-Systems erfolgt vollständig in Java.
+Wie bereits ausführlich in \cref{subsec:architekturentwurf} begründet, wird PostgreSQL dabei als zentraler Job-Store verwendet.
 Als Entwicklungsplattform wird das Spring-Framework eingesetzt, da dieses eine umfangreiche Infrastruktur für den Aufbau
 transaktionsbasierter Client-Server-Anwendungen bereitstellt und gleichzeitig viele der im Architekturentwurf vorgesehenen
 Mechanismen direkt unterstützt.
-Darüber hinaus zählt Spring zu einem weit verbreiteten Frameworks für die Entwicklung von Unternehmensanwendungen und
-findet breite Anwendung in der industriellen Praxis.
-Dadurch entsteht eine realitätsnahe Entwicklungsumgebung, die gleichzeitig einen hohen Grad an Automatisierung bietet.
+Darüber hinaus zählt Spring zu einem etablierten Framework für die Entwicklung von Java-Backend-Anwendungen.
+Dadurch entsteht eine praxisnahe Technologiebasis, die gleichzeitig einen hohen Grad an Automatisierung bietet.
 
 Für die Bereitstellung der \gls{rest}-Schnittstelle wird Spring Web verwendet.
 Die Abbildung der HTTP-Endpunkte sowie die Serialisierung und Deserialisierung von JSON-Nachrichten erfolgen dadurch
@@ -524,13 +512,6 @@ Gleichzeitig bleibt über native Queries die Möglichkeit erhalten, Operationen 
 datenbankspezifische Funktionen und optimierte SQL-Anweisungen zurückzugreifen.
 Die benötigten transaktionalen Eigenschaften werden mithilfe von Spring Transactions über \texttt{@Transactional}
 umgesetzt.
-
-Als Job-Store wird PostgreSQL eingesetzt. %TODO: Wird (zum Teil) schon im Architekturteil begründet
-Die Datenbank bietet die für das entwickelte System benötigten Mechanismen zur transaktionalen Verarbeitung und
-Synchronisation konkurrierender Zugriffe.
-Insbesondere die Unterstützung von \texttt{SELECT ... FOR UPDATE SKIP LOCKED} ermöglicht für einen pull-basierten Ansatz
-eine effiziente Koordination mehrere Worker in einer Job Queue, ohne dass Worker sich gegenseitig blockieren und
-Wartesituationen entstehen.
 
 Die Kommunikation zwischen Frontend und Backend erfolgt über den von Spring bereitgestellten \texttt{RestClient}.
 Die Verarbeitung der Jobs wird innerhalb des Backends durch einen konfigurierbaren Thread-Pool realisiert, der auf dem
@@ -566,9 +547,8 @@ Dabei wird die Fremdschlüsselbeziehung über \texttt{@JoinColumn} in der Tabell
 Die Beschränkung auf höchstens ein Ergebnis pro Job ist insbesondere für die idempotente Ergebnisspeicherung relevant (\ref{zus:idempotenz}).
 Daher wird auch der Fremdschlüssel des \texttt{JobResult} mit einem \texttt{UNIQUE}-Constraint belegt.
 
-Der Datenbankzugriff wird über ein Repository-Interface gekapselt.
-Neben den von Spring Data JPA bereitgestellten Standardoperationen werden für das Job-Processing-System spezifische Abfragen
-definiert, die unmittelbar die Anforderungen an die konkurrierende Verarbeitung und die Recovery unterstützen.
+Ein Repository-Interface kapselt den Datenbankzugriff und definiert neben den von Spring Data JPA bereitgestellten Standardoperationen
+weitere spezifische Abfragen, die unmittelbar die Anforderungen an die konkurrierende Verarbeitung und die Recovery unterstützen.
 Für die Auswahl eines Jobs zur Verarbeitung wird beispielsweise die in \cref{lst:claiming} dargestellte native SQL-Abfrage definiert.
 
 \begin{lstlisting}[

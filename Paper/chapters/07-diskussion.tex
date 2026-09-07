@@ -124,12 +124,18 @@ Sie reduzieren die Auswirkungen dieser Fehler, können jedoch keine allgemeingü
 Die Aussagekraft der erzielten Ergebnisse ist daher fest an das definierte Fehlermodell gebunden.
 
 \textbf{Zeitbasierte Leases ohne Heartbeat.}
-Die prototypische Implementierung verwendet zeitbasierte Leases und keinen Heartbeat-Mechanismus.
-Ein ungewöhnlich aufwendiger Job oder ein aktiver, aber langsamer Worker kann dadurch dazu führen, dass die Verarbeitung
-eines Jobs immer wieder durch die Recovery abgebrochen und niemals beendet wird.
-Außerdem verhindert Fencing in diesem Fall zwar die Persistierung eines veralteten Ergebnisses, nicht jedoch bereits während der
-Verarbeitung ausgelöste externe Seiteneffekte.
-Die Wahl der Lease-Dauer stellt somit eine Abwägung zwischen schneller Recovery und dem Risiko einer vorzeitigen Freigabe dar.
+Die prototypische Implementierung verwendet zeitbasierte Leases und verzichtet auf einen Heartbeat-Mechanismus.
+Dadurch kann ein ungewöhnlich aufwendiger Job oder ein aktiver, aber langsamer Worker dazu führen, dass die Verarbeitung
+eines Jobs immer wieder durch die Recovery abgebrochen und niemals erfolgreich beendet wird.
+Ein Heartbeat-Mechanismus könnte diesem Problem entgegenwirken, indem der Worker die Gültigkeit seines Leases regelmäßig verlängert.
+Dadurch ließe sich das Risiko reduzieren, dass lang laufende Verarbeitungen fälschlicherweise als ausgefallen eingestuft werden.
+Dem steht jedoch eine zusätzliche Belastung des Job-Stores gegenüber, da während der Verarbeitung regelmäßig Schreibzugriffe zur
+Aktualisierung des Leases erforderlich wären.
+Die Wahl zwischen diesen beiden Lösungen stellt also eine Abwägung zwischen einer geringeren Belastung des Job-Stores und einer
+höheren Robustheit gegenüber ungewöhnlich langen Verarbeitungszeiten dar.
+Bei der Nutzung von Leases ohne Heartbeat muss außerdem die Wahl der Lease-Dauer beachtet werden.
+Eine kurze Lease-Dauer ermöglicht eine schnellere Recovery, erhöht jedoch das Risiko, dass noch aktive Verarbeitungen vorzeitig
+zur erneuten Verarbeitung freigegeben werden.
 
 \textbf{Begrenzte Aussagekraft der empirischen Evaluation.}
 Die Evaluation erfolgt in einer kontrollierten Testumgebung und basiert auf einer endlichen Anzahl von Testwiederholungen.

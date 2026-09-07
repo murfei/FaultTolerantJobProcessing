@@ -13,25 +13,16 @@ Den Abschluss bildet die Bewertung der formulierten Hypothesen.
 \label{sec:versuchsaufbau}
 Sofern für die einzelnen Tests nicht anders angegeben, wird die Anwendung für die Tests mittels \texttt{@SpringBootTest}
 vollständig mit allen ihren Komponenten gestartet.
-Dadurch kann bei den entsprechenden Tests nicht nur das Verhalten einzelner isolierter Komponenten untersucht werden,
-sondern auch das Zusammenspiel von \gls{rest}-Schnittstelle, Service-Schicht, Retry- und Recovery-Mechanismen sowie der Datenbank.
+Dadurch kann wie in \cref{subsec:test_und_nachweismethoden} beschrieben das Zusammenspiel von \gls{rest}-Schnittstelle,
+Service-Schicht, Retry- und Recovery-Mechanismen sowie der Datenbank getestet werden.
 Die Datenbank läuft dabei lokal über Docker auf einem Postgres 17 image, um die benötigte Datenbank reproduzierbar und
 unter kontrollierten Bedingungen bereitstellen zu können.
 Vor den jeweiligen Testdurchläufen wird außerdem sichergestellt, dass die relevanten Datenbanktabellen leer sind, sodass
 die einzelnen Testläufe unabhängig voneinander sind und sich nicht gegenseitig beeinflussen.
 
-Die Anzahl an Wiederholungen der nebenläufigkeitsabhängigen Tests wird auf 100 Wiederholungen festgelegt.
-Die Wahl von 100 Wiederholungen stellt dabei einen Kompromiss zwischen der Testabdeckung unwahrscheinlicher Grenzfälle %TODO: 100 hier glaube ich schon in Methodik erwähnt
-und dem für die Durchführung erforderlichen Zeitaufwand dar.
-Ein erfolgreich abgeschlossener Testlauf wird dabei nicht als Beweis für das generelle Ausbleiben eines Fehlers interpretiert.
-Vielmehr wird überprüft, ob die für das jeweilige Szenario definierten Prüfkriterien über sämtliche Wiederholungen
-hinweg eingehalten werden.
-Bei Tests, bei denen unterschiedliche Ausgänge des Rennens möglich sind, wird zusätzlich überprüft, dass die vorgesehenen
-konkurrierenden Ausgänge tatsächlich im Verlauf der Wiederholungen auftreten.
-
 Die verwendeten Systemparameter sind für die getesteten Szenarios angepasst.
-Das Ziel dabei war die einzelnen Komponenten so aufeinander abzustimmen, dass die betrachteten Fehlerinjektionen zuverlässig
-und reproduzierbar durchgeführt werden können und dass insbesondere das Auftreten der Konkurrenzsituationen maximiert wird.
+Das Ziel dabei war die einzelnen Komponenten so aufeinander abzustimmen, dass die betrachteten Fehlerinjektionen reproduzierbar
+durchgeführt werden können und die vorgesehenen Konkurrenzsituationen gezielt erzeugt werden können.
 Konkret wurde die Anzahl der Worker auf 1 gesetzt, die Anzahl der maximalen Verarbeitungsversuche für Jobs auf 5, die Lease-Dauer
 auf 10 Sekunden, die Verarbeitungszeit der Jobs auf 5 Sekunden und das Recovery-Intervall ebenfalls auf 5 Sekunden.
 Das Retry- und Backoff-Verhalten ist mit 200ms und einem Faktor von $2^n$ gewählt, um die Laufzeit der Tests zu begrenzen.
@@ -128,8 +119,6 @@ Datenbank-Container selbst weiterläuft.
 Ein Neustart der Datenbank selbst hätte bezogen auf den Test der Retry-Funktionalität gegenüber der gewählten Fehlerinjektion keinen
 wesentlichen Mehrwert, da sowohl ein Neustart als auch ein hier simulierter Verlust der Datenbankverbindung aus Sicht der
 Anwendung zunächst in einer nicht verfügbaren Datenbank resultieren.
-Auch wenn sich die zugrunde liegenden Ursachen unterscheiden, ist für den hier betrachteten Retry-Fall entscheidend, dass
-die Anwendung den Datenbankzugriff vorübergehend nicht erfolgreich durchführen kann.
 Auch für die Dauerhaftigkeit und Konsistenz bereits erfolgreich persistierter Daten hätte ein Testfall, der den Crash oder
 Neustart der Datenbank simuliert, keinen Mehrwert, da diese Eigenschaften nicht durch die entwickelte Architektur, sondern
 durch die \gls{acid}-Eigenschaften von PostgreSQL sichergestellt werden.

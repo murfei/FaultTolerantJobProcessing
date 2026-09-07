@@ -283,6 +283,7 @@ Im Software-Entwurf erfordert das Setzen der Transaktionsgrenzen daher eine kont
 und dem Schutz vor Datenanomalien.
 Weit gefasste Transaktionsgrenzen reduzieren das Risiko der Entstehung von Inkonsistenzen, blockieren jedoch Systemressourcen und Datensätze.
 Eng gefasste Grenzen erhöhen den Durchsatz, können jedoch die atomare Ausführung fachlicher Abläufe aufbrechen und so Datenanomalien begünstigen.
+Aus diesen Gründen sollten Transaktionen so lang wie nötig und so kurz wie möglich entworfen werden.
 
 \subsection{Synchronisationsverfahren und Isolationsstufen}
 \label{subsec:synchronisation}
@@ -446,7 +447,7 @@ Zur Erkennung solcher Situationen werden zusätzlich zu einem Statusmodell Heart
 Bei Heartbeats sendet die ausführende Komponente in regelmäßigen Abständen Signale, anhand derer ihre Aktivität überwacht werden kann.
 Bleiben diese Signale über einen definierten Zeitraum aus, wird ein Ausfall vermutet und die Verarbeitung als potenziell
 unterbrochen betrachtet \parencite[Kap.~4.2 Abschnitt \glqq Detect Faults\grqq]{bass_software_2021}.
-Lease- und Timeout-Mechanismen definieren lediglich eine Zeitspanne beziehungsweise einen Zeitpunkt, bis zu dem eine Verabreitung erlaubt ist.
+Lease- und Timeout-Mechanismen definieren lediglich eine Zeitspanne beziehungsweise einen Zeitpunkt, bis zu dem eine Verarbeitung erlaubt ist.
 Beendet die ausführende Komponente die Verarbeitung nicht innerhalb dieses Rahmens, wird der Job als fehlgeschlagen interpretiert.
 Ist die Zeitspanne nicht passend konfiguriert, werden daher auch Jobs abgebrochen, die zu lange gebraucht haben, auch wenn
 bei deren Verarbeitung kein Fehler aufgetreten ist.

@@ -5,6 +5,9 @@
       <w>Durchsatzkompromiss</w>
       <w>Ergebnispersistierung</w>
       <w>Fehlerinjektionsbedingungen</w>
+      <w>Forschungs</w>
+      <w>Hintergrundjobs</w>
+      <w>Hochschul</w>
       <w>Idempotenzfall</w>
       <w>Idempotenzmechanismus</w>
       <w>Idempotenzschlüssel</w>
@@ -20,6 +23,8 @@
       <w>Parallelitätsanomalien</w>
       <w>Postgre</w>
       <w>Resistenzsteigerung</w>
+      <w>Xplore</w>
+      <w>nebenläufigkeitsabhängigen</w>
       <w>retrybar</w>
     </words>
   </dictionary>
