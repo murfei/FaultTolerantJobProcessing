@@ -118,7 +118,7 @@ Damit wird eine unbegrenzte Wiederholung verhindert, zugleich kann ein Job trotz
 Die Zusicherung bezieht sich somit auf die Vermeidung eines unbeabsichtigten Verlusts von Jobs und nicht auf eine Garantie
 des erfolgreichen Abschlusses jeder Verarbeitung.
 Des Weiteren werden Fehler außerhalb des definierten Modells nicht betrachtet, da Fehlertoleranz nicht als absolute Eigenschaft
-eines Systems verstanden werden kann \parencite[Kap.~1, Abschnitt \glqq Reliability\grqq]{kleppmann_designing_2017}.
+eines Systems verstanden werden kann \parencite[Kap.~1 Abschnitt \glqq Reliability\grqq]{kleppmann_designing_2017}.
 Die implementierten Mechanismen adressieren gezielt die im Rahmen dieser Arbeit betrachteten Fehlerfälle.
 Sie reduzieren die Auswirkungen dieser Fehler, können jedoch keine allgemeingültige Garantie gegenüber jedem denkbaren Ausfall liefern.
 Die Aussagekraft der erzielten Ergebnisse ist daher fest an das definierte Fehlermodell gebunden.
@@ -136,7 +136,10 @@ höheren Robustheit gegenüber ungewöhnlich langen Verarbeitungszeiten dar.
 Bei der Nutzung von Leases ohne Heartbeat muss außerdem die Wahl der Lease-Dauer beachtet werden.
 Eine kurze Lease-Dauer ermöglicht eine schnellere Recovery, erhöht jedoch das Risiko, dass noch aktive Verarbeitungen vorzeitig
 zur erneuten Verarbeitung freigegeben werden.
-
+%TODO: anfangsfrage zur umsetzung mit einer datenbank: nicht mit jeder "ohnehin vorhandenen" datenbank möglich, sondern für das betrachtete fehlermodell nur mit einer die die entsprechenden bedingungen erfüllt
+% "Daraus ergibt sich als leitende Überlegung dieser Arbeit, ob sich die angestrebten
+% Zuverlässigkeitsgarantien auch allein mit einer ohnehin bereits vorhandenen Datenbank
+% erreichen lassen, ohne den Betrieb einer zusätzlichen Broker-Infrastruktur." Kap.1.2
 \textbf{Begrenzte Aussagekraft der empirischen Evaluation.}
 Die Evaluation erfolgt in einer kontrollierten Testumgebung und basiert auf einer endlichen Anzahl von Testwiederholungen.
 Insbesondere für nebenläufigkeitsabhängige Szenarien kann daher nicht ausgeschlossen werden, dass unter anderen Ausführungsbedingungen
@@ -153,7 +156,7 @@ nicht vollständig garantiert werden.
 Die Arbeit untersucht die funktionale Fehlertoleranz und Konsistenz des entwickelten Systems, nicht dessen Verhalten unter hoher Last.
 Die Verwendung eines datenbankbasierten Job-Stores kann bei einer hohen Anzahl an Zugriffen aufgrund der Latenz und für den
 parallelen Zugriff benötigten Ressourcen zum limitierenden Faktor werden
-\parencite[Kap.~10, Abschnitt \glqq Example: analysis of user activity events\grqq]{kleppmann_designing_2017}.
+\parencite[Kap.~10 Abschnitt \glqq Example: analysis of user activity events\grqq]{kleppmann_designing_2017}.
 Für größere Systeme können dedizierte Messaging-Systeme hinsichtlich Durchsatz und Skalierbarkeit daher Vorteile bieten.
 Die verwendete Retry-Strategie verwendet außerdem exponentielles Backoff, jedoch keine zusätzliche Randomisierung der Wartezeiten.
 Dadurch kann die gleichzeitige Wiederholung vieler fehlgeschlagener Operationen zwar zeitlich entzerrt, das Thundering-Herd-Problem

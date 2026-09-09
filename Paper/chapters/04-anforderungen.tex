@@ -1,13 +1,12 @@
 %! Author = murfe
-%! Date = 06.09.2026
+%! Date = 09.09.2026
 \chapter{Anforderungen}
 \label{ch:anforderungen}
-Dieses Kapitel legt die Anforderungen an das im Rahmen der Arbeit entwickelte Background-Job-Processing-System fest und
-schafft damit die Grundlage für den späteren Architekturentwurf sowie dessen Evaluation.
-Zunächst wird der Systemkontext beschrieben, um die beteiligten Komponenten, Schnittstellen und Verantwortlichkeiten einzuordnen.
+Dieses Kapitel legt die Anforderungen an das im Zuge der Arbeit entwickelte Background-Job-Processing-System fest.
+Der Rahmen der Anwendung wird zunächst durch die Beschreibung des Systemkontexts gesetzt.
 Anschließend wird das betrachtete Fehlermodell abgegrenzt und damit festgelegt, welche Störungen und Randbedingungen für den Entwurf relevant sind.
-Darauf aufbauend werden im Rahmen von \ref{item:tz1} präzise Systemzusicherungen formuliert, die das gewünschte Verhalten
-unabhängig von konkreten Implementierungsdetails beschreiben und als verbindlicher Maßstab für die Umsetzung und die Evaluation dienen.
+Darauf aufbauend werden in Bezug auf \ref{item:tz1} Systemzusicherungen formuliert, die das gewünschte Verhalten
+unabhängig von konkreten Implementierungsdetails beschreiben und als Maßstab für die Umsetzung und die Evaluation dienen.
 
 \section{Systemkontext}
 \label{sec:systemkontext}
@@ -28,7 +27,7 @@ Unabhängig vom ursprünglichen Aufruf übernehmen mehrere Worker-Prozesse ansch
 
 Da der Schwerpunkt der Arbeit auf den Mechanismen des Job-Processings und nicht auf einer konkreten Fachanwendung liegt,
 wird die Fachlogik zum Zweck der Evaluation stark vereinfacht.
-Diese simuliert durch eine definierte Wartezeit einen lang laufenden Verarbeitungsschritt und erzeugt schließlich ein Dummy-Ergebnis.
+Diese simuliert durch eine definierte Wartezeit einen laufenden Verarbeitungsschritt und erzeugt schließlich ein Dummy-Ergebnis.
 Ziel ist somit nicht die Entwicklung einer domänenspezifischen Fachanwendung, sondern einer allgemein einsetzbaren Architektur,
 deren Konzepte unabhängig vom gewählten Anwendungskontext auf andere Background-Job-Processing-Systeme übertragbar sind.
 
@@ -47,32 +46,28 @@ Diese Entscheidung orientiert sich zum einen am Anwendungskontext und den Anford
 wie Entwicklungs- und Betriebsaufwand \parencite[Kap.~1 Abschnitt \glqq Reliability\grqq]{kleppmann_designing_2017}.
 
 Die im Folgenden dargelegte Teilmenge betrachteter Fehler ist eine Auswahl der von
-\textcite{kleppmann_designing_2017,newman_building_2026,bass_software_2021} beschriebenen typisch vorkommenden Fehlern in verteilten Systemen.
-Ziel dieser Arbeit ist der Entwurf einer fehlertoleranten Architektur für ein datenbankgestütztes Background-Job-Processing-System.
-Betrachtet werden daher ausschließlich Fehlerklassen, die während des regulären Betriebs auftreten können und deren Auswirkungen durch Mechanismen der
-Anwendungsarchitektur beherrscht werden können.
+\textcite{kleppmann_designing_2017,newman_building_2026,bass_software_2021} beschriebenen typisch vorkommenden Fehler in verteilten Systemen.
+Da das Ziel ein Architekturentwurf ist, werden ausschließlich solche Fehlerklassen betrachtet, die während des regulären Betriebs
+auftreten können und deren Auswirkungen durch Mechanismen der Anwendungsarchitektur beherrscht werden können.
 Fehler, deren Behandlung zusätzliche Infrastruktur oder organisatorische Maßnahmen wie Backups, Replikation oder physische Redundanz erfordern,
 liegen außerhalb des Betrachtungsumfangs dieser Arbeit.
 
 Die Abgrenzung der betrachteten Fehler ist in \cref{tab:fehlermodell} zusammengefasst.
 Innerhalb des Systementwurfs werden im Wesentlichen vier Kategorien von Fehlern behandelt.
 An erster Stelle stehen Ausfälle einzelner Systemkomponenten sowie transiente Infrastruktur- und Kommunikationsstörungen.
-In der Klassifikation nach \textcite{cristian_understanding_1991} entsprechen diese Fehler im Wesentlichen Crash- und
-Omission-Fehlern.
+In der Klassifikation nach \textcite{cristian_understanding_1991} entsprechen diese Fehler Crash- und Omission-Fehlern.
 Hierzu zählen insbesondere das unerwartete Beenden eines Worker-Prozesses, Container-Neustarts, JVM-Abstürze, durch das Betriebssystem terminierte Prozesse,
 temporäre Netzwerkunterbrechungen oder kurzfristig nicht erreichbare Datenbanken.
 Dadurch kann es im System zu zwei Problemen kommen.
-Zum einen besteht die Gefahr, dass eine laufende Verarbeitung unterbrochen wird oder vorübergehend nicht fortgesetzt werden kann.
-Aufgrund der Charakteristik transienter Fehler wird dabei grundsätzlich davon ausgegangen, dass die betroffene Komponente oder
-Ressource nach kurzer Zeit wieder verfügbar ist.
-Zum anderen entsteht die Gefahr, dass eine Nachricht beziehungsweise ein Job verloren geht.
-Durch diese Fehler ist im Gesamtsystem unter Umständen unklar, wie weit die Verarbeitung bereits fortgeschritten war
+Zum einen besteht die Gefahr, dass eine laufende Verarbeitung unterbrochen wird.
+Zum anderen kann es passieren, dass eine Nachricht nicht ankommt und verloren geht.
+Durch diese Fehler ist im Gesamtsystem unter Umständen unklar, wie weit die Verarbeitung bereits fortgeschritten war,
 beziehungsweise ob der Job persistiert wurde.
 Da diese Störungen in verteilten Umgebungen regelmäßig auftreten können \parencite[Kap.~1 Abschnitt \glqq Failure Is Inevitable\grqq]{newman_building_2026}
-und, wie bereits eingangs in \cref{sec:problemstellung} gezeigt, gerade in Cloud-Systemen mit zu den häufigsten Fehlern
-zählen \parencite{alquraan_analysis_2018}, muss die Systemarchitektur in der Lage sein, diese autonom zu überbrücken.
-Unter dem Aspekt der Fehlertoleranz sollen zur Behandlung transienter Fehler daher automatische Retries eingesetzt werden,
-um die Notwendigkeit von manuellem Eingreifen zu reduzieren.
+und, wie bereits eingangs in \cref{sec:problemstellung} beschrieben, gerade in Cloud-Systemen zum Alltag gehören \parencite{microsoft_corporation_hrsg_best_2026-1},
+muss die Systemarchitektur in der Lage sein, diese autonom zu überbrücken.
+Daher müssen abgebrochene Jobs erkannt und wiederaufgenommen werden können und zur Behandlung transienter Fehler automatische Retries
+eingesetzt werden, um die Notwendigkeit von manuellem Eingreifen zu reduzieren.
 
 \begin{table}[h]
     \centering
@@ -91,24 +86,23 @@ um die Notwendigkeit von manuellem Eingreifen zu reduzieren.
         \bottomrule
     \end{tabularx}
     \caption[Übersicht der betrachteten Fehlerklassen]{Übersicht der im Rahmen der Arbeit betrachteten Fehlerklassen mit Zuordnung
-    zu ihren charakteristischen Auswirkungen auf die Hintergrundverarbeitung
-    bzw. einer Begründung, wieso die Fehlerklasse nicht betrachtet wird.}
+    zu ihren Auswirkungen auf die Hintergrundverarbeitung bzw. einer Begründung, wieso die Fehlerklasse nicht betrachtet wird.}
     \label{tab:fehlermodell}
 \end{table}
 
-Als direkte Folge solcher Infrastrukturprobleme und der darauf reagierenden Wiederholungsmechanismen der Clients entstehen doppelte Requests.
-Ein Client sendet eine Anfrage erneut, weil eine Bestätigung aufgrund eines Timeouts ausblieb.
-Die Architektur soll im Rahmen der Zuverlässigkeit eine Exactly-Once-Semantik als Ziel haben und muss daher im beschriebenen
-Szenario durch Duplikaterkennung verhindern, dass identische Jobs mehrfach im Job-Store persistiert werden.
+Als direkte Folge solcher Infrastrukturprobleme und der darauf reagierenden Wiederholungsmechanismen können doppelte Requests entstehen,
+wenn ein Acknowledgement zu spät kommt oder ausbleibt.
+Im System sollte ein Job im Rahmen einer angestrebten Exactly-Once-Semantik jedoch nicht mehrfach gespeichert werden.
+Daher muss das System im beschriebenen Szenario durch Duplikaterkennung verhindern, dass identische Jobs mehrfach im Job-Store persistiert werden.
 
 Eng damit verknüpft ist die doppelte Ausführung von Jobs.
-Bei der Wiederaufnahme eines zuvor abgebrochenen Jobs kann nach einem Fehler oft nicht eindeutig festgestellt werden, ob die vorherige Verarbeitung
-bereits Seiteneffekte erzielt hat.
+Bei der Wiederaufnahme eines zuvor abgebrochenen Jobs kann nach einem Fehler eventuell nicht eindeutig festgestellt werden,
+wie weit die vorherige Verarbeitung fortgeschritten war.
 Die Architektur muss daher zwingend sicherstellen, dass wiederholte Ausführungen keine inkonsistenten Ergebnisse verursachen.
 
 Des Weiteren werden konkurrierende Zugriffe betrachtet.
 Sobald Parallelverarbeitung mittels mehrerer, autonom agierender Worker eingesetzt wird,
-entsteht unweigerlich die Möglichkeit gleichzeitiger Zugriffe auf geteilte Datenstrukturen wie den zentralen Job-Store.
+entsteht die Möglichkeit gleichzeitiger Zugriffe auf geteilte Daten wie über den zentralen Job-Store.
 Dies ist im klassischen Sinne zwar nicht direkt ein Fehler, jedoch können parallele Zugriffe ohne entsprechende Synchronisationsmechanismen
 potenziell zu Race Conditions und inkonsistenten Zuständen in der Persistenzschicht führen, weshalb deren Verhinderung wesentlicher Bestandteil des Entwurfs ist.
 
@@ -160,7 +154,7 @@ zusammengefasst.
         \addlinespace
         \anforditem{req:race_conditions} & Vermeidung von Race Conditions bei konkurrierendem Zugriff\\
         \addlinespace
-        \anforditem{req:crashes} & Erkennung von Teilausfällen (Worker-Crashes, Container-Neustarts) und
+        \anforditem{req:crashes} & Erkennung von Teilausfällen (Worker-Crashes, Container-Neustarts, \ldots) und
         Wiederaufnahme/Wiederholung des betroffenen Verarbeitungsschrittes\\
         \addlinespace
         \anforditem{req:idempotenz} & Konsistente Verarbeitung trotz wiederholter Ausführung\\
@@ -202,7 +196,7 @@ damit eine erneute Verarbeitung derselben Anfrage nicht zur mehrfachen Persistie
 \begin{quote}
     \zusicherung{Duplikaterkennung bei der Auftragserfassung}{zus:duplikaterkennung} \\
     Das System garantiert, dass identische Anfragen, die von Aufrufern erneut gesendet werden,
-    nicht zu mehrfach angelegten Jobs im Job-Store führen (\textit{At-Most-Once-Semantik}).
+    nicht zu mehrfach angelegten Jobs im Job-Store führen.
 \end{quote}
 
 \subsection{Jobverarbeitung}
@@ -215,8 +209,7 @@ Da im Recovery-Fall eine überschneidende Bearbeitung durch zwei Worker nicht au
 muss das System den Zugriff auf die gemeinsamen Daten koordinieren (\ref{req:race_conditions}):
 \begin{quote}
     \zusicherung{Exklusive Rechte}{zus:exklusive_rechte} \\
-    Das System garantiert, dass niemals mehrere Worker-Instanzen gleichzeitig Zugriff auf den gleichen Datensatz haben.
-    Insbesondere darf immer nur eine Worker-Instanz Schreibrechte auf einen bestimmten Job haben, sodass das Schreiben
+    Das System garantiert, dass immer nur eine Worker-Instanz Schreibrechte auf einen bestimmten Job hat, sodass das Schreiben
     eines Ergebnisses nur durch den besitzenden Job möglich ist.
 \end{quote}
 Die Fachlogik soll zudem klare Übergänge bieten.

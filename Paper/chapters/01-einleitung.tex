@@ -1,5 +1,5 @@
 %! Author = murfe
-%! Date = 06.09.2026
+%! Date = 08.09.2026
 \chapter{Einleitung}
 \label{ch:einleitung}
 \section{Motivation}
@@ -8,7 +8,8 @@ Ein Zahlungsauftrag, der nach einem Verbindungsabbruch versehentlich mehrfach au
 Ein Compliance-Report, dessen Erstellung durch den Absturz des ausführenden Prozesses unbemerkt verloren geht, fehlt zum
 gesetzlich vorgeschriebenen Stichtag.
 So unterschiedlich beide Fälle wirken, beruhen sie auf derselben grundlegenden Anforderung an ein Background-Job-Processing-System:
-Ein Job darf im Fehlerfall weder mehrfach noch gar nicht wirken und vor allem nicht verloren gehen.
+Ein Auftrag muss auch dann zuverlässig verarbeitet werden, wenn während seiner Verarbeitung ein Fehler auftritt.
+Dabei darf der Job weder unbemerkt verloren gehen noch infolge eines Fehlers mehrfach wirksam werden.
 Was sich zunächst als Frage der internen Konsistenz eines Systems liest, kann damit unmittelbar finanzielle und regulatorische
 Konsequenzen haben, die weit über das zugrundeliegende technische Problem hinausreichen.
 
@@ -16,22 +17,24 @@ In modernen Softwaresystemen stellt die Verarbeitung von Hintergrundjobs einen z
 dar \parencite[Kap.~10]{kleppmann_designing_2017}.
 Zahlreiche Geschäftsprozesse, darunter die Generierung von Reports, der Import großer Datenmengen, periodische Abrechnungsläufe
 oder das Versenden asynchroner Benachrichtigungen, erfordern eine Verarbeitung, die entkoppelt vom synchronen Request-Response-Zyklus stattfindet.
-Insbesondere in industrienahen und sicherheitskritischen Anwendungen müssen solche Prozesse nicht nur funktional korrekt ablaufen,
-sondern darüber hinaus zuverlässig, nachvollziehbar und fehlertolerant sein.
-Aber auch in nicht-kritischen Systemen ist Zuverlässigkeit zum einen von Bedeutung für die Nutzerfreundlichkeit der Anwendung,
-zum anderen aber auch um Produktivitäts- und Gewinneinbußen in Produktivsystemen in Folge von Fehlern zu vermeiden
+Insbesondere in industrienahen und sicherheitskritischen Anwendungen müssen Hintergrundprozesse nicht nur funktional korrekt,
+sondern auch zuverlässig, nachvollziehbar und fehlertolerant ausgeführt werden.
+Aber auch in nicht-kritischen Systemen ist Zuverlässigkeit von großer Bedeutung, sowohl für die Nutzerfreundlichkeit der Anwendung
+als auch zur Vermeidung von Produktivitäts- und Gewinneinbußen in Folge von Fehlern
 \parencite[Kap.~1 Abschnitt \glqq How Important Is Reliability?\grqq]{kleppmann_designing_2017}.
 
-\section{Problemstellung}
-\label{sec:problemstellung}
 In der Praxis können bei der Verarbeitung von Hintergrundjobs jederzeit Teilausfälle auftreten.
 Prozesse können während der Verarbeitung unerwartet terminieren, Datenbankverbindungen können kurzzeitig unterbrochen werden, identische
 Anfragen infolge von clientseitigen Wiederholungsversuchen mehrfach an das System übermittelt werden oder
-Ergebnisse beziehungsweise Antworten können verloren gehen \parencite[Kap.~8]{kleppmann_designing_2017}.
+Nachrichten können verloren gehen \parencite[Kap.~8]{kleppmann_designing_2017}.
 Insbesondere Netzwerkpartitionierungsfehler tauchen dabei in der Praxis als häufige Ausfallursachen in Cloud-Systemen auf
-\parencite{alquraan_analysis_2018}, wodurch die im Folgenden beschriebenen Konsistenzprobleme keine seltenen Randfälle,
-sondern einen im laufenden Betrieb regelmäßig zu erwartenden Fall darstellen.
-Ohne geeignete Mechanismen führen derartige Szenarien zu inkonsistenten Systemzuständen oder dem Verlorengehen einer Nachricht.
+\parencite{alquraan_analysis_2018}.
+Für ein Job-Processing-System stellt sich damit nicht nur die Frage, ob ein Job unter normalen Bedingungen korrekt verarbeitet wird,
+sondern auch, wie sich das System während und nach Störungen verhält.
+
+\section{Problemstellung}
+\label{sec:problemstellung}
+Ohne geeignete Mechanismen führen Teilausfälle zu inkonsistenten Systemzuständen oder dem Verlorengehen von Nachrichten.
 Eine naheliegende Reaktion auf letzteren Fall besteht darin, betroffene Operationen automatisch zu wiederholen.
 Werden jedoch viele zuvor fehlgeschlagene oder unterbrochene Operationen ohne geeignete Steuerung gleichzeitig erneut versucht,
 etwa weil eine Datenbank nach einem kurzzeitigen Ausfall wieder verfügbar wird und sämtliche zuvor blockierten Anfragen
@@ -49,13 +52,13 @@ Dadurch eignen sie sich nur eingeschränkt, um systematisch zu untersuchen, welc
 Konsistenz- und Verarbeitungszusicherungen tatsächlich erforderlich sind.
 
 Die beschriebene Problematik ist von hoher praktischer und industrieller Relevanz.
-Nahezu jedes Backend-System, das über einfache \gls{crud}-Operationen hinausgeht, muss Aufgaben zuverlässig im Hintergrund
+Nahezu jedes Backend-System, das über einfache \gls{crud}-Operationen hinausgeht, muss Aufgaben zuverlässig im Hintergrund %TODO: prüfen weil einzigen Nennung
 verarbeiten und dabei konsistente Datenbestände gewährleisten \parencite[Kap.~4]{richardson_microservices_2018}.
-Fehler in diesem Bereich führen zu Datenverlust, inkonsistenten Geschäftszuständen sowie unnötigem manuellem Eingriff und
+Fehler in diesem Bereich führen zu Datenverlust, inkonsistenten Geschäftszuständen sowie Bedarf an manuellen Eingriffen und
 können insbesondere in regulierten Domänen, wie beispielsweise der Luftfahrt, Compliance-Verstöße nach sich ziehen.
 Auch im Kontext von Cloud-nativen Architekturen ist dieses Thema relevant.
 Horizontale Skalierung, Container-Neustarts und kurzzeitige Netzwerkunterbrechungen gehören dort zum regulären Betriebsverhalten
-und müssen bereits beim Entwurf eines Systems berücksichtigt werden.
+\parencite{microsoft_corporation_hrsg_best_2026-1} und müssen bereits beim Entwurf eines Systems berücksichtigt werden.
 Daher bilden die in dieser Arbeit behandelten Konzepte auch die Grundlage für den zuverlässigen Betrieb von Backend-Systemen in Cloud-Umgebungen.
 
 Zur Umsetzung einer solchen zuverlässigen Hintergrundverarbeitung hat sich in der Praxis der Einsatz dedizierter Message
@@ -65,8 +68,7 @@ Dieser Ansatz erfordert jedoch den zusätzlichen Betrieb und die Überwachung ei
 neben der ohnehin für die fachlichen Daten benötigten Datenbank.
 Zusätzlich braucht es eine Konsistenzsicherung, etwa mittels des Transactional-Outbox-Patterns, um Datenbank und Broker
 konsistent zu halten \parencite[Kap.~8 Abschnitt \glqq Pattern: Transactional Outbox\grqq]{newman_building_2026}.
-Für viele klein- und mittelgroße Systeme steht dieser zusätzliche Betriebsaufwand in keinem angemessenen Verhältnis zum
-tatsächlichen Bedarf.
+Für klein- und mittelgroße Systeme stellt dies einen verhältnismäßig hohen Betriebsaufwand dar.
 Daraus ergibt sich als leitende Überlegung dieser Arbeit, ob sich die angestrebten Zuverlässigkeitsgarantien auch allein
 mit einer ohnehin bereits vorhandenen Datenbank erreichen lassen, ohne den Betrieb einer zusätzlichen Broker-Infrastruktur.
 
@@ -77,6 +79,7 @@ Ebenso implementieren bestehende Frameworks diese Mechanismen häufig als intern
 auf die Zuverlässigkeit des Gesamtsystems für Entwickler nur eingeschränkt nachvollziehbar sind.
 Daraus ergibt sich die dieser Arbeit zugrundeliegende Hauptforschungsfrage:
 
+%TODO: hier wird Java & Spring einfach vorausgesetzt; weiter unten nochmal
 Welche Architekturmechanismen und Entwurfsentscheidungen ermöglichen es, in einem Java/Spring-basierten Job-Processing-System
 definierte Konsistenzzusicherungen unter typischen Teilausfallszenarien nachweisbar einzuhalten?
 
@@ -90,12 +93,12 @@ Zur Beantwortung dieser Frage werden folgende Teilfragen untersucht:
     bei paralleler Arbeit mehrerer Worker keine Doppelverarbeitung oder inkonsistente Zustände entstehen?
     \item \label{item:tf4} Wie lässt sich sicherstellen, dass Jobs nach einem unerwarteten Prozessabbruch korrekt
     wiederaufgenommen werden, ohne dass Aufträge verloren gehen?
-\end{enumerate}
+\end{enumerate} %TODO: Überlegen, ob - zwischen Buchstabe und Zahl sollte: TF-1 statt TF1 --> gleiches bei TZ1
 
 \section{Zielsetzung}
 \label{sec:zielsetzung}
 Ziel dieser Arbeit ist der Entwurf, die prototypische Implementierung und die Evaluation
-eines fehlertoleranten Job-Processing-Backends auf Basis einer relationalen Datenbank in Kombination mit Java und Spring.
+eines fehlertoleranten Job-Processing-Backends auf Basis einer Datenbank in Kombination mit Java und Spring.
 Dabei soll herausgearbeitet werden, welche Architekturmechanismen erforderlich sind, damit Hintergrundjobs auch bei Teilausfällen
 zuverlässig und korrekt verarbeitet werden und definierte Konsistenzzusicherungen eingehalten werden.
 
@@ -128,7 +131,7 @@ deren Überprüfung im Rahmen der Evaluation erfolgt.
     gegenüber kurzzeitigen Infrastrukturausfällen, ohne dabei die definierten Zusicherungen
     zu verletzen.
     \item \label{item:h3} Die definierten Zusicherungen lassen sich durch automatisierte Tests mit gezielter
-    Fehlerinjektion reproduzierbar überprüfen und nachweisen.
+    Fehlerinjektion reproduzierbar überprüfen und nachweisen. %TODO: schlechte Hypothese. Welches Ergebnis hätte sie widerlegt?
 \end{enumerate}
 
 \section{Aufbau der Arbeit}
@@ -141,9 +144,8 @@ Das Kapitel schließt mit einer Einordnung des Stands der Technik, aus der sich 
 skizzierte Lücke ergibt, die die vorliegende Arbeit füllt.
 
 \Cref{ch:methodik} beschreibt das methodische Vorgehen der Arbeit.
-Dazu zählt das Vorgehen bei der Literaturrecherche, die Erfassung der Anforderungen sowie die daraus schrittweise Ableitung
-von Zusicherungen, als auch die Methodik der späteren Evaluation.
-Dort werden insbesondere das Vorgehen zur Operationalisierung der Zusicherungen und die verwendeten Test- und Nachweismethoden betrachtet.
+Dazu zählt das Vorgehen bei der Literaturrecherche, der Anforderungserhebung sowie dem Systementwurf, als auch die Methodik
+der späteren Evaluation.
 
 \Cref{ch:anforderungen} legt die Anforderungen an das zu entwickelnde System dar.
 Nach einer Beschreibung des Systemkontexts wird das betrachtete Fehlermodell explizit abgegrenzt.
@@ -152,7 +154,7 @@ Darauf aufbauend werden die Zusicherungen Z-1 bis Z-9 hergeleitet, die als verbi
 \Cref{ch:umsetzung} beschreibt den Entwurf und die prototypische Implementierung des Systems.
 Es begründet die zentralen Architekturentscheidungen, darunter die Verwendung einer relationalen Datenbank als Job-Store, das
 Zustandsmodell sowie die Mechanismen für Nebenläufigkeitskontrolle, Retry und Recovery und dokumentiert deren spezifische
-Umsetzung in Java und Spring.
+technische Umsetzung.
 
 \Cref{ch:evaluation} evaluiert das implementierte System.
 Ausgehend von der in \cref{tab:testmatrix} dokumentierten Testmatrix werden gezielt Fehler in das System injiziert und
