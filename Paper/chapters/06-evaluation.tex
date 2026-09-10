@@ -103,7 +103,7 @@ Hierzu wird am \texttt{BackendRestClient} ein \texttt{ClientHttpRequestIntercept
 Serverantwort abwartet, anschließend jedoch eine \texttt{IOException} auslöst, bevor die Antwort an den Client weiter gereicht wird.
 Dadurch verarbeitet das Backend die Anfrage und persistiert den Job, ohne dass diese Information beim Client ankommt.
 Der clientseitige \texttt{RetryExecutor} sollte die Exception folglich als transienten Kommunikationsfehler interpretieren
-und dieselbe Anfrage samt identischem Idempotency-Key erneut übertragen.
+und dieselbe Anfrage samt identischem Idempotenzschlüssel erneut übertragen.
 Schließlich wird geprüft, ob tatsächlich nur ein Job persistiert wurde.
 Auf diese Weise wird das in \cref{subsec:atLeastOnce} beschriebene Szenario eines verlorenen Acknowledgements durch
 einen transienten Netzwerkfehler realitätsnah nachgebildet.
@@ -132,7 +132,7 @@ Datenbankzugriff tatsächlich einen neuen, über den unterbrochenen Proxy gefüh
 In Testfall (a) wird die Verbindung für eine festgelegte Dauer unterbrochen und anschließend automatisiert wiederhergestellt.
 Als Variante hierzu wird zusätzlich untersucht, wie sich das System verhält, wenn die Unterbrechung dauerhaft bestehen
 bleibt und sämtliche Wiederholungsversuche erschöpft werden, bevor die Datenbankverbindung wiederhergestellt wird.
-Für Testfall (b) wird eine Anfrage mit einem bereits verwendeten Idempotency-Key gesendet, um stellvertretend
+Für Testfall (b) wird eine Anfrage mit einem bereits verwendeten Idempotenzschlüssel gesendet, um stellvertretend
 die Behandlung eines nicht retrybaren Datenbankfehlers zu prüfen.
 
 Die Retry-Logik wird dabei ausschließlich anhand der Joberstellung überprüft.
@@ -271,7 +271,7 @@ aus der Verwendung von \texttt{@Transactional} mit PostgreSQL, da die Datenbank 
 \paragraph{Duplikaterkennung bei der Auftragserfassung (\ref{zus:duplikaterkennung})}
 \label{erg:duplikaterkennung}
 Im ersten Ausführungsversuch wurde der Job erfolgreich persistiert, bevor die simulierte \texttt{IOException} die Antwort abfing.
-Der clientseitige \texttt{RetryExecutor} übertrug daraufhin dieselbe Anfrage samt identischem Idempotency-Key erneut.
+Der clientseitige \texttt{RetryExecutor} übertrug daraufhin dieselbe Anfrage samt identischem Idempotenzschlüssel erneut.
 Das Backend erkannte dabei die Verletzung des entsprechenden \texttt{UNIQUE}-Constraints und behandelte den zweiten Aufruf
 als Idempotenzfall, ohne diesen seinerseits erneut zu wiederholen.
 Der clientseitige Retry wurde also tatsächlich ausgeführt, während der resultierende Datenbankfehler auf Backendseite
@@ -344,12 +344,12 @@ In Testfall (a) schlug der erste Zugriffsversuch aufgrund der nicht verfügbaren
 Der \texttt{RetryExecutor} klassifizierte den Fehler als retrybar und führte drei weitere Ausführungsversuche mit
 Wartezeiten von 200\,ms, 400\,ms und 800\,ms durch.
 Nach Wiederherstellung der Datenbankverbindung schloss der vierte Versuch erfolgreich ab, sodass die Anfrage mit dem HTTP-Status
-\texttt{201 Created} beantwortet wurde und der zurückgegebene Idempotency-Key dem des ursprünglichen Requests entsprach.
+\texttt{201 Created} beantwortet wurde und der zurückgegebene Idempotenzschlüssel dem des ursprünglichen Requests entsprach.
 Ergänzend wurde als Gegenprobe geprüft, wie sich das System bei einem anhaltenden als transient klassifizierten Fehler verhält.
 Die Anfrage wurde nach Erschöpfung aller konfigurierten Wiederholungsversuche mit dem HTTP-Status \texttt{500 Internal Server
 Error} beantwortet und es wurde kein erneuter Retry gestartet.
 
-Im zweiten Testfall führte die erneute Verwendung eines bereits vorhandenen Idempotency-Keys zu einer
+Im zweiten Testfall führte die erneute Verwendung eines bereits vorhandenen Idempotenzschlüssels zu einer
 \texttt{DataIntegrityViolationException}.
 Der \texttt{RetryExecutor} stufte diese als nicht retrybar ein, sodass kein weiterer Ausführungsversuch erfolgte.
 Der Controller behandelte den Fehler als Idempotenzfall und beantwortete die Anfrage mit \texttt{200 OK}.

@@ -194,8 +194,8 @@ Die Ergänzung eines Jitters zur exponentiellen Backoff-Strategie könnte eine w
 Ebenso wäre ein empirischer Vergleich der verwendeten Lease-Strategie mit einem Heartbeat-basierten Ansatz interessant,
 insbesondere im Hinblick auf die Unterscheidung zwischen tatsächlich ausgefallenen und lediglich langsam arbeitenden Workern.
 
-Ein weiterer Untersuchungsgegenstand ist der Umgang mit externen Seiteneffekten. Während die vorliegende Arbeit die konsistente
-Persistierung von Job-Ergebnissen betrachtet, können bei einer Wiederaufnahme eines Jobs nicht-idempotente externe Operationen,
-beispielsweise der Versand einer E-Mail, mehrfach ausgeführt werden.
-Hier wäre zu untersuchen, wie solche Seiteneffekte durch Mechanismen wie die Weitergabe von Idempotency-Keys oder eine geeignete
+Ein weiterer Untersuchungsgegenstand ist der Umgang mit externen Seiteneffekten.
+Während die vorliegende Arbeit die konsistente Persistierung von Job-Ergebnissen betrachtet, können bei einer Wiederaufnahme%TODO: wirklich sinnvolle weiterführende Untersuchung?
+eines Jobs nicht-idempotente externe Operationen, beispielsweise der Versand einer E-Mail, mehrfach ausgeführt werden.
+Hier wäre zu untersuchen, wie solche Seiteneffekte durch Mechanismen wie die Weitergabe von Idempotenzschlüsseln oder eine geeignete
 Koordination mit externen Systemen abgesichert werden können.
