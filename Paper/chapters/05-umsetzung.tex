@@ -1,7 +1,5 @@
 %! Author = murfe
 %! Date = 09.09.2026
-%TODO: Schreibweise von Methodennamen in ganzer Arbeit nochmal prüfen: entweder einheitlich \texttt oder \textit
-
 
 \chapter{Umsetzung}
 \label{ch:umsetzung}
@@ -10,7 +8,6 @@ Der Aufbau des Kapitels gliedert sich dabei in zwei Abschnitte:
 Im ersten Teil wird die Architektur des Systems entwickelt und die fundamentalen Systementscheidungen begründet.
 Aufbauend auf diesem theoretischen Fundament dokumentiert der zweite Teil die konkrete Implementierung des Prototyps auf
 Basis des Java- und Spring-Ökosystems.
-
 
 \section{Architektur und Design}
 \label{sec:architektur}
@@ -171,7 +168,7 @@ Jeder Job besitzt zunächst einen von der Datenbank erzeugten Primärschlüssel,
 Zusätzlich wird für jeden Job ein vom Client bereitgestellter Idempotenzschlüssel gespeichert.
 Damit dieser die in \ref{zus:duplikaterkennung} geforderte Idempotenz in der Joberstellung sicherstellen kann,
 muss jeder Job einen eindeutigen Idempotenzschlüssel besitzen.
-Daher ist die Spalte \textit{idempotency\_key} mit einem \texttt{UNIQUE}- und einem \texttt{NOT NULL}-Constraint belegt.
+Daher ist die Spalte \texttt{idempotency\_key} mit einem \texttt{UNIQUE}- und einem \texttt{NOT NULL}-Constraint belegt.
 Auf die Nutzung des Idempotenzschlüssels wird in \cref{subsec:joberstellung} näher eingegangen.
 
 Neben den Identifikationsmerkmalen werden die eigentlichen Nutzdaten des Jobs als JSON-Objekt persistent gespeichert.
@@ -282,10 +279,10 @@ Der Verarbeitungsablauf gliedert sich hierzu in drei Phasen, die in \cref{fig:tr
 \end{figure}
 
 Zunächst beansprucht ein Worker innerhalb einer Datenbanktransaktion einen freien Job.
-Hierzu wird mittels \textit{SELECT~…~FOR~UPDATE~SKIP~LOCKED} ein geeigneter Job ausgewählt und exklusiv gesperrt.
+Hierzu wird mittels \texttt{SELECT~…~FOR~UPDATE~SKIP~LOCKED} ein geeigneter Job ausgewählt und exklusiv gesperrt.
 Dadurch wird nicht auf bereits von anderen Workern reservierte Jobs blockierend gewartet, sondern diese werden unmittelbar übersprungen.
 Zusätzlich wird der Jobstatus von \textit{Queued} nach \textit{Running} überführt und die Attribute für die Recovery wie
-\textit{claimed\_by}, \textit{attempt\_count} oder \textit{lease\_until} werden aktualisiert.
+\texttt{claimed\_by}, \texttt{attempt\_count} oder \texttt{lease\_until} werden aktualisiert.
 Unmittelbar nach diesen Änderungen wird die Transaktion committet und die Datenbankverbindung wieder freigegeben.
 Anschließend erfolgt die eigentliche Verarbeitung des Jobs vollständig außerhalb einer Datenbanktransaktion.
 Da der Job bereits den Zustand \textit{Running} besitzt, können andere Worker ihn währenddessen nicht erneut beanspruchen.
@@ -400,7 +397,7 @@ Für ein Produktivsystem ist die Nutzung eines Heartbeat-Mechanismus aber durcha
 
 Für jeden erkannten verwaisten Job entscheidet der Recovery-Service anschließend über das weitere Vorgehen.
 Wurde die maximal zulässige Anzahl an Ausführungsversuchen noch nicht erreicht, werden innerhalb einer zusammengehörigen
-Transaktion der Status auf \textit{Queued} sowie die Attribute \textit{claimed\_by} und \textit{lease\_until} zurückgesetzt.
+Transaktion der Status auf \textit{Queued} sowie die Attribute \texttt{claimed\_by} und \texttt{lease\_until} zurückgesetzt.
 Anschließend kann der Job von einem beliebigen Worker erneut beansprucht werden.
 Wurde die konfigurierte Obergrenze der Wiederholungsversuche bereits erreicht, wird der Job stattdessen in den
 Endzustand \textit{Failed} überführt und nicht erneut verarbeitet.
@@ -564,7 +561,7 @@ zum gezielten Zugriff auf einzelne Jobs bereitgestellt, der mit der Auswahl eine
     language=SQL,
     style=sql,
     caption={[Exklusives Laden eines Jobs zur Bearbeitung]{Exklusives Laden eines Jobs zur Bearbeitung anhand seiner
-    ID. Dabei wird der zugehörigen Datensatzes für die Dauer der laufenden Transaktion mittels \textit{FOR UPDATE} gesperrt.}},
+    ID. Dabei wird der zugehörigen Datensatzes für die Dauer der laufenden Transaktion mittels \texttt{FOR UPDATE} gesperrt.}},
     label={lst:forUpdate}
 ]
 SELECT *
@@ -699,7 +696,7 @@ Das Starten der Worker erfolgt nach Erzeugung des Spring-Kontexts über die mit 
 
 Die Steuerung der eigentlichen Verarbeitung erfolgt innerhalb der \texttt{Worker}-Instanzen.
 Jeder Worker besitzt eine eigene \gls{uuid}, die bei seiner Erzeugung generiert wird.
-Diese wird beim Beanspruchen eines Jobs als \textit{claimed\_by} im Job-Store hinterlegt und ermöglicht dadurch die
+Diese wird beim Beanspruchen eines Jobs als \texttt{claimed\_by} im Job-Store hinterlegt und ermöglicht dadurch die
 eindeutige Zuordnung eines laufenden Jobs zu demjenigen Worker, der ihn aktuell verarbeitet.
 Der \texttt{ExecutorService} ruft automatisch die in \cref{lst:workerRun} dargestellte \textit{run()}-Methode der übergebenen
 \texttt{Worker}-Instanz auf.
@@ -746,7 +743,7 @@ Die Methode fordert dabei zunächst einen Job im Zustand \textit{Queued} an.
 Existiert kein geeigneter Datensatz, wird ein leeres \texttt{Optional} zurückgegeben.
 Andernfalls wird der Datensatz durch das \texttt{JobRepository} gesperrt, die für die laufende Verarbeitung relevanten
 Attribute (vgl. \cref{subsec:transaktionsmodell}) werden innerhalb einer gemeinsamen Transaktion aktualisiert und der \texttt{Job} wird zurückgegeben.
-Besonders wichtig ist neben dem Status die Aktualisierung von \textit{lease\_until} für die Recovery, indem eine festgelegte Dauer auf
+Besonders wichtig ist neben dem Status die Aktualisierung von \texttt{lease\_until} für die Recovery, indem eine festgelegte Dauer auf
 den aktuellen Zeitpunkt addiert wird.
 
 \begin{lstlisting}[
@@ -780,7 +777,7 @@ Die eigentliche Verarbeitung findet somit nicht innerhalb dieser Transaktion sta
 
 Nach erfolgreichem Claiming übergibt der Worker den Job zur Verarbeitung an seine \texttt{Processor}-Instanz.
 Die eigentliche Fachlogik wird dadurch von der allgemeinen Worker-Infrastruktur getrennt.
-Das \texttt{Processor}-Interface definiert hierzu lediglich die Methode \texttt{process(Job)}, die einen \texttt{Job}
+Das \texttt{Processor}-Interface definiert hierzu lediglich die Methode \textit{process(Job)}, die einen \texttt{Job}
 entgegennimmt und ein \texttt{JobResult} zurückliefert.
 Der Worker selbst enthält damit keine jobspezifische Verarbeitungslogik und kann für fachlich unterschiedliche Hintergrundjobs
 verwendet werden.
@@ -842,7 +839,7 @@ public Job finishJob(UUID jobId, UUID workerId, JobResult jobResult)
 \end{lstlisting}
 
 Dadurch wird ausgeschlossen, dass bereits abgeschlossene oder zurückgesetzte Jobs erneut oder unberechtigt beendet werden.
-Danach erfolgt die Prüfung, ob die übergebene Worker-ID mit dem im Job gespeicherten Attribut \textit{claimed\_by} übereinstimmt.
+Danach erfolgt die Prüfung, ob die übergebene Worker-ID mit dem im Job gespeicherten Attribut \texttt{claimed\_by} übereinstimmt.
 Nur der Worker, der den Job zuvor erfolgreich beansprucht hat, ist berechtigt, dessen Verarbeitung abzuschließen.
 Dieser Vergleich bildet die technische Umsetzung des im Architekturkapitel beschriebenen Fencing-Mechanismus.
 Hat der Job zwischenzeitlich einen anderen Besitzer erhalten, beispielsweise infolge eines Recovery-Vorgangs, wird die Ergebnisspeicherung abgebrochen.
@@ -865,7 +862,7 @@ Zustand beibehält (\ref{zus:atomare_wirkung} \& \ref{zus:idempotenz}).
 \label{subsec:impl_retries}
 Kern des in \cref{subsec:retryStrategie} beschriebenen Retry-Teilsystems ist die Klasse \texttt{RetryExecutor},
 die die allgemeine Steuerung von Wiederholungsversuchen übernimmt.
-Der \texttt{RetryExecutor} besitzt lediglich eine öffentliche Methode \texttt{execute()}, der eine beliebige Operation in Form
+Der \texttt{RetryExecutor} besitzt lediglich eine öffentliche Methode \textit{execute()}, der eine beliebige Operation in Form
 eines \texttt{Callable}-Objekts übergeben wird.
 Dadurch kann derselbe Mechanismus unabhängig davon verwendet werden, ob beispielsweise ein \gls{rest}-Aufruf, ein Datenbankzugriff
 oder eine andere Operation wiederholt werden soll.
