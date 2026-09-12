@@ -17,14 +17,14 @@ Die Datenbank läuft dabei lokal über Docker auf einem Postgres 17 image.
 Vor den jeweiligen Testdurchläufen wird sichergestellt, dass die relevanten Datenbanktabellen leer sind, sodass
 die einzelnen Testläufe unabhängig voneinander sind und sich nicht gegenseitig beeinflussen.
 
-Die verwendeten Systemparameter sind für die getesteten Szenarios angepasst.
-Das Ziel dabei ist die einzelnen Komponenten so aufeinander abzustimmen, dass die betrachteten Fehlerinjektionen reproduzierbar
+Die verwendeten Systemparameter sind für die getesteten Szenarien angepasst.
+Das Ziel dabei ist, die einzelnen Komponenten so aufeinander abzustimmen, dass die betrachteten Fehlerinjektionen reproduzierbar
 durchgeführt und die vorgesehenen Konkurrenzsituationen gezielt erzeugt werden können.
 Konkret wurde die Anzahl der Worker auf 1 gesetzt, die Anzahl der maximalen Verarbeitungsversuche für Jobs auf 5, die Lease-Dauer
 auf 10 Sekunden, die Verarbeitungszeit der Jobs auf 5 Sekunden und das Recovery-Intervall ebenfalls auf 5 Sekunden.
 Das Retry- und Backoff-Verhalten ist mit 200ms und einem Faktor von $2^n$ gewählt, um die Laufzeit der Tests zu begrenzen.
 Findet ein Worker keinen freien Job, pausiert er und wartet 2 Sekunden, bis er den Job-Bestand erneut prüft.
-Einzelne Parameter können für die unterschiedlichen Tests angepasst werden, so beispielsweise die Anzahl Worker für die
+Einzelne Parameter können für die unterschiedlichen Tests angepasst werden, so beispielsweise die Anzahl der Worker für die
 nebenläufigkeitsabhängigen Tests.
 Diese Änderungen werden bei der jeweiligen Testbeschreibung dargelegt.
 
@@ -98,7 +98,7 @@ Vor und nach beiden Anfragen wird die Anzahl der im Job-Store vorhandenen Jobs a
 Für \ref{zus:duplikaterkennung} wird das Verlorengehen einer Erfolgsantwort simuliert, damit der Client automatisch einen
 Retry mit demselben Job durchführt.
 Hierzu wird am \texttt{BackendRestClient} ein \texttt{ClientHttpRequestInterceptor} registriert, der beim ersten Aufruf die tatsächliche
-Serverantwort abwartet, anschließend jedoch eine \texttt{IOException} auslöst, bevor die Antwort an den Client weiter gereicht wird.
+Serverantwort abwartet, anschließend jedoch eine \texttt{IOException} auslöst, bevor die Antwort an den Client weitergereicht wird.
 Dadurch verarbeitet das Backend die Anfrage und persistiert den Job, ohne dass diese Information beim Client ankommt.
 Der clientseitige \texttt{RetryExecutor} sollte die Exception folglich als transienten Kommunikationsfehler interpretieren
 und dieselbe Anfrage samt identischem Idempotenzschlüssel erneut übertragen.
@@ -110,8 +110,8 @@ Zusätzlich prüft dieser Test die Durchführung eines automatischen clientseiti
 \subsection{Retry-Verhalten bei Infrastrukturfehlern (\ref{zus:retries})}
 \label{subsec:durchfuehrung_z6}
 Für die Untersuchung transienter Datenbankfehler wird die über Docker bereitgestellte PostgreSQL-Datenbank in einem Testcontainer ausgeführt.
-Die Datenbankanbindung der Anwendung wird dabei über einen von Toxiproxy, ein auch in der Literatur zur Fehlerinjektion
-bei Microservices empfohlenes Werkzeug \parencite{miranda_proposed_2024}, bereitgestellten Proxy geführt.
+In der Literatur wird Toxiproxy als Werkzeug zur Fehlerinjektion bei Microservices empfohlen \parencite{miranda_proposed_2024}.
+Daher fällt die Wahl auf Toxiproxy, um die Datenbankverbindung der Anwendung zu verwalten.
 Die Fehlerinjektion erfolgt durch das gezielte Unterbrechen der über den Proxy geführten Verbindung, während der
 Datenbank-Container selbst weiterläuft.
 Ein Neustart der Datenbank selbst hätte bezogen auf den Test der Retry-Funktionalität gegenüber der gewählten Fehlerinjektion keinen
@@ -202,7 +202,7 @@ Der Test zu \ref{zus:idempotenz} (a) prüft, dass die Berechtigungen eines Worke
 Dazu wird nach Ablauf des Leases ein Recovery-Durchlauf aktiviert und gewartet, bis der Job durch einen anderen Worker
 übernommen wird.
 Daraufhin versucht der ursprüngliche Besitzer ein Ergebnis zu speichern.
-Dieser Versuch wird auch nach Fertigstellung des Jobs nochmal wiederholt.
+Dieser Versuch wird auch nach Fertigstellung des Jobs erneut wiederholt.
 
 Zusätzlich untersucht \ref{zus:idempotenz} (b), ob der Worker die Berechtigung nach Ablauf des Leases auch ohne vorherigen Recovery-Durchgang
 verliert.
@@ -300,7 +300,7 @@ kann höchstens einer das Ergebnis persistieren.
 
 \paragraph{Atomare Wirkung von Ergebnissen (\ref{zus:atomare_wirkung})}
 \label{erg:atomare_wirkung}
-Nach dem Fehlschlagen des Aufrufs, erzwungenen durch den Test-Hook, befand sich der Job weiterhin im Zustand
+Nach dem durch den Test-Hook erzwungenen Fehlschlagen des Aufrufs befand sich der Job weiterhin im Zustand
 \textit{Running} und ein \texttt{JobResult} wurde nicht persistiert.
 Die zuvor im Persistenzkontext vorgenommene Statusänderung zu \textit{Succeeded} wurde vollständig verworfen.
 Das für \ref{zus:atomare_wirkung} definierte Prüfkriterium ist damit erfüllt: Tritt innerhalb der Transaktion, wie beispielsweise

@@ -3,7 +3,7 @@
 
 \chapter{Umsetzung}
 \label{ch:umsetzung}
-Dieses Kapitel befasst sich mit dem Entwurf und der technische Umsetzung des in \cref{ch:anforderungen} definierten Systems.
+Dieses Kapitel befasst sich mit dem Entwurf und der technischen Umsetzung des in \cref{ch:anforderungen} definierten Systems.
 Der Aufbau des Kapitels gliedert sich dabei in zwei Abschnitte:
 Im ersten Teil wird die Architektur des Systems entwickelt und die fundamentalen Systementscheidungen begründet.
 Aufbauend auf diesem theoretischen Fundament dokumentiert der zweite Teil die konkrete Implementierung des Prototyps auf
@@ -24,7 +24,7 @@ die Mechanismen zur idempotenten Annahme neuer Jobs über \gls{rest} erläutert.
 In \cref{subsec:transaktionsmodell} wird das Transaktions- und Sperrmodell betrachtet, das eine exklusive
 Verarbeitung bei gleichzeitig kurzen Datenbanktransaktionen ermöglicht.
 Anschließend widmen sich \cref{subsec:retryStrategie} und \cref{subsec:recoveryarchitektur} der Umsetzung von Retries und Recovery.
-\Cref{subsec:idempotenteErgebnisgenerierung} schließt den Entwurf ab, indem die Nutzung des \textit{Fencing}-Prinzip zur Vermeidung
+\Cref{subsec:idempotenteErgebnisgenerierung} schließt den Entwurf ab, indem die Nutzung des \textit{Fencing}-Prinzips zur Vermeidung
 von Mehrfachverarbeitungen im Fehlerfall dargelegt wird.
 
 \subsection{Architekturentwurf}
@@ -54,7 +54,7 @@ durch inhärente Datenbankfunktionen realisieren.
 Die Wahl von PostgreSQL stellt dabei einen bewussten Architektur-Trade-off dar.
 Im Gegensatz zu In-Memory-Lösungen wie Redis entstehen durch das Schreiben auf den
 Sekundärspeicher deutlich höhere Latenzen und Zugriffszeiten als bei reinen Hauptspeicherzugriffen.
-Demgegenüber garantiert PostgreSQL die Dauerhaftigkeit eines Datensatzes, der in einer durch ein erfolgreichen Commit
+Demgegenüber garantiert PostgreSQL die Dauerhaftigkeit eines Datensatzes, der in einer durch einen erfolgreichen Commit
 abgeschlossenen Transaktion persistiert wurde.
 Dieser Kompromiss wird bewusst eingegangen, weil Dauerhaftigkeit im Rahmen von \ref{zus:verarbeitungsgarantie} eine
 zentrale Anforderung des entwickelten Systems ist.
@@ -414,7 +414,7 @@ Aus diesem Grund muss die Payload eines Jobs mindestens bis zum erfolgreichen Ab
 Dadurch kann jeder Wiederholungsversuch unter identischen Ausgangsbedingungen beginnen und unvollständig abgeschlossene
 Ausführungsversuche haben keine Auswirkungen auf den Erfolg oder das Ergebnis späterer Wiederholungen (\ref{zus:idempotenz}).
 Problematisch ist ein solches Vorgehen jedoch, wenn während der Verarbeitung externe Seiteneffekte entstehen.
-Wird beispielsweise wie in der schematische Darstellung aus \cref{fig:seiteneffekte} im Rahmen eines Jobs eine E-Mail versendet
+Wird beispielsweise wie in der schematischen Darstellung aus \cref{fig:seiteneffekte} im Rahmen eines Jobs eine E-Mail versendet
 und der Worker stürzt anschließend vor dem erfolgreichen Abschluss der Verarbeitung ab, so wird der Job durch den
 Recovery-Service erneut zur Verarbeitung freigegeben.
 Die erneute Ausführung würde in diesem Fall dieselbe E-Mail ein weiteres Mal versenden.
@@ -547,7 +547,7 @@ FOR UPDATE SKIP LOCKED
 \end{lstlisting}
 
 Beim Aufruf der Anfrage wird sie mit einem Status und einer Anzahl parametrisiert und liefert maximal die übergebene Anzahl
-Datensätze die sich im übergebenen Zustand befinden zurück.
+Datensätze zurück, die sich im übergebenen Zustand befinden.
 Die Sortierung nach dem Erstellungszeitpunkt stellt dabei sicher, dass ältere Jobs bevorzugt verarbeitet werden (\ref{zus:terminierung}).
 \texttt{FOR UPDATE} sperrt dabei den ausgewählten Datensatz für die laufende Transaktion zum Zweck des exklusiven Zugriffs
 (\ref{zus:exklusive_rechte}), während \texttt{SKIP LOCKED} bereits durch andere Transaktionen gesperrte Datensätze ignoriert.
@@ -561,7 +561,7 @@ zum gezielten Zugriff auf einzelne Jobs bereitgestellt, der mit der Auswahl eine
     language=SQL,
     style=sql,
     caption={[Exklusives Laden eines Jobs zur Bearbeitung]{Exklusives Laden eines Jobs zur Bearbeitung anhand seiner
-    ID. Dabei wird der zugehörigen Datensatzes für die Dauer der laufenden Transaktion mittels \texttt{FOR UPDATE} gesperrt.}},
+    ID. Dabei wird der zugehörige Datensatz für die Dauer der laufenden Transaktion mittels \texttt{FOR UPDATE} gesperrt.}},
     label={lst:forUpdate}
 ]
 SELECT *
@@ -606,7 +606,7 @@ und zur Synchronisation konkurrierender Zugriffe (\ref{zus:exklusive_rechte}) be
 
 \subsection{Joberstellung}
 \label{subsec:impl_joberstellung}
-Für die Erstellung eines neuen Jobs erzeugt der Client einen \gls{uuid}-basierten Itempotenzschlüssel und übertragt
+Für die Erstellung eines neuen Jobs erzeugt der Client einen \gls{uuid}-basierten Idempotenzschlüssel und überträgt
 diesen zusammen mit den Nutzdaten des Jobs über die \gls{rest}-Schnittstelle an das Backend.
 Dort nimmt der \texttt{JobController} die Anfrage entsprechend der Darstellung aus \cref{lst:endpoint} entgegen und validiert
 sie in zwei Schritten.
@@ -619,8 +619,8 @@ Anschließend delegiert der Controller die eigentliche Joberstellung an den \tex
 Nach erfolgreicher Erstellung gibt der Controller den HTTP-Status \texttt{201 Created} zurück.
 Schlägt die Persistierung dagegen aufgrund einer Verletzung des \texttt{UNIQUE}-Constraints des Idempotenzschlüssels
 fehl, wird die resultierende \texttt{DataIntegrityViolationException} abgefangen.
-Da die Verletzung des \texttt{UNIQUE}-Constraints nur einer Teilmenge der Exception ist, prüft der Controller auf den
-Idempotenzfall.
+Da die Verletzung des \texttt{UNIQUE}-Constraints nur eine Teilmenge der möglichen Ursachen dieser Exception ist, prüft
+der Controller auf den Idempotenzfall.
 Ist dies der Fall, wird der bereits vorhandene Job anhand seines Idempotenzschlüssels aus dem Job-Store geladen und gemeinsam
 mit dem HTTP-Status \texttt{200 OK} an den Client zurückgegeben.
 
@@ -700,8 +700,8 @@ Diese wird beim Beanspruchen eines Jobs als \texttt{claimed\_by} im Job-Store hi
 eindeutige Zuordnung eines laufenden Jobs zu demjenigen Worker, der ihn aktuell verarbeitet.
 Der \texttt{ExecutorService} ruft automatisch die in \cref{lst:workerRun} dargestellte \textit{run()}-Methode der übergebenen
 \texttt{Worker}-Instanz auf.
-Innerhalb der Methode wird für die Verarbeitung der Jobs aus dem Job-Store gesorgt, indem folgende Schritte solange wiederholt werden
-bis der Thread in dem der jeweilige Worker läuft, unterbrochen wird.
+Innerhalb der Methode wird die Verarbeitung der Jobs aus dem Job-Store gesteuert, indem die folgenden Schritte so lange wiederholt werden,
+bis der Thread, in dem der jeweilige Worker läuft, unterbrochen wird.
 Hierzu versucht der \texttt{Worker} zunächst, über die Methode \textit{claimNextJob(UUID id)} des \texttt{WorkerService}
 einen verfügbaren Job zu beanspruchen.
 Wird kein Job gefunden, ist das \texttt{Optional}-Objekt leer, der Worker wird daraufhin für eine kurze Zeit pausiert und
@@ -803,7 +803,7 @@ Wie bereits bei der Reservierung eines Jobs erfolgt auch dieser Schritt entsprec
 Zu Beginn der Methode wird der betreffende Job über \textit{findByIdForUpdate(...)} geladen.
 Die zugrunde liegende SQL-Abfrage verwendet \texttt{FOR UPDATE} und sperrt den Datensatz dadurch exklusiv bis zum Abschluss der Transaktion.
 Dadurch wird verhindert, dass Recovery-Prozesse oder andere konkurrierende Transaktionen den Job während seiner Finalisierung verändern können.
-Das Verhalten ist essenziell, um \ref{zus:idempotenz} garantieren zu können.
+Das Verhalten ist essenziell für die Einhaltung von \ref{zus:idempotenz}.
 Anschließend wird überprüft, ob sich der Job noch im Zustand \textit{Running} befindet.
 
 \begin{lstlisting}[
@@ -872,7 +872,7 @@ oder eine andere Operation wiederholt werden soll.
     language=Java,
     style=java,
     caption={[Generischer RetryExecutor]{Generische Steuerung von Wiederholungsversuchen: Ausführung einer Operation,
-    Klassifikation auftretender Exceptions durch die Retry-Policy und ggfs. erneute Ausführung nach dem konfigurierten Backoff.}},
+    Klassifikation auftretender Exceptions durch die Retry-Policy und ggf. erneute Ausführung nach dem konfigurierten Backoff.}},
     label={lst:retryExecutor}
 ]
 public <T> T execute(Callable<T> callable) throws Exception {
@@ -959,7 +959,7 @@ Job job = retryExecutor.execute(
 \end{lstlisting}
 
 Wird Zeile 6 aus \cref{lst:endpoint} mit diesem Ausdruck ersetzt und die Datenbank ist nicht erreichbar,
-wird der Aufruf von \textit{creatJob(request)} automatisch wiederholt.
+wird der Aufruf von \textit{createJob(request)} automatisch wiederholt.
 
 Neben der Joberstellung wird derselbe Mechanismus ebenfalls beim Claiming neuer Jobs sowie beim Abschluss einer Verarbeitung eingesetzt.
 Im Frontend kapselt der \texttt{RetryExecutor} darüber hinaus sämtliche \gls{rest}-Aufrufe an das Backend.
@@ -975,7 +975,7 @@ vom \texttt{RecoveryExecutor} implementiert wird.
 
 Die in \cref{lst:recoveryService} dargestellte zentrale Methode des \texttt{RecoveryService} wird mithilfe der
 Spring-Annotation \texttt{@Scheduled} in festen Zeitabständen ausgeführt.
-Die Abstände zwischen den Recovery-Zyklen kann dabei über den Anwendungskontext konfiguriert werden.
+Die Abstände zwischen den Recovery-Zyklen können dabei über den Anwendungskontext konfiguriert werden.
 In einem solchen Zyklus werden zunächst sämtliche Jobs ermittelt, deren Lease bereits abgelaufen ist und deren Status weiterhin \textit{Running} lautet.
 Hierzu wird die bereits in \cref{subsec:impl_persistenz} vorgestellte Repository-Abfrage verwendet.
 Die Abfrage liefert ausschließlich die Identifikatoren der betroffenen Jobs zurück und verwendet bewusst keine Sperren.

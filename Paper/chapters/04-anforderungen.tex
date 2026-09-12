@@ -221,7 +221,7 @@ Im Rahmen der konsistenten Ergebnisgenerierung (\ref{req:idempotenz}) darf ein J
     Nach außen sichtbar ist entweder das vollständige Ergebnis inklusive der Zustandsänderung oder keinerlei Auswirkung.
 \end{quote}
 Zusätzlich müssen die Zustände der Jobverarbeitung einer klaren Richtung folgen, um eine mehrfache Ergebnisgenerierung zu verhindern
-und die Konsistenz der Daten so zu schützen (\ref{req:idempotenz}):
+und dadurch die Konsistenz der Daten zu schützen (\ref{req:idempotenz}):
 \begin{quote}
     \zusicherung{Finalität von Endzuständen}{zus:endzustaende} \\
     Das System garantiert, dass der Lebenszyklus eines Jobs einer strikt gerichteten Zustandslogik folgt.

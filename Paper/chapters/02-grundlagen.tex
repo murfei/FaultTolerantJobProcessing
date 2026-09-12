@@ -67,7 +67,7 @@ Die so erreichte Entkopplung ermöglicht es, Anfragen unabhängig von ihrer spä
 Produzent und Konsument müssen daher weder gleichzeitig aktiv sein noch während der gesamten Verarbeitung miteinander kommunizieren.
 Auf dieser Entkopplung basieren auch Message-Broker-Systeme.
 Falls ein Konsument temporär nicht verfügbar ist oder während der Verarbeitung ausfällt, können Message Broker trotzdem für
-die At-Least-Once-Semantik (vlg. \cref{subsec:semantiken}) sorgen \parencite[Kap.~11 Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
+die At-Least-Once-Semantik (vgl. \cref{subsec:semantiken}) sorgen \parencite[Kap.~11 Abschnitt \glqq Acknowledgments and redelivery\grqq]{kleppmann_designing_2017}.
 Des Weiteren müssen Verarbeitungskapazitäten in Folge von Queueing nicht auf die maximal zu erwartende Last ausgelegt werden,
 sondern können sich an der durchschnittlichen Auslastung orientieren.
 Kurzzeitige Lastspitzen werden dabei durch die Zwischenspeicherung der Aufgaben in der Queue ausgeglichen
@@ -424,7 +424,7 @@ betroffenen Systeme durch das Vermeiden unmittelbar aufeinanderfolgender Wiederh
 
 \subsection{Recovery}
 \label{subsec:recovery}
-Neben transienten Fehlern, die häufig durch Retry-Mechanismen behandelt werden können, können auch Fehler auftreten,
+Neben transienten Fehlern, die häufig durch Retry-Mechanismen behandelt werden können, treten auch Fehler auf,
 die den Ausführungsprozess einer Verarbeitung vollständig unterbrechen.
 Da einzelne Komponenten unabhängig voneinander ausfallen können, während andere Teile des Systems weiterhin funktionieren,
 entstehen sogenannte Teilausfälle \parencite[Kap.~8 Abschnitt \glqq Faults and Partial Failures\grqq]{kleppmann_designing_2017}.
@@ -505,7 +505,7 @@ und eine redundante Speicherung verhindern \parencites[{Kap.~3 Abschnitt \glqq C
 
 Darüber hinaus muss auch die eigentliche Verarbeitung eines Jobs so gestaltet werden, dass wiederholte Ausführungen und
 Wiederaufnahmen keine inkonsistenten Ergebnisse erzeugen \parencite[Kap.~3 Abschnitt \glqq Idempotency\grqq]{newman_building_2026}.
-Um eine Idempotente Verarbeitung sicherzustellen, darf ein Ergebnis nur einmal erfolgreich persistiert werden.
+Um eine idempotente Verarbeitung sicherzustellen, darf ein Ergebnis nur einmal erfolgreich persistiert werden.
 Außerdem muss das Speichern des Ergebnisses atomar ausgeführt werden.
 Datenänderungen müssen folglich über klar definierte Transaktionsgrenzen sowie ein Statusmodell abgesichert werden, um
 eine konsistente Weiterbearbeitung nach einem Crash zu gewährleisten \parencite[Kap.~7]{kleppmann_designing_2017}.

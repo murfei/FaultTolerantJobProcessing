@@ -11,7 +11,7 @@ Abschließend wird ein Ausblick über weiterführende Untersuchungen und Verbess
 \label{sec:erkenntnisse}
 Aus der Entwicklung und Evaluation des Systems ergeben sich mehrere zentrale Erkenntnisse für die Gestaltung fehlertoleranter
 Hintergrundverarbeitung.
-Dieses Kapitel beantwortet in diesem Bezug die Forschungsfragen und führt zusätzlich gewonnene Erkenntnisse auf.
+Dieses Kapitel beantwortet in diesem Zusammenhang die Forschungsfragen und führt zusätzlich gewonnene Erkenntnisse auf.
 
 \subsection{Beantwortung der Hauptforschungsfrage}
 \label{subsec:beantwortungHauptfrage}
@@ -29,8 +29,8 @@ Jobs wieder für die Verarbeitung freigegeben werden können.
 
 \subsection{Beantwortung der Teilfragen}
 \label{subsec:beantwortungTeilfragen}
-Für \ref{item:tf1} wurden in \cref{sec:zusicherungen} in Abhängigkeit zum betrachteten Fehlermodell konkrete Zusicherungen abgeleitet.
-Die Evaluation zeigt, dass durch die Umsetzung dieser Zusicherungen die Teilausfälle des betrachteten Fehlermodells behandelt werden können.
+Für \ref{item:tf1} wurden in \cref{sec:zusicherungen} in Abhängigkeit vom betrachteten Fehlermodell konkrete Zusicherungen abgeleitet.
+Die Evaluation zeigt, dass die Teilausfälle des betrachteten Fehlermodells durch die Umsetzung dieser Zusicherungen behandelt werden können.
 Insbesondere gilt das für Infrastrukturausfälle wie Netzwerkfehler oder Worker-Crashes.
 
 Die Untersuchung zeigt bezüglich \ref{item:tf2}, dass diese Mechanismen unterschiedliche Fehlerklassen adressieren und sich daher gegenseitig ergänzen.
@@ -47,7 +47,7 @@ Zustandsmodell für den Lebenszyklus der Jobs verwaltet wird.
 Beim Zustandsübergang eines Jobs verhindert die Kombination aus Transaktion und Zeilensperre, dass mehrere Instanzen denselben
 Job gleichzeitig auf Datenbankebene bearbeiten können.
 Wird vor dem Abschluss eines Jobs zusätzlich sein aktueller Zustand und seine Besitzverhältnisse geprüft, können konkurrierende
-Operationen ohne Auftreten von Inkonsistenzen synchronisiert werden, obwohl kurze Transaktionen verwendet werden.
+Operationen ohne das Auftreten von Inkonsistenzen synchronisiert werden, obwohl kurze Transaktionen verwendet werden.
 
 Für \ref{item:tf4} zeigt die Untersuchung, dass hierfür die Kombination aus persistentem Zustandsmodell, zeitbasiertem Lease
 und Recovery-Mechanismus wesentlich ist.
@@ -66,7 +66,7 @@ Dadurch lässt sich ein wesentlicher Teil der geforderten Zusicherungen bereits 
 
 Für die untersuchte Systemgröße ergibt sich daraus als Antwort auf die in der Einleitung aufgeworfene Frage ein weiterer Vorteil:
 Die Architektur benötigt keinen zusätzlichen Message Broker als eigenständige Infrastrukturkomponente.
-Insbesondere entfällt dadurch architekturieller Aufwand zur Konsistenzerhaltung zwischen Datenbank und Broker.
+Insbesondere entfällt dadurch architektonischer Aufwand zur Konsistenzerhaltung zwischen Datenbank und Broker.
 Die Nutzung einer gemeinsamen relationalen Datenbank ermöglicht es stattdessen, zusammengehörige Änderungen über lokale
 \gls{acid}-Transaktionen abzusichern.
 Dies reduziert die infrastrukturelle Komplexität, hat aber auch Auswirkungen auf die Skalierbarkeit, die im folgenden Kapitel
@@ -79,8 +79,8 @@ Das entwickelte System dient der Untersuchung ausgewählter Fehlertoleranzmechan
 produktionsreifes Job-Processing-System dar.
 Dementsprechend besteht Optimierungsbedarf bei der Parametrisierung, beispielsweise bezüglich der maximalen Anzahl an Wiederholungsversuchen,
 der initialen Verzögerung oder des Backoff-Faktors.
-Besonders die Konfiguration der Retry-Policies bezüglich der Klassifizierung transienter Fehler ist als \textit{Proof-of-concept}
-anstatt einer Lösung mit Anspruch auf Vollständigkeit zu sehen.
+Besonders die Konfiguration der Retry-Policies bezüglich der Klassifizierung transienter Fehler ist als \textit{Proof of concept}
+und nicht als vollständige Lösung zu verstehen.
 
 Bezüglich \ref{zus:verarbeitungsgarantie} bedeutet die At-Least-Once-Verarbeitungsgarantie eines Jobs nicht, dass für jeden Job zwangsläufig
 ein Ergebnis erzeugt wird.
