@@ -91,7 +91,7 @@ eingesetzt werden, um die Notwendigkeit von manuellem Eingreifen zu reduzieren.
 \end{table}
 
 Als direkte Folge solcher Infrastrukturprobleme und der darauf reagierenden Wiederholungsmechanismen können doppelte Requests entstehen,
-wenn ein Acknowledgement zu spät kommt oder ausbleibt.
+wenn ein Acknowledgment zu spät kommt oder ausbleibt.
 Im System sollte ein Job im Rahmen einer angestrebten Exactly-Once-Semantik jedoch nicht mehrfach gespeichert werden.
 Daher muss das System im beschriebenen Szenario durch Duplikaterkennung verhindern, dass identische Jobs mehrfach im Job-Store persistiert werden.
 

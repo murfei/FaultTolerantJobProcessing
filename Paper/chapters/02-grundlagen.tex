@@ -94,8 +94,8 @@ Im Kontext von Job-Processing sind diese Semantiken zur Nachrichtenzustellung an
 \label{subsec:atLeastOnce}
 Ein Konsument erhält die Nachricht mindestens einmal.
 Bei der Auslieferung bestätigt der Konsument über ein Acknowledge das Ankommen der Nachricht.
-Sofern das Acknowledgement beim Absender eingeht, ist für diesen garantiert, dass die Nachricht angekommen ist.
-Bleibt diese Bestätigung innerhalb eines definierten Zeitfensters jedoch aus, z.\,B. weil die Nachricht oder das Acknowledgement
+Sofern das Acknowledgment beim Absender eingeht, ist für diesen garantiert, dass die Nachricht angekommen ist.
+Bleibt diese Bestätigung innerhalb eines definierten Zeitfensters jedoch aus, z.\,B. weil die Nachricht oder das Acknowledgment
 verloren geht, wird die Nachricht erneut zugestellt.
 Dieser Fall wird \textit{Redelivery} genannt.
 Dieses Verfahren verhindert Datenverlust, birgt jedoch das Risiko von Duplikaten, für den Fall, dass die Nachricht ankommt, aber das
@@ -112,12 +112,12 @@ Dadurch werden Duplikate strikt ausgeschlossen, jedoch muss ein potenzieller Dat
 \subsection*{Exactly-Once}
 \label{subsec:exactlyOnce}
 Diese Semantik garantiert, dass eine Nachricht genau einmal beim Konsumenten ankommt.
-In der Praxis ist das nur schwer zu realisieren, da beispielsweise nicht klar sein kann, ob ein Acknowledgement nur noch nicht
+In der Praxis ist das nur schwer zu realisieren, da beispielsweise nicht klar sein kann, ob ein Acknowledgment nur noch nicht
 angekommen, oder schon verloren gegangen ist.
 Viele Umsetzungen beruhen daher auf der Notwendigkeit, dass sowohl beim Produzenten, als auch Konsumenten entsprechende Mechanismen
 implementiert werden.
 Eine Variante zur Umsetzung von Exactly-Once ist die Approximation über eine Kombination der Implementierung von At-Least-Once
-beim Produzent und Idempotenz beim Konsument.
+beim Produzenten und Idempotenz beim Konsumenten.
 Die Garantie bezieht sich somit nicht auf die tatsächliche Anzahl der Zustellungen einer Nachricht, sondern auf die Berücksichtigung
 durch den Konsumenten.
 Eine Nachricht kann mehrfach zugestellt werden, solange sie nur einmal angenommen wird.
@@ -151,8 +151,7 @@ Dieses Muster besteht ähnlich des Konzepts aus \cref{fig:queueing} aus drei fun
     Sobald der Konsument über freie Systemressourcen verfügt, kann er einen wartenden Job aus dem Job-Store beanspruchen und führt
     diesen aus \parencite{microsoft_corporation_hrsg_queue-based_2026}.
 \end{itemize}
-Durch eine solche Architektur können Background-Jobs als \glqq{}fire and forget\grqq-Operationen \parencite{microsoft_corporation_hrsg_best_2026}
-implementiert werden.
+Durch eine solche Architektur können Background-Jobs als \textit{fire-and-forget}-Operationen implementiert werden.
 Sie laufen asynchron in einem vom Client isolierten Prozess, sodass deren Verarbeitungszeit keine unmittelbare Auswirkung
 auf die Reaktionszeit oder Verfügbarkeit des Produzenten hat \parencite{microsoft_corporation_hrsg_best_2026}.
 Außerdem ermöglicht dieses Konzept das Abfangen von Lastspitzen und flexiblere Skalierung \parencite{microsoft_corporation_hrsg_queue-based_2026}.
@@ -553,7 +552,7 @@ Die Nutzung einer relationalen Datenbank ermöglicht den Gebrauch der \gls{acid}
 sowie das Verwalten von Status- und fachlichen Datenänderungen konsistent innerhalb einer gemeinsamen Transaktion zu verarbeiten.
 In der Praxis verfolgen existierende Frameworks jedoch unterschiedliche Schwerpunkte und adressieren die Problemstellung
 jeweils aus einer anderen Perspektive.
-Hangfire garantiert nur eine At-Least-Once Ausführung und überlässt die Umsetzung von Idempotenz der Fachlogik.
+Hangfire garantiert nur eine At-Least-Once-Ausführung und überlässt die Umsetzung von Idempotenz der Fachlogik.
 Während der Quartz Scheduler \parencite{terracotta_inc_hrsg_quartz_2026} primär auf zeitgesteuertes Scheduling und
 clusteringbasierte Koordination fokussiert, stellt Spring Batch eine spezialisierte Infrastruktur für die blockweise Massenverarbeitung
 bereit, die auf periodische oder zeitgesteuerte Durchläufe ausgelegt ist.

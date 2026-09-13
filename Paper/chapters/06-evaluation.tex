@@ -65,7 +65,7 @@ Die Auswahl inklusive Begründung der betrachteten Fehlerklassen wurde bereits i
 
     \ref{zus:atomare_persistenz} & Ungültige Payload & Fachlich und syntaktisch invalide Requests senden & \texttt{\gls{http} 400}, kein DB-Eintrag; Zeilenzahl vor/nach unverändert \\
     \addlinespace
-    \ref{zus:duplikaterkennung} & Acknowledgement geht verloren & Abfangen und verwerfen des Acknowledgements, stattdessen Fehler werfen & Client startet automatischen Retry. Die \gls{api} wird insgesamt 2 Mal angesprochen. Es wird genau ein Job im Backend gespeichert und der Statuscode der vom Client erhaltenen Antwort ist \texttt{200 OK} \\
+    \ref{zus:duplikaterkennung} & Acknowledgment geht verloren & Abfangen und verwerfen des Acknowledgments, stattdessen Fehler werfen & Client startet automatischen Retry. Die \gls{api} wird insgesamt 2 Mal angesprochen. Es wird genau ein Job im Backend gespeichert und der Statuscode der vom Client erhaltenen Antwort ist \texttt{200 OK} \\
     \addlinespace
     \ref{zus:exklusive_rechte} & (a) Viele Worker konkurrieren um einen Job; (b) Zwei Worker versuchen gleichzeitig Ergebnis zu speichern & (a) $K$ Worker-Instanzen versuchen den gleichen Job zu beanspruchen, loggen des jeweils beanspruchten Jobs; (b) Synchronisation der Worker vor anschließendem parallelen Speicherversuch & (a) Von $K$ gleichzeitigen Versuchen darf genau einer erfolgreich sein; (b) Es gibt genau einen Speichervorgang zu dem Job. Verspäteter Aufruf wird per Fencing abgelehnt \\
     \addlinespace
@@ -103,7 +103,7 @@ Dadurch verarbeitet das Backend die Anfrage und persistiert den Job, ohne dass d
 Der clientseitige \texttt{RetryExecutor} sollte die Exception folglich als transienten Kommunikationsfehler interpretieren
 und dieselbe Anfrage samt identischem Idempotenzschlüssel erneut übertragen.
 Schließlich wird geprüft, ob tatsächlich nur ein Job persistiert wurde.
-Auf diese Weise wird das in \cref{subsec:atLeastOnce} beschriebene Szenario eines verlorenen Acknowledgements durch
+Auf diese Weise wird das in \cref{subsec:atLeastOnce} beschriebene Szenario eines verlorenen Acknowledgments durch
 einen transienten Netzwerkfehler realitätsnah nachgebildet.
 Zusätzlich prüft dieser Test die Durchführung eines automatischen clientseitigen Retries bei transienten Fehlern (vgl. \cref{sec:ergebnisse}).
 
@@ -130,8 +130,8 @@ Datenbankzugriff tatsächlich einen neuen, über den unterbrochenen Proxy gefüh
 In Testfall (a) wird die Verbindung für eine festgelegte Dauer unterbrochen und anschließend automatisiert wiederhergestellt.
 Als Variante hierzu wird zusätzlich untersucht, wie sich das System verhält, wenn die Unterbrechung dauerhaft bestehen
 bleibt und sämtliche Wiederholungsversuche erschöpft werden, bevor die Datenbankverbindung wiederhergestellt wird.
-Für Testfall (b) wird eine Anfrage mit einem bereits verwendeten Idempotenzschlüssel gesendet, um stellvertretend
-die Behandlung eines nicht retrybaren Datenbankfehlers zu prüfen.
+Für Testfall (b) wird eine Anfrage mit einem bereits verwendeten Idempotenzschlüssel gesendet, um exemplarisch
+die Behandlung eines als permanent klassifizierten Datenbankfehlers zu prüfen.
 
 Die Retry-Logik wird dabei ausschließlich anhand der Joberstellung überprüft.
 Sowohl das Beanspruchen als auch der Abschluss eines Jobs verwenden dieselbe \texttt{RetryExecutor}/ \texttt{DBRetryPolicy}-Komponente.
@@ -272,7 +272,7 @@ Der clientseitige \texttt{RetryExecutor} übertrug daraufhin dieselbe Anfrage sa
 Das Backend erkannte dabei die Verletzung des entsprechenden \texttt{UNIQUE}-Constraints und behandelte den zweiten Aufruf
 als Idempotenzfall, ohne diesen seinerseits erneut zu wiederholen.
 Der clientseitige Retry wurde also tatsächlich ausgeführt, während der resultierende Datenbankfehler auf Backendseite
-korrekt als nicht retrybar eingestuft wurde.
+korrekt als permanent eingestuft wurde.
 Der zweite Client-Aufruf lieferte den \gls{http}-Status \texttt{200 OK} und denselben, bereits zuvor erzeugten Job zurück.
 Während des gesamten Tests erhöhte sich die Anzahl der Jobs im Job-Store lediglich von null auf eins.
 Das für \ref{zus:duplikaterkennung} definierte Prüfkriterium ist damit erfüllt: Eine erneute Übermittlung derselben
@@ -336,7 +336,7 @@ erreichter Endzustand nicht mehr verlassen werden kann.
 \paragraph{Automatische Wiederholungsversuche (\ref{zus:retries})}
 \label{erg:retries}
 In Testfall (a) schlug der erste Zugriffsversuch aufgrund der nicht verfügbaren Datenbankverbindung fehl.
-Der \texttt{RetryExecutor} klassifizierte den Fehler als retrybar und führte drei weitere Ausführungsversuche mit
+Der \texttt{RetryExecutor} klassifizierte den Fehler als transient und führte drei weitere Ausführungsversuche mit
 Wartezeiten von 200\,ms, 400\,ms und 800\,ms durch.
 Nach der Wiederherstellung der Datenbankverbindung schloss der vierte Versuch erfolgreich ab, sodass die Anfrage mit dem \gls{http}-Status
 \texttt{201 Created} beantwortet wurde und der zurückgegebene Idempotenzschlüssel dem der ursprünglichen Request entsprach.
@@ -346,7 +346,7 @@ Error} beantwortet und es wurde kein erneuter Retry gestartet.
 
 Im zweiten Testfall führte die erneute Verwendung eines bereits vorhandenen Idempotenzschlüssels zu einer
 \texttt{DataIntegrityViolationException}.
-Der \texttt{RetryExecutor} stufte diese als nicht retrybar ein, sodass kein weiterer Ausführungsversuch erfolgte.
+Der \texttt{RetryExecutor} stufte diese als permanent ein, sodass kein weiterer Ausführungsversuch erfolgte.
 Der Controller behandelte den Fehler als Idempotenzfall und beantwortete die Anfrage mit \texttt{200 OK}.
 Das für \ref{zus:retries} definierte Verhalten wurde damit tatsächlich beobachtet.
 
@@ -442,10 +442,10 @@ Fehlerklassifikation in transiente und permanente Fehler die Robustheit des Syst
 kurzzeitigen Infrastrukturausfällen erhöhen, ohne dabei die definierten Zusicherungen zu verletzen.
 
 Die Untersuchung von \ref{zus:retries} stützt diese Hypothese direkt.
-Ein kurzzeitiger Datenbankausfall wurde korrekt als retrybar klassifiziert und mit exponentiell steigenden Wartezeiten
+Ein kurzzeitiger Datenbankausfall wurde korrekt als transient klassifiziert und mit exponentiell steigenden Wartezeiten
 automatisch überbrückt, sodass die ursprüngliche Anfrage letztlich erfolgreich abgeschlossen wurde, ohne dass ein
 manuelles Eingreifen erforderlich wurde.
-Ein permanenter Fehler wurde dagegen korrekt als nicht retrybar erkannt und ohne einen einzigen weiteren Ausführungsversuch
+Ein permanenter Fehler wurde dagegen korrekt als nicht wiederholbar erkannt und ohne einen einzigen weiteren Ausführungsversuch
 sofort beantwortet.
 Die Fehlerklassifikation griff also in beide Richtungen zuverlässig.
 Die ergänzend durchgeführte Gegenprobe bezüglich \ref{zus:duplikaterkennung} und \ref{zus:retries} zeigt außerdem,
@@ -454,24 +454,6 @@ Ein durch einen Retry ausgelöster doppelter Persistierungsauftrag eines neuen J
 Anfrage mit einem als transient klassifizierten Fehler wurde nach Erschöpfung der konfigurierten Wiederholungsversuche
 kontrolliert mit einem Fehlerstatus beantwortet, anstatt die Ausführung unbegrenzt weiter zu versuchen.
 
-\textbf{\ref{item:h3}} behauptet, dass sich die definierten Zusicherungen durch automatisierte Tests mittels gezielter
-Fehlerinjektion reproduzierbar überprüfen und nachweisen lassen.
-
-Für jede der neun Zusicherungen Z-1 bis Z-9 wurde, wie in \cref{ch:methodik} methodisch festgelegt, mindestens
-ein automatisierter Testfall mit gezielter Fehlerinjektion umgesetzt (vgl.\cref{tab:testmatrix}) und erfolgreich durchgeführt.
-Sämtliche Testfälle laufen dabei gegen einen für jeden Durchlauf neu hergestellten, isolierten Ausgangszustand
-und lassen sich beliebig oft wiederholt ausführen, ohne dass eine manuelle Anpassung erforderlich ist.
-Besondere Relevanz für die Reproduzierbarkeit hat dabei die Wiederholung der Testfälle zu \ref{zus:exklusive_rechte}
-und \ref{zus:endzustaende}.
-Da diese im Gegensatz zu den übrigen Testfällen aufgrund der Abhängigkeit vom Thread-Scheduling nicht-deterministisch sind,
-würde ein einmalig bestandener Testlauf nur eines von potenziell mehreren möglichen Ergebnissen zeigen.
-Die Wiederholung bestätigt hier, dass die Kriterien unabhängig von der konkreten Schedule zuverlässig eingehalten werden,
-statt nur einmalig zufällig zuzutreffen.
-Dabei wurde auch nachgewiesen, dass tatsächlich unterschiedliche Schedules auftraten.
-Ein Fehler, der nur unter einer bestimmten, seltener auftretenden Ausführungsreihenfolge sichtbar würde, wäre dadurch mit
-hoher Wahrscheinlichkeit erkannt worden.
-\Ref{item:h3} wird somit als erfüllt betrachtet.
-
-Insgesamt stützen die in \cref{sec:ergebnisse} dokumentierten Ergebnisse alle drei Hypothesen.
-Kein durchgeführter Testfall lieferte einen Befund, der einer der drei Hypothesen widerspricht.
+Insgesamt stützen die in \cref{sec:ergebnisse} dokumentierten Ergebnisse beide Hypothesen.
+Kein durchgeführter Testfall lieferte einen Befund, der einer der Hypothesen widerspricht.
 Eine Diskussion des damit verbundenen Erkenntnisgewinns sowie dessen Grenzen erfolgt im folgenden Kapitel.

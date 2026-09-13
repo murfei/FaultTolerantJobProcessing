@@ -111,10 +111,21 @@ Bei der Nutzung von Leases ohne Heartbeat muss außerdem die Wahl der Lease-Daue
 Eine kurze Lease-Dauer ermöglicht eine schnellere Recovery, erhöht jedoch das Risiko, dass noch aktive Verarbeitungen vorzeitig
 zur erneuten Verarbeitung freigegeben werden.
 
-\textbf{Begrenzte Aussagekraft der empirischen Evaluation.}
-Die Evaluation erfolgt in einer kontrollierten Testumgebung und basiert auf einer endlichen Anzahl von Testwiederholungen.
-Insbesondere für nebenläufigkeitsabhängige Szenarien kann daher nicht ausgeschlossen werden, dass unter anderen Ausführungsbedingungen
-weitere bisher nicht beobachtete Effekte auftreten.
+\textbf{Begrenzte Aussagekraft der Evaluation.}
+Sämtliche Testfälle laufen gegen einen kontrollierten Ausgangszustand und lassen sich
+beliebig oft wiederholen, ohne dass eine manuelle Anpassung erforderlich ist.
+Besondere Relevanz für die Aussagekraft der Evaluation besitzt dabei die wiederholte Ausführung der Testfälle zu
+\ref{zus:exklusive_rechte} und \ref{zus:endzustaende}.
+Da diese im Gegensatz zu den übrigen Testfällen aufgrund der Abhängigkeit vom Thread-Scheduling nicht-deterministisch sind,
+würde ein einmalig bestandener Testlauf nur eines von potenziell mehreren möglichen Ergebnissen zeigen.
+Die Wiederholung über 100 Durchläufe bestätigt, dass die Kriterien unabhängig von der konkreten Schedule eingehalten
+werden, statt nur einmalig zufällig zuzutreffen.
+Zusätzlich wurde nachgewiesen, dass tatsächlich unterschiedliche Schedules auftraten,
+sodass nur unter selteneren Ausführungsreihenfolgen sichtbare Fehler mit hoher Wahrscheinlichkeit erkannt worden wären.
+
+Gleichwohl bleibt die Evaluation an eine kontrollierte Testumgebung und eine endliche Anzahl von Testwiederholungen gebunden.
+Insbesondere für die nebenläufigkeitsabhängige Szenarien kann daher nicht ausgeschlossen werden, dass unter anderen Ausführungsbedingungen
+weitere, bisher nicht beobachtete Effekte auftreten.
 Die wiederholte Ausführung der entsprechenden Tests erhöht die Wahrscheinlichkeit, relevante Nebenläufigkeitseffekte zu erfassen,
 stellt jedoch keinen Beweis für deren vollständiges Ausbleiben dar.
 Des Weiteren kann mit Tests im Allgemeinen nur das Vorhandensein eines Fehlers bewiesen werden, nicht jedoch die Abwesenheit.
@@ -123,8 +134,7 @@ nicht vollständig garantiert werden.
 Ein vollständiger Ausschluss solcher Effekte würde eine formale Verifikation erfordern.
 
 \textbf{Keine Untersuchung von Performance und Skalierbarkeit.}
-Die Arbeit untersucht die Funktionsfähigkeit der Fehlertoleranzmechanismen und die Konsistenz des entwickelten Systems,
-nicht dessen Verhalten unter hoher Last.
+Die Arbeit untersucht die Funktionsfähigkeit der Fehlertoleranzmechanismen des entwickelten Systems, nicht dessen Verhalten unter hoher Last.
 Die Verwendung eines datenbankbasierten Job-Stores mit Sekundärspeicher kann bei einer hohen Anzahl an Zugriffen aufgrund
 der Latenz und für den parallelen Zugriff benötigten Ressourcen zum limitierenden Faktor werden
 \parencite[Kap.~10 Abschnitt \glqq Example: analysis of user activity events\grqq]{kleppmann_designing_2017}.

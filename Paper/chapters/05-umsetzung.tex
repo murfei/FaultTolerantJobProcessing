@@ -214,7 +214,7 @@ indem das vorgestellte Schema in die vorhandene Datenbank integriert wird.
 \subsection{Joberstellung}
 \label{subsec:joberstellung}
 Die Annahme neuer Jobs im Backend gehört zur Erstellungsphase und bildet somit den Einstiegspunkt in das entwickelte Job-Processing-System.
-Zur Umsetzung einer Exactly-Once Auslieferung, die aus den Zusicherungen \ref{zus:duplikaterkennung} und \ref{zus:retries} folgt,
+Zur Umsetzung einer Exactly-Once-Auslieferung, die aus den Zusicherungen \ref{zus:duplikaterkennung} und \ref{zus:retries} folgt,
 sind verschiedene Mechanismen nötig, die im Folgenden vorgestellt werden.
 Der Ablauf der Jobannahme ist in \cref{fig:jobannahme} dargestellt.
 
@@ -232,7 +232,7 @@ sowie einem vom Client erzeugten Idempotenzschlüssel.
 Dieser Schlüssel identifiziert einen Job eindeutig und ermöglicht es, mehrfach übertragene Anfragen desselben Jobs zuverlässig zu erkennen.
 Die Verwendung des Idempotenzschlüssels ist insbesondere für den Fall relevant, dass der Client eine Anfrage erneut sendet,
 obwohl der ursprüngliche Job bereits erfolgreich gespeichert wurde.
-Ein solches Szenario kann auftreten, wenn das Acknowledgement des Backends bei der Übertragung verloren geht und der Client
+Ein solches Szenario kann auftreten, wenn das Acknowledgment des Backends bei der Übertragung verloren geht und der Client
 deshalb fälschlicherweise von einer fehlgeschlagenen Joberstellung ausgeht.
 Durch den Idempotenzschlüssel kann das Backend erkennen, dass der betroffene Job bereits existiert und eine doppelte Persistierung verhindern.
 Damit wird Zusicherung \ref{zus:duplikaterkennung} umgesetzt.
@@ -950,7 +950,7 @@ Die jeweilige Operation wird hierzu als Lambda-Ausdruck an den \texttt{RetryExec
     language=Java,
     style=java,
     caption={[Verwendung des RetryExecutors beim Datenbankzugriff]{Einbindung des generischen \texttt{RetryExecutors} zur automatischen
-    Wiederholung einer Operation bei einem als retrybar klassifizierten Fehler.}},
+    Wiederholung einer Operation bei einem als transient klassifizierten Fehler.}},
     label={lst:retryUsage}
 ]
 Job job = retryExecutor.execute(
