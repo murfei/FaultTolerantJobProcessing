@@ -171,7 +171,7 @@ muss jeder Job einen eindeutigen Idempotenzschlüssel besitzen.
 Daher ist die Spalte \texttt{idempotency\_key} mit einem \texttt{UNIQUE}- und einem \texttt{NOT NULL}-Constraint belegt.
 Auf die Nutzung des Idempotenzschlüssels wird in \cref{subsec:joberstellung} näher eingegangen.
 
-Neben den Identifikationsmerkmalen werden die eigentlichen Nutzdaten des Jobs als JSON-Objekt persistent gespeichert.
+Neben den Identifikationsmerkmalen werden die eigentlichen Nutzdaten des Jobs als \gls{json}-Objekt persistent gespeichert.
 Dadurch kann die \textit{Payload} eine Menge an strukturierten Informationen für die Jobspezifikation beinhalten.
 Alternativ könnte das Attribut auch in Abhängigkeit von der Domain und dem Systementwurf als eigene Entität
 mit einer 1:1-Beziehung zum Job modelliert werden, sofern die nötigen Informationen für die Durchführung des Jobs enthalten sind.
@@ -240,19 +240,19 @@ Damit wird Zusicherung \ref{zus:duplikaterkennung} umgesetzt.
 Nach Eingang der Anfrage leitet der \texttt{JobController} diese an den \texttt{JobService} weiter.
 Dieser versucht, den Job zusammen mit dem Idempotenzschlüssel zu speichern.
 Existiert der Idempotenzschlüssel noch nicht, liefert die der Service den erstellten Job an den \texttt{JobController} zurück,
-der dem Client mit dem HTTP-Statuscode \texttt{201 Created} als Bestätigung der erfolgreichen Joberstellung antwortet.
+der dem Client mit dem \gls{http}-Statuscode \texttt{201 Created} als Bestätigung der erfolgreichen Joberstellung antwortet.
 Existiert dagegen bereits ein Job mit demselben Idempotenzschlüssel, wird ein Fehler aufgrund des
 \texttt{UNIQUE}-Constraints der Datenbank ausgelöst.
 Dieser wird durch den Service weitergegeben und schließlich vom Controller abgefangen.
 Da sich der Job bereits im System befindet und somit der gewünschte Zielzustand erreicht wurde, beantwortet der Controller
-die Anfrage mit dem HTTP-Statuscode \texttt{200 OK}.
+die Anfrage mit dem \gls{http}-Statuscode \texttt{200 OK}.
 
 Kann während der Persistierung keine Verbindung zur Datenbank hergestellt werden oder tritt ein anderer transienter Fehler
 auf, wird der Speicherversuch automatisch wiederholt.
 Weitere Details zu Client- und Serverseitigen Retries werden in \cref{subsec:retryStrategie} behandelt.
-Erst wenn der Job erfolgreich gespeichert wurde oder bereits existiert, wird dem Client ein erfolgreicher HTTP-Statuscode zurückgegeben.
+Erst wenn der Job erfolgreich gespeichert wurde oder bereits existiert, wird dem Client ein erfolgreicher \gls{http}-Statuscode zurückgegeben.
 Kann der Job dagegen auch nach Ausschöpfen aller Wiederholungsversuche nicht gespeichert werden, antwortet das Backend
-mit dem HTTP-Statuscode \texttt{500 Internal Server Error}.
+mit dem \gls{http}-Statuscode \texttt{500 Internal Server Error}.
 Dadurch kann der Client erkennen, dass kein erfolgreicher Abschluss der Operation garantiert werden konnte und den
 Erstellungsversuch seinerseits gemäß der definierten Retry-Strategie wiederholen.
 Dieses Zusammenspiel zwischen client- und serverseitigen Wiederholungsmechanismen stellt sicher, dass die Zusicherung \ref{zus:retries}
@@ -499,7 +499,7 @@ es, den Fokus auf die Entwicklung und Evaluation der im Architekturentwurf besch
         \toprule
         \textbf{Funktion} & \textbf{Komponente} & \textbf{Begründung}\\
         \midrule
-        \gls{rest}-Schnittstelle & Spring Web & Bereitstellung und Nutzung der HTTP-Endpunkte und (De-)\allowbreak{}Serialisierung von JSON\\ %TODO: brauche ich HTTP und JSON als Abkürzung?
+        \gls{rest}-Schnittstelle & Spring Web & Bereitstellung und Nutzung der \gls{http}-Endpunkte und (De-)\allowbreak{}Serialisierung von \gls{json}\\
         Datenbankzugriff & Spring Data JPA & Bereitstellung von Standardoperationen und Abstraktion\\
         Transaktionale Kapselung & Spring Transactions & Ermöglicht Definition eigener Transaktionsgrenzen\\
         \bottomrule
@@ -606,23 +606,23 @@ und zur Synchronisation konkurrierender Zugriffe (\ref{zus:exklusive_rechte}) be
 
 \subsection{Joberstellung}
 \label{subsec:impl_joberstellung}
-Für die Erstellung eines neuen Jobs erzeugt der Client einen \gls{uuid}-basierten Idempotenzschlüssel und überträgt
-diesen zusammen mit den Nutzdaten des Jobs über die \gls{rest}-Schnittstelle an das Backend.
-Dort nimmt der \texttt{JobController} die Anfrage entsprechend der Darstellung aus \cref{lst:endpoint} entgegen und validiert
-sie in zwei Schritten.
+Für die Erstellung eines neuen Jobs erzeugt der Client eine \texttt{\gls{uuid}} und überträgt
+diese zusammen mit den Nutzdaten des Jobs als \gls{dto} über die \gls{rest}-Schnittstelle an das Backend.
+Dort nimmt der \texttt{JobController} das \gls{dto} entsprechend der Darstellung aus \cref{lst:endpoint} entgegen und validiert
+es in zwei Schritten.
 
 Zunächst prüft Spring mithilfe von \texttt{@Valid}, ob die durch Bean-Validation-Annotationen wie \texttt{@NotNull} oder
 \texttt{@NotBlank} definierten syntaktischen Anforderungen erfüllt sind.
 Zusätzlich erfolgt eine fachliche Validierung der Eingangsdaten durch einen separaten Validator.
-Schlägt eine der beiden Validierungen fehl, beantwortet der Controller die Anfrage mit dem HTTP-Status \texttt{400 Bad Request}.
+Schlägt eine der beiden Validierungen fehl, beantwortet der Controller die Anfrage mit dem \gls{http}-Status \texttt{400 Bad Request}.
 Anschließend delegiert der Controller die eigentliche Joberstellung an den \texttt{JobService}.
-Nach erfolgreicher Erstellung gibt der Controller den HTTP-Status \texttt{201 Created} zurück.
-Schlägt die Persistierung dagegen aufgrund einer Verletzung des \texttt{UNIQUE}-Constraints des Idempotenzschlüssels
-fehl, wird die resultierende \texttt{DataIntegrityViolationException} abgefangen.
+Nach erfolgreicher Erstellung gibt der Controller den \gls{http}-Status \texttt{201 Created} zurück.
+Schlägt die Persistierung dagegen aufgrund einer Verletzung des \texttt{UNIQUE}-Constraints des als \texttt{\gls{uuid}}
+realisierten Idempotenzschlüssels fehl, wird die resultierende \texttt{DataIntegrityViolationException} abgefangen.
 Da die Verletzung des \texttt{UNIQUE}-Constraints nur eine Teilmenge der möglichen Ursachen dieser Exception ist, prüft
 der Controller auf den Idempotenzfall.
 Ist dies der Fall, wird der bereits vorhandene Job anhand seines Idempotenzschlüssels aus dem Job-Store geladen und gemeinsam
-mit dem HTTP-Status \texttt{200 OK} an den Client zurückgegeben.
+mit dem \gls{http}-Status \texttt{200 OK} an den Client zurückgegeben.
 
 \begin{lstlisting}[
     language=Java,
@@ -657,7 +657,7 @@ Für den Client ist damit unabhängig davon, ob ein Job erstmals angelegt oder e
 erneut übermittelt wurde, eindeutig erkennbar, dass der gewünschte Job im System vorhanden ist.
 
 Die eigentliche Erstellung und Persistierung des Jobs übernimmt der \texttt{JobService}.
-Hierzu wird zunächst über eine Factory aus dem Request-\gls{dto} eine neue \texttt{Job}-Instanz erzeugt. %TODO: dto prüfen -> ich glaube hier auch wieder einzige Nennung
+Hierzu wird zunächst über eine Factory aus dem Request-\gls{dto} eine neue \texttt{Job}-Instanz erzeugt.
 Anschließend wird diese innerhalb einer durch \texttt{@Transactional} gekapselten Serviceoperation atomar persistiert
 und an den Controller zurückgegeben.
 
@@ -939,7 +939,7 @@ public long nextDelay(int attempt) {
 \end{lstlisting}
 
 Für die Kommunikation zwischen Client und Backend wird eine separate Policy eingesetzt, die insbesondere
-Netzwerkfehler, Verbindungsabbrüche sowie als temporär klassifizierte HTTP-Fehler berücksichtigt.
+Netzwerkfehler, Verbindungsabbrüche sowie als temporär klassifizierte \gls{http}-Fehler berücksichtigt.
 Obwohl beide Policies unterschiedliche Fehlerarten behandeln, nutzen sie denselben generischen \texttt{RetryExecutor}.
 
 Die Einbindung des Retry-Mechanismus erfolgt unmittelbar an den Stellen, an denen temporäre Infrastrukturfehler auftreten können.

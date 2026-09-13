@@ -360,8 +360,8 @@ kurzzeitigen Überlastungen von Diensten, nicht erreichbaren Datenbanken oder de
 Permanente Fehler hingegen bestehen unabhängig von der Anzahl der Wiederholungsversuche fort.
 Ihre Ursache liegt häufig in der Anwendung selbst oder in den zu verarbeitenden Daten.
 Beispiele hierfür sind ungültige Eingabedaten oder fehlende Berechtigungen.
-\textcite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026} verdeutlicht dies anhand von HTTP-Fehlercodes
-wie 404 Not Found oder 403 Forbidden.
+\textcite[Kap.~3 Abschnitt \glqq Should You Always Retry?\grqq]{newman_building_2026} verdeutlicht dies anhand von \gls{http}-Fehlercodes
+wie \texttt{404 Not Found} oder \texttt{403 Forbidden}.
 Die Abgrenzung zwischen beiden Fehlerarten ist insbesondere für die automatisierte Fehlerbehandlung relevant.
 Während transiente Fehler häufig eine erneute Ausführung rechtfertigen, sollten permanente Fehler möglichst früh erkannt
 und gesondert behandelt werden.
@@ -557,7 +557,7 @@ Hangfire garantiert nur eine At-Least-Once Ausführung und überlässt die Umset
 Während der Quartz Scheduler \parencite{terracotta_inc_hrsg_quartz_2026} primär auf zeitgesteuertes Scheduling und
 clusteringbasierte Koordination fokussiert, stellt Spring Batch eine spezialisierte Infrastruktur für die blockweise Massenverarbeitung
 bereit, die auf periodische oder zeitgesteuerte Durchläufe ausgelegt ist.
-Modernere Java-Bibliotheken wie JobRunr und Hangfire integrieren zwar direkt ein automatisiertes Retry-Handling, kapseln
+Modernere Bibliotheken wie JobRunr und Hangfire integrieren zwar direkt ein automatisiertes Retry-Handling, kapseln
 die zugrundeliegenden Mechanismen jedoch als Blackbox, wodurch eine feingranulare Kontrolle und die präzise Analyse des
 Systemverhaltens bei Infrastrukturausfällen erschwert werden.
 Robuste und langlebige Workflow-Ausführungen wie Temporal \parencite{temporal_technologies_inc_temporal_2026} lösen die Frage
@@ -572,7 +572,7 @@ Weiteres abstrahieren oder auf eigene Systementwürfe übertragen.
 Die vorgestellten Ansätze zeigen, dass sowohl brokerbasierte als auch datenbankbasierte Architekturen zur Umsetzung von
 Background-Job-Processing-Systemen geeignet sind.
 Während bestehende Frameworks bereits umfangreiche Funktionalitäten für Scheduling, Retry-Mechanismen und Fehlertoleranz
-bereitstellen, liegt ihr Fokus primär auf der praktischen Nutzung, wodurch die zugrundeliegenden transaktionalen Mechanismen
+bereitstellen, liegt ihr Fokus primär auf der praktischen Nutzung, wodurch die zugrundeliegenden Mechanismen
 und deren Verhalten in kritischen Ausfallszenarien für den Entwickler oft intransparent bleiben.
 Insbesondere die Frage, unter welchen Voraussetzungen eine Datenbank gleichzeitig als persistenter Job-Store und
 Koordinationsmechanismus eingesetzt werden kann, wird in der Literatur nur begrenzt behandelt.
@@ -586,19 +586,21 @@ Kriterium zur Beurteilung vor dem Deployment zu nutzen.
 Als Grund dafür nennen die Autoren einen Mangel an standardisierten Prozessen und Richtlinien, der zum Teil durch fehlendes
 Wissen und Erfahrungen über die Entwicklung von Fehlertoleranz in den jeweiligen Teams entstünde.
 
-\Citeauthor{miranda_proposed_2024} beschreiben zusätzlich verschiedene Lösungsstrategien, für typisch auftretende Fehler %TODO: der Übergang wirkt hier random
-in Microservice-Systemen, unter anderem das Saga-Pattern.
-Dieses Muster dient zur Sicherung der Datenkonsistenz bei einer Verteilung der Daten über verschiedene Datenbanken hinweg.
+Die Wahl geeigneter Fehlertoleranzmechanismen ist dabei eng mit der zugrunde liegenden Architektur verbunden.
+Eine grundlegende Herausforderung hinsichtlich der Konsistenz entsteht bei der Nutzung von Message Brokern
+insbesondere dann, wenn der Broker mit einer separaten fachlichen Datenbank kombiniert wird.
+Ein etabliertes Muster zur Sicherung der Datenkonsistenz in solchen verteilten Architekturen ist das Saga-Pattern \parencite{miranda_proposed_2024}.
 Da die Daten nicht innerhalb einer gemeinsamen Transaktion verändert werden können, müssen die einzelnen Transaktionen so
 koordiniert werden, dass im Fehlerfall keine inkonsistenten Zustände entstehen \parencite[Kap.~4]{richardson_microservices_2018}.
-Ein ähnliches Problem bezüglich verteilter Konsistenz entsteht auch bei der Nutzung von Message Brokern zusammen mit einer
-separaten fachlichen Datenbank.
-Die vorliegende Arbeit grenzt sich von bestehenden Frameworks ab, indem sie ein rein datenbankgestütztes Pull-Modell entwirft,
+
+Die vorliegende Arbeit grenzt sich von bestehenden Arbeiten und Frameworks ab, indem sie ein rein datenbankgestütztes Pull-Modell entwirft,
 die Architekturentscheidungen begründet darlegt und das System bezüglich der angestrebten Fehlertoleranz evaluiert.
 Dadurch wird die Problematik verteilter Transaktionen von vornherein vermieden.
 Da Job-Store und fachliche Daten in derselben Datenbank verwaltet werden (vgl. \cref{subsec:architekturentwurf}),
-lassen sich die benötigten Konsistenzeigenschaften über lokale \gls{acid}-Transaktionen sicherstellen, ohne dass ein
+lassen sich die benötigten Konsistenzeigenschaften über \gls{acid} sicherstellen, ohne dass ein
 Koordinationsmechanismus für verteilte Transaktionen erforderlich wird.
 Gleichzeitig wird durch die Kombination aus einem Statusmodell und der PostgreSQL-Funktionalität \texttt{FOR UPDATE SKIP LOCKED}
 untersucht, wie die Koordination direkt auf der Datenbankebene orchestriert werden kann, ohne einen separaten Message Broker
 einzusetzen und somit die Systemkomplexität niedrig zu halten.
+Die Arbeit überprüft im Rahmen der Evaluation nicht nur die Funktionalität der verwendeten Mechanismen, sondern untersucht gezielt deren
+Verhalten unter definierten Ausfallszenarien und ordnet ihren jeweiligen Beitrag zur Fehlertoleranz kritisch ein.

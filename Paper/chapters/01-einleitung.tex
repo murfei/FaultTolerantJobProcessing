@@ -52,8 +52,8 @@ Dadurch eignen sie sich nur eingeschränkt, um systematisch zu untersuchen, welc
 Konsistenz- und Verarbeitungszusicherungen tatsächlich erforderlich sind.
 
 Die beschriebene Problematik ist von hoher praktischer und industrieller Relevanz.
-Nahezu jedes Backend-System, das über einfache \gls{crud}-Operationen hinausgeht, muss Aufgaben zuverlässig im Hintergrund %TODO: prüfen weil einzigen Nennung
-verarbeiten und dabei konsistente Datenbestände gewährleisten \parencite[Kap.~4]{richardson_microservices_2018}.
+Nahezu jedes Backend-System, das über einfache Create-, Read-, Update- und Delete-Operationen hinausgeht, muss Aufgaben
+zuverlässig im Hintergrund verarbeiten und dabei konsistente Datenbestände gewährleisten \parencite[Kap.~4]{richardson_microservices_2018}.
 Fehler in diesem Bereich führen zu Datenverlust, inkonsistenten Geschäftszuständen sowie Bedarf an manuellen Eingriffen und
 können insbesondere in regulierten Domänen, wie beispielsweise der Luftfahrt, Compliance-Verstöße nach sich ziehen.
 Auch im Kontext von Cloud-nativen Architekturen ist dieses Thema relevant.
@@ -79,12 +79,11 @@ Ebenso implementieren bestehende Frameworks diese Mechanismen häufig als intern
 auf die Zuverlässigkeit des Gesamtsystems für Entwickler nur eingeschränkt nachvollziehbar sind.
 Daraus ergibt sich die dieser Arbeit zugrundeliegende Hauptforschungsfrage:
 
-%TODO: hier wird Java & Spring einfach vorausgesetzt; weiter unten nochmal
-Welche Architekturmechanismen und Entwurfsentscheidungen ermöglichen es, in einem Java/Spring-basierten Job-Processing-System
+Welche Architekturmechanismen und Entwurfsentscheidungen ermöglichen es, in einem Job-Processing-System
 definierte Konsistenzzusicherungen unter typischen Teilausfallszenarien nachweisbar einzuhalten?
 
 Zur Beantwortung dieser Frage werden folgende Teilfragen untersucht:
-\begin{enumerate}[label=TF\arabic*:, ref=TF\arabic*]
+\begin{enumerate}[label=TF-\arabic*:, ref=TF-\arabic*]
     \item \label{item:tf1} Welche Zusicherungen muss das System gewährleisten, damit Jobs stets
     korrekt und ohne Inkonsistenzen verarbeitet werden?
     \item \label{item:tf2} Welchen Beitrag leisten Idempotenz, Retry-Strategien und Recovery-Mechanismen
@@ -93,25 +92,25 @@ Zur Beantwortung dieser Frage werden folgende Teilfragen untersucht:
     bei paralleler Arbeit mehrerer Worker keine Doppelverarbeitung oder inkonsistente Zustände entstehen?
     \item \label{item:tf4} Wie lässt sich sicherstellen, dass Jobs nach einem unerwarteten Prozessabbruch korrekt
     wiederaufgenommen werden, ohne dass Aufträge verloren gehen?
-\end{enumerate} %TODO: Überlegen, ob - zwischen Buchstabe und Zahl sollte: TF-1 statt TF1 --> gleiches bei TZ1
+\end{enumerate}
 
 \section{Zielsetzung}
 \label{sec:zielsetzung}
 Ziel dieser Arbeit ist der Entwurf, die prototypische Implementierung und die Evaluation
-eines fehlertoleranten Job-Processing-Backends auf Basis einer Datenbank in Kombination mit Java und Spring.
+eines fehlertoleranten Job-Processing-Backends auf Basis einer Datenbank.
+Die prototypische Implementierung erfolgt in Java in Kombination mit dem Spring-Framework.
 Dabei soll herausgearbeitet werden, welche Architekturmechanismen erforderlich sind, damit Hintergrundjobs auch bei Teilausfällen
 zuverlässig und korrekt verarbeitet werden und definierte Konsistenzzusicherungen eingehalten werden.
 
 Konkret verfolgt die Arbeit folgende Teilziele:
-\begin{enumerate}[label=TZ\arabic*:, ref=TZ\arabic*]
+\begin{enumerate}[label=TZ-\arabic*:, ref=TZ-\arabic*]
     \item \label{item:tz1} Definition von Zusicherungen: Es sollen präzise Korrektheitsbedingungen
     formuliert werden, die das System einhalten muss, unabhängig davon, welche Fehler auftreten.
     Dazu zählt insbesondere, dass kein Job doppelt erfolgreich abgeschlossen wird und dass kein Job dauerhaft verloren geht.
     \item \label{item:tz2} Architekturentwurf: Es soll eine Architektur entworfen werden, die die hergeleiteten Zusicherungen umsetzt.
     Architekturentscheidungen sollen explizit dokumentiert und begründet werden.
     \item \label{item:tz3} Prototypische Implementierung: Die entworfene Architektur soll als
-    funktionsfähiger Prototyp umgesetzt werden, der die definierten Zusicherungen
-    unter realistischen Bedingungen einhält.
+    funktionsfähiger Prototyp umgesetzt werden, der die definierten Zusicherungen unter realistischen Bedingungen einhält.
     \item \label{item:tz4} Evaluation unter Fehlerbedingungen: Es soll nachgewiesen werden, dass das
     System seine Zusicherungen auch bei gezielt herbeigeführten Teilausfällen nicht
     verletzt.
@@ -121,7 +120,7 @@ Konkret verfolgt die Arbeit folgende Teilziele:
 \label{sec:hypothesen}
 Auf Basis der Forschungsfrage und der Zielsetzung werden folgende Hypothesen formuliert,
 deren Überprüfung im Rahmen der Evaluation erfolgt.
-\begin{enumerate}[label=H\arabic*:, ref=H\arabic*]
+\begin{enumerate}[label=H-\arabic*:, ref=H-\arabic*]
     \item \label{item:h1} Durch die Kombination eines persistenten Statusmodells mit transaktionsbasiertem
     Locking und Idempotenz-Mechanismen lässt sich ein System entwerfen, das auch bei
     unerwarteten Prozessabbrüchen und Teilausfällen keine Jobs verliert und keine doppelten Ergebnisse

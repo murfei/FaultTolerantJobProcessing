@@ -63,7 +63,7 @@ Die Auswahl inklusive Begründung der betrachteten Fehlerklassen wurde bereits i
     \label{tab:testmatrix} \\
     \endlastfoot
 
-    \ref{zus:atomare_persistenz} & Ungültige Payload & Fachlich und syntaktisch invalide Requests senden & \texttt{HTTP 400}, kein DB-Eintrag; Zeilenzahl vor/nach unverändert \\
+    \ref{zus:atomare_persistenz} & Ungültige Payload & Fachlich und syntaktisch invalide Requests senden & \texttt{\gls{http} 400}, kein DB-Eintrag; Zeilenzahl vor/nach unverändert \\
     \addlinespace
     \ref{zus:duplikaterkennung} & Acknowledgement geht verloren & Abfangen und verwerfen des Acknowledgements, stattdessen Fehler werfen & Client startet automatischen Retry. Die \gls{api} wird insgesamt 2 Mal angesprochen. Es wird genau ein Job im Backend gespeichert und der Statuscode der vom Client erhaltenen Antwort ist \texttt{200 OK} \\
     \addlinespace
@@ -255,7 +255,7 @@ beziehungsweise in dem im Anhang in \cref{sec:quellcode} verlinkten GitHub-Profi
 
 \paragraph{Atomare Persistenz und Validität (\ref{zus:atomare_persistenz})}
 \label{erg:atomare_persistenz}
-Beide Requests wurden vom Backend mit dem HTTP-Status \texttt{400 Bad Request} abgelehnt, der erste aufgrund der
+Beide Requests wurden vom Backend mit dem \gls{http}-Status \texttt{400 Bad Request} abgelehnt, der erste aufgrund der
 syntaktischen, der zweite aufgrund der fachlichen Validierung.
 Die Anzahl der im Job-Store vorhandenen Jobs war vor und nach beiden Anfragen identisch, folglich kam es für keine der beiden
 ungültigen Requests zu einer Persistierung des Jobs.
@@ -273,7 +273,7 @@ Das Backend erkannte dabei die Verletzung des entsprechenden \texttt{UNIQUE}-Con
 als Idempotenzfall, ohne diesen seinerseits erneut zu wiederholen.
 Der clientseitige Retry wurde also tatsächlich ausgeführt, während der resultierende Datenbankfehler auf Backendseite
 korrekt als nicht retrybar eingestuft wurde.
-Der zweite Client-Aufruf lieferte den HTTP-Status \texttt{200 OK} und denselben, bereits zuvor erzeugten Job zurück.
+Der zweite Client-Aufruf lieferte den \gls{http}-Status \texttt{200 OK} und denselben, bereits zuvor erzeugten Job zurück.
 Während des gesamten Tests erhöhte sich die Anzahl der Jobs im Job-Store lediglich von null auf eins.
 Das für \ref{zus:duplikaterkennung} definierte Prüfkriterium ist damit erfüllt: Eine erneute Übermittlung derselben
 Anfrage, wie hier beispielsweise nach einer verlorenen Antwort, führt nicht zu einer zweiten Persistierung, sondern liefert
@@ -338,10 +338,10 @@ erreichter Endzustand nicht mehr verlassen werden kann.
 In Testfall (a) schlug der erste Zugriffsversuch aufgrund der nicht verfügbaren Datenbankverbindung fehl.
 Der \texttt{RetryExecutor} klassifizierte den Fehler als retrybar und führte drei weitere Ausführungsversuche mit
 Wartezeiten von 200\,ms, 400\,ms und 800\,ms durch.
-Nach der Wiederherstellung der Datenbankverbindung schloss der vierte Versuch erfolgreich ab, sodass die Anfrage mit dem HTTP-Status
+Nach der Wiederherstellung der Datenbankverbindung schloss der vierte Versuch erfolgreich ab, sodass die Anfrage mit dem \gls{http}-Status
 \texttt{201 Created} beantwortet wurde und der zurückgegebene Idempotenzschlüssel dem der ursprünglichen Request entsprach.
 Ergänzend wurde als Gegenprobe geprüft, wie sich das System bei einem anhaltenden als transient klassifizierten Fehler verhält.
-Die Anfrage wurde nach Erschöpfung aller konfigurierten Wiederholungsversuche mit dem HTTP-Status \texttt{500 Internal Server
+Die Anfrage wurde nach Erschöpfung aller konfigurierten Wiederholungsversuche mit dem \gls{http}-Status \texttt{500 Internal Server
 Error} beantwortet und es wurde kein erneuter Retry gestartet.
 
 Im zweiten Testfall führte die erneute Verwendung eines bereits vorhandenen Idempotenzschlüssels zu einer
