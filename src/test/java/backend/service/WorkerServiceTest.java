@@ -1,6 +1,5 @@
 package backend.service;
 
-import backend.Exception.IdempotencyException;
 import backend.Exception.JobNotFoundException;
 import backend.Exception.LeaseExpiredException;
 import backend.api.CreateJobRequest;
@@ -8,10 +7,14 @@ import backend.domain.Job;
 import backend.domain.JobResult;
 import backend.domain.JobStatus;
 import backend.repository.JobRepository;
+import backend.repository.JobResultRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -24,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@DirtiesContext
 public class WorkerServiceTest {
 
     @Autowired
@@ -32,9 +36,17 @@ public class WorkerServiceTest {
     private JobService jobService;
     @Autowired
     private JobRepository jobRepository;
+    @Autowired
+    private JobResultRepository resultRepository;
+
+    @AfterEach
+    void cleanup() {
+        resultRepository.deleteAllInBatch();
+        jobRepository.deleteAllInBatch();
+    }
 
     @Test
-    void JobLifecycleTest() throws JobNotFoundException, IdempotencyException {
+    void JobLifecycleTest() throws JobNotFoundException {
         UUID idempotencyKey = UUID.randomUUID();
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode jsonObjekt = mapper.createObjectNode();
@@ -60,7 +72,7 @@ public class WorkerServiceTest {
         assertTrue(result.isEmpty());
 
         //Test finishing job
-        Job job = jobRepository.findByIdempotencyKey(idempotencyKey).orElseGet(() -> fail("Job not found"));
+        Job job = jobRepository.findByIdempotencyKey(idempotencyKey).orElseGet(() -> fail("Job nicht gefunden"));
         UUID jobId = job.getId();
         mapper = new ObjectMapper();
         jsonObjekt = mapper.createObjectNode();
@@ -69,7 +81,7 @@ public class WorkerServiceTest {
 
         assertThrows(JobNotFoundException.class, () -> workerService.finishJob(UUID.randomUUID(), workerId, jobResult));
         assertThrows(IllegalStateException.class, () -> workerService.finishJob(jobId, UUID.randomUUID(), jobResult));
-        job = jobRepository.findByIdempotencyKey(idempotencyKey).orElseGet(() -> fail("Job not found"));
+        job = jobRepository.findByIdempotencyKey(idempotencyKey).orElseGet(() -> fail("Job nicht gefunden"));
         job.setStatus(JobStatus.QUEUED);
         jobRepository.save(job);
         assertThrows(IllegalStateException.class, () -> workerService.finishJob(jobId, workerId, jobResult));
@@ -80,8 +92,13 @@ public class WorkerServiceTest {
         job.setLease_until(Instant.now().plusSeconds(10));
         jobRepository.save(job);
         workerService.finishJob(jobId, workerId, jobResult);
-        assertEquals(JobStatus.SUCCEEDED, jobRepository.findByIdempotencyKey(idempotencyKey).get().getStatus());
-        assertEquals(jobResult.getResult(), jobRepository.findByIdempotencyKey(idempotencyKey).get().getResult().getResult());
+        Job savedJob = jobRepository.findByIdempotencyKey(idempotencyKey).get();
+        assertEquals(JobStatus.SUCCEEDED, savedJob.getStatus());
+
+        mapper = new ObjectMapper();
+        JsonNode expectedJson = mapper.readTree(jobResult.getResult());
+        JsonNode actualJson = mapper.readTree(savedJob.getResult().getResult());
+        assertEquals(expectedJson, actualJson);
 
     }
 }

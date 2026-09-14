@@ -8,16 +8,10 @@ import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.time.Duration;
 
-public class RestMessageRetryPolicy implements RetryPolicy {
-
-    private final int maxAttempts;
-    private final Duration initialDelay;
-    private final double backoffFactor;
+public class RestMessageRetryPolicy extends RetryPolicy {
 
     public RestMessageRetryPolicy(int maxAttempts, Duration initialDelay, double backoffFactor) {
-        this.maxAttempts = maxAttempts;
-        this.initialDelay = initialDelay;
-        this.backoffFactor = backoffFactor;
+        super(maxAttempts, initialDelay, backoffFactor);
     }
 
     @Override

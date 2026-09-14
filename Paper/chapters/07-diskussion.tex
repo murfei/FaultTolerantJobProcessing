@@ -1,62 +1,184 @@
 %! Author = murfe
-%! Date = 28.07.2026
+%! Date = 11.09.2026
 
-\chapter{Diskussion}\label{ch:diskussion}
-\textbf{To be done}
+\chapter{Diskussion und Fazit}
+\label{ch:diskussion}
+Dieses Kapitel ordnet die Ergebnisse in den Gesamtkontext der Arbeit ein.
+Dazu werden die Forschungsfragen beantwortet und die Grenzen der Ausarbeitung diskutiert.
+Abschließend wird ein Ausblick über weiterführende Untersuchungen und Verbesserungen des Prototyps gegeben.
 
-\section{Gewonnene Erkenntnisse}\label{sec:erkenntnisse}
+\section{Gewonnene Erkenntnisse}
+\label{sec:erkenntnisse}
+Aus der Entwicklung und Evaluation des Systems ergeben sich mehrere zentrale Erkenntnisse für die Gestaltung fehlertoleranter
+Hintergrundverarbeitung.
+Dieses Kapitel beantwortet in diesem Zusammenhang die Forschungsfragen und führt zusätzlich gewonnene Erkenntnisse auf.
 
-\section{Einschränkungen und Grenzen der Arbeit}\label{sec:einschraenkungen}
-\textbf{Ausschließlich Notizen}\\
-Diese Arbeit betrachtet die Fehlertoleranz ab dem Zeitpunkt, zu dem ein Job persistent im Job-Store vorliegt;
-die zuverlässige Auftragserzeugung/Client-Kommunikation (z.B. Outbox, Messaging) ist nicht Gegenstand.
-"Consumers may crash at any time, so it could happen that a broker delivers a message to a consumer
-but the consumer never processes it, or only partially processes it before crashing. In order to
-ensure that the message is not lost, message brokers use \textit{acknowledgments}: a client must
-explicitly tell the broker when it has finished processing a message so that the broker can remove
-it from the queue." \parencite[Kap.11 --> Acknowledgments and redelivery bzw. Message brokers]{kleppmann_designing_2017}
+\subsection{Beantwortung der Hauptforschungsfrage}
+\label{subsec:beantwortungHauptfrage}
+Auf Grundlage des entworfenen und evaluierten Prototyps lässt sich die Hauptforschungsfrage für das betrachtete Fehlermodell dahingehend
+beantworten, dass zur Erfüllung mehrere aufeinander abgestimmte Mechanismen erforderlich sind.
+Das persistente Zustandsmodell bildet dafür die Grundlage und ist besonders relevant für die konkurrierende Verarbeitung,
+Recovery und Konsistenz der Daten.
+Transaktionen und zeilenbasierte Sperren synchronisieren konkurrierende Zugriffe und verhindern das Zurückbleiben fehlerhafter
+Teildaten im Fehlerfall.
+Idempotenz wird an zwei Stellen benötigt: Zum einen wird mithilfe von \gls{uuid}s das mehrfache Anlegen identischer Jobs verhindert.
+Zum anderen werden eindeutige Ergebnisse durch das Koordinieren von Zugriffen auf Basis von Fencing erzielt.
+Während Retry-Strategien die Wiederholung transient fehlgeschlagener Operationen ermöglichen, sorgt
+die lease-basierte Recovery mit regelmäßiger Abfrage des Jobbestands dafür, dass nach einem Worker-Ausfall verwaiste
+Jobs wieder für die Verarbeitung freigegeben werden können.
 
-REST hat keinen Puffer und ist synchron --> Client und Server muss während der ganzen Kommunikation laufen, damit
-Kommunikation funktioniert. Weitere Nachteile in Referenc: \parencite[Kap.3.2.2]{richardson_microservices_2018}
+\subsection{Beantwortung der Teilfragen}
+\label{subsec:beantwortungTeilfragen}
+Für \ref{item:tf1} wurden in \cref{sec:zusicherungen} in Abhängigkeit vom betrachteten Fehlermodell konkrete Zusicherungen abgeleitet.
+Die Evaluation zeigt, dass die Teilausfälle des betrachteten Fehlermodells durch die Umsetzung dieser Zusicherungen behandelt werden können.
+Insbesondere gilt das für Infrastrukturausfälle wie Netzwerkfehler oder Worker-Crashes.
 
-Kein Fokus auf Kommunikation im allgemeinen, weder wie oben genannt die Erstellung von Jobs, als auch die Benachrichtigung
-bei Fertigstellung. Dafür bräuchte es Transaktionales messaging bspw. mittels transactional outbox pattern \parencite[Kap.3.3.7]{richardson_microservices_2018} oder
-asynchrones Messaging \parencite[Kap.3.4.2]{richardson_microservices_2018}
+Die Untersuchung zeigt bezüglich \ref{item:tf2}, dass diese Mechanismen unterschiedliche Fehlerklassen adressieren und sich daher gegenseitig ergänzen.
+Retries ermöglichen die automatische Neuausführung von Operationen, wenn ein Fehler als transient eingestuft wird und die
+ausführende Komponente weiterhin aktiv ist.
+Recovery übernimmt dagegen die Wiederaufnahme von Jobs, bei denen kein lokaler Retry mehr möglich ist, beispielsweise durch
+den Absturz eines aktiven Prozesses.
+Idempotenz ergänzt diese beiden Fehlertoleranzstrategien, indem sie sicherstellt, dass die erneute Ausführung einer Operation
+keine unerwünschte Mehrfachwirkung erzeugt.
 
-Es gibt keine perfekte reliability \parencite[Kap.~1, Abschnitt \glqq Reliability\grqq]{kleppmann_designing_2017}
+In Hinsicht auf \ref{item:tf3} zeigen die Ergebnisse, dass kurze, durch exklusive Sperren geschützte Transaktionen zur Zustandsänderung
+ausreichen, um die entscheidenden konkurrierenden Operationen auf Datenbankebene zu synchronisieren, sofern ein passendes
+Zustandsmodell für den Lebenszyklus der Jobs verwaltet wird.
+Beim Zustandsübergang eines Jobs verhindert die Kombination aus Transaktion und Zeilensperre, dass mehrere Instanzen denselben
+Job gleichzeitig auf Datenbankebene bearbeiten können.
+Wird vor dem Abschluss eines Jobs zusätzlich sein aktueller Zustand und seine Besitzverhältnisse geprüft, können konkurrierende
+Operationen ohne das Auftreten von Inkonsistenzen synchronisiert werden, obwohl kurze Transaktionen verwendet werden.
 
-Load Leveling umgesetzt?
+Für \ref{item:tf4} zeigt die Untersuchung, dass hierfür die Kombination aus persistentem Zustandsmodell, zeitbasiertem Lease
+und Recovery-Mechanismus wesentlich ist.
+Fällt ein Worker während der Verarbeitung aus, verbleibt der Job im persistenten Job-Store zunächst im Zustand \textit{Running}.
+Nach Ablauf des Leases kann der Recovery-Service erkennen, dass die Verarbeitung nicht innerhalb des vorgesehenen Zeitraums
+abgeschlossen wurde und den Job erneut zur Verarbeitung freigeben.
+Bereits erfolgreich persistierte Jobdaten bleiben aufgrund der \textit{Durability}-Eigenschaft der relationalen Datenbank auch über
+einen Ausfall des Workers hinweg erhalten, sodass ein ausgefallener Worker nicht zum Verlust des persistent gespeicherten Jobs führt.
 
-Performance von DB gegenüber Message Queues
+\subsection{Weitere architektonische Erkenntnisse}
+\label{subsec:weitereErkenntnisse}
+Eine zentrale Erkenntnis der Untersuchung ist, dass eine relationale Datenbank als Job-Store nicht ausschließlich als
+persistenter Speicher, sondern zugleich als Koordinationsmechanismus für die nebenläufige Verarbeitung und für Teile der
+Konsistenzsicherung der Jobs und Ergebnisse eingesetzt werden kann.
+Dadurch lässt sich ein wesentlicher Teil der geforderten Zusicherungen bereits durch die Datenbank realisieren.
 
-Keine Fehlertoleranz in Bezug auf Datenbeständigkeit (z.B. Festplatte des Job-Stores geht kaputt), Naturkatastrophen (Ganzer Standort fällt aus z.B. wegen Überschwemmung) \parencite[Kap.~9]{newman_building_2026}
+Für die untersuchte Systemgröße ergibt sich daraus als Antwort auf die in der Einleitung aufgeworfene Frage ein weiterer Vorteil:
+Die Architektur benötigt keinen zusätzlichen Message Broker als eigenständige Infrastrukturkomponente.
+Insbesondere entfällt dadurch architektonischer Aufwand zur Konsistenzerhaltung zwischen Datenbank und Broker.
+Die Nutzung einer gemeinsamen relationalen Datenbank ermöglicht es stattdessen, zusammengehörige Änderungen über lokale
+\gls{acid}-Transaktionen abzusichern.
+Dies reduziert die infrastrukturelle Komplexität, hat aber auch Auswirkungen auf die Skalierbarkeit, die im folgenden Kapitel
+thematisiert werden.
 
-Es gibt keine Möglichkeit absolute Garantien zu geben, nur viele Möglichkeiten der Risikoreduktion \parencite[Kap.~7 Abschnitt \glqq The Meaning of ACID\grqq --> Ende]{kleppmann_designing_2017}
+\section{Einschränkungen und Grenzen der Arbeit}
+\label{sec:einschraenkungen}
+\textbf{Prototypischer Charakter und begrenztes Fehlermodell.}
+Das entwickelte System dient der Untersuchung ausgewählter Fehlertoleranzmechanismen und stellt kein vollständig
+produktionsreifes Job-Processing-System dar.
+Dementsprechend besteht Optimierungsbedarf bei der Parametrisierung, beispielsweise bezüglich der maximalen Anzahl an Wiederholungsversuchen,
+der initialen Verzögerung oder des Backoff-Faktors.
+Besonders die Konfiguration der Retry-Policies bezüglich der Klassifizierung transienter Fehler ist als \textit{Proof of concept}
+und nicht als vollständige Lösung zu verstehen.
 
-um performance zu verbessern könnte man verschiedene checkpoints in die verarbeitung einbringen, sodass bei einem Abbrechen einer Task nicht die gesamte Task neu gestartet wird
-sondern ab einem bestimmten punkt wieder angefangen wird \parencite[Abschnitt \glqq Reliability considerations\grqq]{microsoft_corporation_hrsg_best_2026}.
+Bezüglich \ref{zus:verarbeitungsgarantie} bedeutet die At-Least-Once-Verarbeitungsgarantie eines Jobs nicht, dass für jeden Job zwangsläufig
+ein Ergebnis erzeugt wird.
+Vielmehr bedeutet das, dass die Verarbeitung nach endlicher Zeit abgeschlossen wird, aber nicht zwangsweise erfolgreich.
+Bei wiederholtem Auftreten eines Fehlers wird die Verarbeitung nach der festgelegten maximalen Anzahl von Versuchen bewusst
+beendet und der Job in einen definierten Fehlerzustand überführt.
+Damit wird eine unbegrenzte Wiederholung verhindert, zugleich kann ein Job trotz seiner dauerhaften Persistierung letztlich als fehlgeschlagen enden.
+Die Zusicherung bezieht sich somit auf die Vermeidung eines unbeabsichtigten Verlusts von Jobs und nicht auf eine Garantie
+des erfolgreichen Abschlusses jeder Verarbeitung.
 
-vorsicht bei dingen bei denen kein rollback gemacht werden kann: versendet ein worker eine email, stürzt ab und die operation wird wiederholt wird potenziell noch eine
-email versendet. das muss gesondert abgefangen werden
+Des Weiteren werden Fehler außerhalb des definierten Modells nicht betrachtet, da Fehlertoleranz nicht als absolute Eigenschaft
+eines Systems verstanden werden kann \parencite[Kap.~1 Abschnitt \glqq Reliability\grqq]{kleppmann_designing_2017}.
+Die implementierten Mechanismen adressieren gezielt die im Rahmen dieser Arbeit betrachteten Fehlerfälle.
+Sie reduzieren die Auswirkungen dieser Fehler, können jedoch keine allgemeingültige Garantie gegenüber jedem denkbaren Ausfall liefern.
+Die Aussagekraft der erzielten Ergebnisse ist daher fest an das definierte Fehlermodell gebunden.
 
-Es können Probleme entstehen, wenn zu viele Anfragen rein kommen, die die DB nicht gleichzeitig verarbeiten kann (vgl. Exmaple \parencite{microsoft_corporation_hrsg_queue-based_2026})
-Dafür bräuchte es separates Queue-Based Load Leveling für das Messaging an sich, das System konzentriert sich auf Queue-Based Load Leveling bzgl der Jobverarbeitung. Es werden zwar
-Clientseitige Retries durchgeführt, das ist aber keine Garantie, dass die Nachricht trotz hoher Last ankommt
+\textbf{Zeitbasierte Leases ohne Heartbeat.}
+Die prototypische Implementierung verwendet zeitbasierte Leases und verzichtet auf einen Heartbeat-Mechanismus.
+Dadurch kann ein ungewöhnlich aufwendiger Job oder ein aktiver, aber langsamer Worker dazu führen, dass die Verarbeitung
+eines Jobs immer wieder durch die Recovery abgebrochen und niemals erfolgreich beendet wird.
+Ein Heartbeat-Mechanismus könnte diesem Problem entgegenwirken, indem der Worker die Gültigkeit seines Leases regelmäßig verlängert.
+Dadurch ließe sich das Risiko reduzieren, dass lang laufende Verarbeitungen fälschlicherweise als ausgefallen eingestuft werden.
+Dem steht jedoch eine zusätzliche Belastung des Job-Stores gegenüber, da während der Verarbeitung regelmäßig Schreibzugriffe zur
+Aktualisierung des Leases erforderlich wären.
+Die Wahl zwischen diesen beiden Lösungen stellt also eine Abwägung zwischen einer geringeren Belastung des Job-Stores und einer
+höheren Robustheit gegenüber ungewöhnlich langen Verarbeitungszeiten dar.
+Bei der Nutzung von Leases ohne Heartbeat muss außerdem die Wahl der Lease-Dauer beachtet werden.
+Eine kurze Lease-Dauer ermöglicht eine schnellere Recovery, erhöht jedoch das Risiko, dass noch aktive Verarbeitungen vorzeitig
+zur erneuten Verarbeitung freigegeben werden.
 
-bietet sich vor allem an, wenn man sowieso schon eine db nutzt, man braucht keine zusätzliche Infrastuktur (im Vergleich zum Message Broker, der als eigener Server läuft)
+\textbf{Begrenzte Aussagekraft der Evaluation.}
+Sämtliche Testfälle laufen gegen einen kontrollierten Ausgangszustand und lassen sich
+beliebig oft wiederholen, ohne dass eine manuelle Anpassung erforderlich ist.
+Besondere Relevanz für die Aussagekraft der Evaluation besitzt dabei die wiederholte Ausführung der Testfälle zu
+\ref{zus:exklusive_rechte} und \ref{zus:endzustaende}.
+Da diese im Gegensatz zu den übrigen Testfällen aufgrund der Abhängigkeit vom Thread-Scheduling nicht-deterministisch sind,
+würde ein einmalig bestandener Testlauf nur eines von potenziell mehreren möglichen Ergebnissen zeigen.
+Die Wiederholung über 100 Durchläufe bestätigt, dass die Kriterien unabhängig von der konkreten Schedule eingehalten
+werden, statt nur einmalig zufällig zuzutreffen.
+Zusätzlich wurde nachgewiesen, dass tatsächlich unterschiedliche Schedules auftraten,
+sodass nur unter selteneren Ausführungsreihenfolgen sichtbare Fehler mit hoher Wahrscheinlichkeit erkannt worden wären.
 
-Bei sehr großen Systemen kann die Datenbank aufgrund einer hohen Anzahl Zugriffsversuche jedoch zum limitierenden Faktor werden, sodass dedizierte Messaging-Systeme hinsichtlich des
-erreichbaren Durchsatzes Vorteile bieten \parencite[Kap.~11, Abschnitt \glqq Rebuilding state after a failure\grqq]{kleppmann_designing_2017}.
+Gleichwohl bleibt die Evaluation an eine kontrollierte Testumgebung und eine endliche Anzahl von Testwiederholungen gebunden.
+Insbesondere für die nebenläufigkeitsabhängige Szenarien kann daher nicht ausgeschlossen werden, dass unter anderen Ausführungsbedingungen
+weitere, bisher nicht beobachtete Effekte auftreten.
+Die wiederholte Ausführung der entsprechenden Tests erhöht die Wahrscheinlichkeit, relevante Nebenläufigkeitseffekte zu erfassen,
+stellt jedoch keinen Beweis für deren vollständiges Ausbleiben dar.
+Des Weiteren kann mit Tests im Allgemeinen nur das Vorhandensein eines Fehlers bewiesen werden, nicht jedoch die Abwesenheit.
+Trotz der erfolgreichen Tests kann die Funktionsfähigkeit des Systems daher auch bezüglich des betrachteten Fehlermodells
+nicht vollständig garantiert werden.
+Ein vollständiger Ausschluss solcher Effekte würde eine formale Verifikation erfordern.
 
-vermeidung komplexität verteilter Transaktionen durch Nutzung lokaler ACID-Transaktionen da alles in dersselben Datenbank liegt
+\textbf{Keine Untersuchung von Performance und Skalierbarkeit.}
+Die Arbeit untersucht die Funktionsfähigkeit der Fehlertoleranzmechanismen des entwickelten Systems, nicht dessen Verhalten unter hoher Last.
+Die Verwendung eines datenbankbasierten Job-Stores mit Sekundärspeicher kann bei einer hohen Anzahl an Zugriffen aufgrund
+der Latenz und für den parallelen Zugriff benötigten Ressourcen zum limitierenden Faktor werden
+\parencite[Kap.~10 Abschnitt \glqq Example: analysis of user activity events\grqq]{kleppmann_designing_2017}.
+Für größere Systeme kann der Einsatz von Message Brokern hinsichtlich Durchsatz und Skalierbarkeit deshalb Vorteile bieten.
+Daher wäre ein Performancevergleich des entwickelten Prototyps mit einer Lösung, die auf einem Message Broker basiert, besonders
+interessant.
+Da die implementierten Mechanismen primär die zuverlässige Verarbeitung bereits persistierter Jobs adressieren und nicht
+die vorgelagerte Lastverteilung bei stark erhöhtem Anfrageaufkommen, ist auch das Verhalten bei hohen Eingangslasten spannend.
+Für entsprechende Szenarien werden in der Praxis häufig zusätzliche Mechanismen zur Lastbegrenzung eingesetzt \parencite{microsoft_corporation_hrsg_queue-based_2026}.
 
-Einschränkung \ref{zus:verarbeitungsgarantie} nur bis zu einem bestimmten Grad --> Kein Job kann verloren gehen, aber ein job wird nicht unendlich oft
-recovered da sonst Konflikt mit \ref{zus:terminierung}
+Die verwendeten Retry-Strategien nutzen außerdem ein exponentielles Backoff, jedoch keine zusätzliche Randomisierung der Wartezeiten.
+Da sich die Last dadurch gleichmäßig auf der Zeitachse nach rechts verschiebt, können neue Anfragen, die mitten in einem
+Schwall an Retries ankommen, zur Überlastung des Systems führen \parencite[Kap.~3 Abschnitt \glqq Jitter\grqq]{newman_building_2026}.
+Eine Erweiterung um ein Jitter könnte das Problem besonders bei einer größeren Anzahl gleichzeitig betroffener Anfragen weiter reduzieren.
 
-- viel fine tuning möglich, was zum einen die Konfiguration der Parameter für Retries angeht (backoff factor, initial delay, maxAttempts)
-und zum anderen die genaue Klassifikation der Fehler in transient und permanent, hier vor allem nur zu Vorführungszwecken exemplarisch implementiert
+\section{Fazit}
+\label{sec:fazit}
+Ziel dieser Arbeit war es, zu untersuchen, welche Architekturmechanismen und Entwurfsentscheidungen es ermöglichen, in einem
+Job-Processing-Backend definierte Konsistenzzusicherungen auch unter typischen Teilausfallszenarien einzuhalten.
+Die Untersuchung zeigt, dass sich diese Zusicherungen im betrachteten Fehlermodell durch das Zusammenspiel eines persistenten
+Zustandsmodells, transaktionsgesicherter Datenbankoperationen mit geeigneten Locking-Mechanismen, Idempotenz, Retry-Strategien
+sowie einer lease-basierten Recovery mit Besitz- und Lease-Prüfung allein auf Basis einer relationalen Datenbank umsetzen lassen,
+ohne eine zusätzliche Broker-Infrastruktur zu benötigen.
+Die formulierten Teilfragen konnten durch die hergeleiteten Zusicherungen, den darauf aufbauenden Architekturentwurf und
+die durchgeführte Evaluation beantwortet werden.
+Außerdem stützen die in der Evaluation durchgeführten Tests die formulierten Hypothesen.
 
-Die vorgestellte Architektur garantiert die Konsistenz der Jobverwaltung und der Ergebnispersistenz.
-Seiteneffekte innerhalb der eigentlichen Fachlogik liegen dagegen außerhalb des Verantwortungsbereichs des Frameworks.
-Soll die Verarbeitung externer Ressourcen ebenfalls fehlertolerant erfolgen, muss die Fachlogik selbst geeignete Mechanismen wie Transaktionen,
-Kompensationsoperationen oder idempotente Operationen einsetzen.
+\section{Ausblick}
+\label{sec:ausblick}
+Aus den Ergebnissen und den aufgezeigten Einschränkungen ergeben sich mehrere Ansatzpunkte für weiterführende Untersuchungen.
+
+Ein zentraler nächster Schritt wäre eine Untersuchung der Performance und Skalierbarkeit des Systems.
+Die vorliegende Evaluation konzentriert sich auf die Korrektheit und Fehlertoleranz und betrachtet keine hohe Systemlast.
+Insbesondere wäre zu untersuchen, wie sich eine steigende Anzahl gleichzeitig eintreffender und zu verarbeitender Jobs auf Datenbanklast,
+Latenz und Durchsatz auswirkt und ab welchem Systemumfang eine Message-Broker-Lösung Vorteile gegenüber dem
+datenbankbasierten Ansatz bietet.
+
+Darüber hinaus könnte die Retry- und Recovery-Strategie weiterentwickelt werden.
+Die Ergänzung eines Jitters zur exponentiellen Backoff-Strategie könnte eine weitere Reduktion synchronisierter Wiederholungsversuche ermöglichen.
+Ebenso wäre ein empirischer Vergleich der verwendeten Lease-Strategie mit einem Heartbeat-basierten Ansatz interessant,
+insbesondere im Hinblick auf die Unterscheidung zwischen tatsächlich ausgefallenen und lediglich langsam arbeitenden Workern.
+
+Ein weiterer Ansatzpunkt zur Weiterentwicklung des Systems ist der Umgang mit externen Seiteneffekten.
+Während die vorliegende Arbeit die konsistente Persistierung von Job-Ergebnissen betrachtet, können bei einer Wiederaufnahme
+eines Jobs nicht-idempotente externe Operationen, beispielsweise der Versand einer E-Mail, mehrfach ausgeführt werden.
+Da solche Operationen nicht gemeinsam mit der lokalen Datenbanktransaktion atomar ausgeführt werden können, wäre zu untersuchen,
+wie die Absicherung gegen die Mehrfachausführung solcher Seiteneffekte in das bestehende System integriert werden kann.

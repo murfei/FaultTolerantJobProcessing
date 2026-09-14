@@ -3,19 +3,14 @@ package backend.recovery;
 import common.retry.RetryPolicy;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.CannotCreateTransactionException;
 
 import java.time.Duration;
 
-public class DBRetryPolicy implements RetryPolicy {
-
-    private final int maxAttempts;
-    private final Duration initialDelay;
-    private final double backoffFactor;
+public class DBRetryPolicy extends RetryPolicy {
 
     public DBRetryPolicy() {
-        this.maxAttempts = 5;
-        this.initialDelay = Duration.ofMillis(200);
-        this.backoffFactor = 2;
+        super(5, Duration.ofMillis(200), 2);
     }
 
     @Override
@@ -23,8 +18,7 @@ public class DBRetryPolicy implements RetryPolicy {
         if (attempt >= maxAttempts || e instanceof DataIntegrityViolationException) {
             return false;
         }
-
-        return e instanceof DataAccessException;
+        return e instanceof DataAccessException || e instanceof CannotCreateTransactionException;
     }
 
     @Override

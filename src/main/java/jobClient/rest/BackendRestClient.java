@@ -8,6 +8,7 @@ import jobClient.exception.RetryableHttpException;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.web.client.RestClient;
 
 import java.util.List;
@@ -18,17 +19,25 @@ public class BackendRestClient {
     private final RestClient restClient;
 
     public BackendRestClient(String baseUrl) {
-        restClient = RestClient.builder()
+        this(baseUrl, null);
+    }
+
+    public BackendRestClient(String baseUrl, ClientHttpRequestInterceptor interceptor) {
+        RestClient.Builder builder = RestClient.builder()
                 .baseUrl(baseUrl)
                 .defaultStatusHandler(this::checkRetriable,
                         (req, res) -> {
-                            throw new RetryableHttpException(res.getStatusCode(), "Potentially retriable error while requesting Job-Processing Backend-API");
+                            throw new RetryableHttpException(res.getStatusCode(), "Fehler bei Anfrage der Job-Processing Backend-API. Retry möglicherweise sinnvoll.");
                         })
                 .defaultStatusHandler(HttpStatusCode::isError,
                         (req, res) -> {
-                            throw new NonRetryableHttpException(res.getStatusCode(), "Not retriable error while requesting Job-Processing Backend-API");
-                        })
-                .build();
+                            throw new NonRetryableHttpException(res.getStatusCode(), "Fehler bei Anfrage der Job-Processing Backend-API. Retry nicht sinnvoll.");
+                        });
+        if(interceptor != null){
+            builder.requestInterceptor(interceptor);
+        }
+
+        restClient = builder.build();
     }
 
     public ResponseEntity<CreateJobResponse> createJob(CreateJobRequest request) {

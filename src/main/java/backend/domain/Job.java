@@ -1,5 +1,6 @@
 package backend.domain;
 
+import backend.Exception.InvalidStatusUpdateException;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -57,6 +58,10 @@ public class Job {
     }
 
     public void setStatus(JobStatus status) {
+        if(this.status != null)
+            System.out.println("Job: Zustandsübergang von " + this.status + " nach " + status + " für Job " + this.idempotencyKey);
+        if(this.status == JobStatus.SUCCEEDED || this.status == JobStatus.FAILED)
+            throw new InvalidStatusUpdateException();
         this.status = status;
     }
 

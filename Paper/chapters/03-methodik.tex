@@ -1,33 +1,194 @@
 %! Author = murfe
-%! Date = 08.06.2026
+%! Date = 08.09.2026
 
-\chapter{Methodik}\label{ch:methodik}
-\textbf{To be done}
+\chapter{Methodik}
+\label{ch:methodik}
+Dieses Kapitel beschreibt das methodische Vorgehen zur Beantwortung der in \cref{sec:problemstellung} formulierten
+Forschungs- und Teilfragen.
+Dazu wird zuerst das Vorgehen bei der Literaturrecherche dargelegt.
+Anschließend folgt die Erläuterung zum Prozess der Anforderungserhebung, der Entwicklung der
+Systemarchitektur sowie deren prototypische Umsetzung.
+Schließlich wird dargestellt, wie im Rahmen der Evaluation untersucht wird, ob das entwickelte System die
+definierten Zusicherungen und Anforderungen einhält.
 
+\section{Literaturrecherche}
+\label{sec:literaturrecherche}
+Die grundlegende Literaturliste für diese Arbeit wurde durch ein mehrstufiges Verfahren generiert.
+Zuerst wurden der Problemkontext und die in \cref{sec:problemstellung} formulierten Forschungs- inklusive Teilfragen nach
+den zugrundeliegenden Themen und vorkommenden Schlagworten analysiert.
+Diese Liste umfasste Begriffe wie asynchrone Verarbeitung, verteilte Systeme, Fehlertoleranz und Teilausfälle.
+Da die vorliegende Arbeit stark architektur- und praxisgetrieben ist, fokussierte sich die systematische Suche primär
+auf Grundlagenwerke der Softwarearchitektur und verteilter Systeme sowie auf offizielle technische Dokumentationen.
 
-\section{Literaturrecherche}\label{sec:literaturrecherche}
-\textbf{To be done}
+Ein Teil der Literatur, insbesondere zu Transaktionsverwaltung und Nebenläufigkeitskontrolle in
+relationalen Datenbanksystemen (u.\,a. \textcite{saake_datenbanken_2018}), war bereits aus vorangegangenen
+Lehrveranstaltungen des Studiums bekannt und wurde auf Relevanz für die Verwendung in dieser Arbeit lediglich erneut geprüft,
+statt recherchiert zu werden.
 
+Zur Identifikation von Fachliteratur zu theoretischen Grundlagen wurden zunächst Google Scholar und O'Reilly Media herangezogen.
+Für spezifische Problemstellungen, wie etwa typische Ausfallursachen in Cloud-Umgebungen, wurde ergänzend in den
+Datenbanken der ACM Digital Library und IEEE Xplore recherchiert.
+Der zentrale Suchstring wurde anhand der zuvor erarbeiteten und ins Englische übersetzten Liste an Fachbegriffen abgeleitet
+und je nach Plattform syntaktisch angepasst.
+Nach Sichtung der ersten Treffer wurde der Suchstring mehrfach angepasst, bis sich schließlich folgender ergab:
 
-\section{Ergebnisgenerierung}\label{sec:ergebnisgenerrierung}
-\textbf{To be done}
+(\enquote{partial failure} OR \enquote{unreliable} OR \enquote{network faults}) AND (\enquote{distributed systems}
+OR \enquote{cloud}) AND (\enquote{architecture} OR \enquote{design})
 
-Problemstellung\\
-        ↓\\
-Fehlermodell\\
-        ↓\\
-Anforderungen\\
-        ↓\\
-Zusicherungen\\
-        ↓\\
-Architektur\\
-        ↓\\
-Implementierung\\
-        ↓\\
-Evaluation\\
+Aus der so generierten Ergebnismenge wurde händisch gefiltert.
+Zuerst wurden anhand des Titels offensichtlich themenfremde Ergebnisse entfernt.
+Bei Fachbüchern erfolgte die Auswahl anhand des Inhaltsverzeichnisses und der Relevanz der Kapitel für die Forschungsfragen
+dieser Arbeit.
+Bei den wissenschaftlichen Publikationen wurden nach kurzer inhaltlicher Durchsicht der Abstracts nicht relevante Werke aussortiert.
+Wichtig für den Einbezug der Literatur war thematische Nähe zur Architektur und zu Fehlern in verteilten Systemen, asynchroner Verarbeitung
+oder Fehlertoleranz in verteilten Systemen.
 
+Ausgehend von den so identifizierten Werken wurden mithilfe einer rückwärtsgerichteten Schneeballsuche weitere relevante
+Publikationen identifiziert.
+Ergänzt wurde die Liste außerdem durch technische Dokumentationen der verwendeten und verglichenen Technologien.
 
-%TODO: Operationalisierung der Hypothesen: Zuordnung konkreter Mess-/Nachweis-Artefakte
+\section{Systementwurf}
+\label{sec:systementwurf}
+Die Systementwicklung folgt einem schrittweisen, an den Anforderungen orientierten Vorgehen.
+Ausgehend von der Problemstellung werden in \cref{ch:anforderungen} zunächst Anforderungen an das zu entwickelnde System
+erhoben und daraus konkrete Zusicherungen abgeleitet (vgl.~\ref{item:tz1}).
+Diese Zusicherungen beschreiben die Eigenschaften, die das System auch unter Fehlerbedingungen einhalten soll.
+Auf dieser Grundlage werden in \cref{ch:umsetzung} Architekturentscheidungen getroffen, die die Erfüllung
+der Zusicherungen ermöglichen (vgl.~\ref{item:tz2}).
+Die ausgewählten Mechanismen werden anschließend in einem prototypischen System implementiert (vgl.~\ref{item:tz3}).
 
-%TODO: Prüfen ob es eine Art Goldstandard für die Auswahl der Fehlerszenarien gibt (s. E-Mail vom 08.06.). Ansonsten muss die Auswahl
-%       sehr gut begründet werden
+Damit ergibt sich für den Systementwurf folgende methodische Reihenfolge:
+\begin{enumerate}
+    \item{Problemstellung}
+    \item{Anforderungserhebung}
+    \item{Zusicherungen}
+    \item{Architekturentwurf}
+    \item{prototypische Implementierung}
+\end{enumerate}
+
+\subsection{Anforderungserhebung und Ableitung der Zusicherungen}
+\label{subsec:anforderungserhebung}
+Um die Anforderungen für das System systematisch zu ermitteln, orientiert sich das Vorgehen an den Ermittlungsgegenständen des
+Requirements-Engineerings nach \textcite{rupp_requirements-engineering_2021}.
+Das Ziel des Systems ist die Entwicklung eines Job-Processing-Systems, das resilient gegenüber Fehlern und Teilausfällen in
+verteilten Systemen ist.
+Um den Rahmen der Anforderungen dafür einzugrenzen, wird in \cref{sec:systemkontext} der Systemkontext spezifiziert.
+Anstelle klassischer Stakeholder-Befragungen dienen in dieser Arbeit die in \cref{sec:abgrenzungFehlermodell}
+definierten Fehlerklassen als primäre Anforderungsquelle.
+Diese sind eine Teilmenge der in der Literatur beschriebenen typischen Fehlerquellen verteilter Systeme und bilden das für
+diese Arbeit betrachtete Fehlermodell ab.
+
+Darauf folgend werden konkrete Zusicherungen abgeleitet.
+Diese Verfeinerung hilft, um das zentrale Qualitätskriterium der Prüfbarkeit sicherzustellen.
+Eine Zusicherung beschreibt in diesem Sinne eine testbare Eigenschaft, die unabhängig von einem konkreten
+Ausführungsablauf beziehungsweise dem Auftreten eines Fehlers zwingend eingehalten werden soll.
+Die auf diese Weise formulierten Zusicherungen Z-1 bis Z-9 sind in \cref{sec:zusicherungen} vollständig spezifiziert.
+Sie dienen als präzise Korrektheitsbedingungen für das entwickelte System und bilden daher die Grundlage für
+den späteren Systementwurf und die Evaluation.
+
+\subsection{Architekturentwurf und prototypische Implementierung}
+\label{subsec:architekturentwurfUndImplementierung}
+Auf Grundlage der definierten Anforderungen und Zusicherungen werden die Architektur und die zentralen
+Verarbeitungsmechanismen des Systems entworfen.
+Die Fachliteratur empfiehlt, komplexe Systeme aus mehreren Blickwinkeln zu analysieren und zu dokumentieren \parencite[S.470]{rupp_requirements-engineering_2021},
+da die Bildung spezifischer Sichten hilft, das System strukturiert und schrittweise zu entwickeln \parencite[S.469]{rupp_requirements-engineering_2021}.
+Das Vorgehen orientiert sich hierfür an dem Vier-Sichten-Modell nach \textcite[S.80 ff.]{starke_effektive_2024}.
+
+Die geforderten Sichten spiegeln sich in der Struktur dieser Arbeit wie folgt wider:
+Die Kontextabgrenzung findet bereits im Rahmen der Anforderungserhebung statt und ist entsprechend in \cref{sec:systemkontext} thematisiert.
+Die Bausteinsicht wird in \cref{fig:componentDiagram} im Rahmen des Architekturentwurfs dargestellt, während einzelne
+Laufzeitsichten in den \cref{sec:architektur} untergeordneten Abschnitten zu finden sind.
+Auf eine gesonderte Verteilungssicht wird bewusst verzichtet, da der Prototyp ausschließlich aus einem Client, einem Spring-Boot-Backend
+und einer Datenbank besteht.
+Eine solche zusätzliche Sicht über den bereits vorhandenen Systemkontext und die Bausteinsicht hinaus würde im Kontext der
+Arbeit keinen wesentlichen Mehrwert liefern.
+
+Die resultierende Architektur wird anschließend prototypisch in Java und Spring implementiert.
+Da es sich um eine prototypische Umsetzung des Job-Processing-Systems mit Untersuchung der relevanten Fehlertoleranzmechanismen handelt,
+wird die eigentliche Jobverarbeitung durch eine simulierte Fachlogik repräsentiert (vgl. \cref{sec:systemkontext}).
+Die Implementierung inklusive der relevanten technischen Entscheidungen wird in \cref{sec:implementierung} detailliert beschrieben.
+
+\section{Evaluation}
+\label{sec:evaluationsmethodik}
+Im Anschluss an die Implementierung untersucht die Evaluation im Rahmen von \ref{item:tz4}, ob die implementierte Lösung
+die in \cref{ch:anforderungen} definierten Zusicherungen auch unter gezielt herbeigeführten Fehlern einhält.
+Dazu werden die Zusicherungen zunächst in beobachtbare Eigenschaften und konkrete Prüfkriterien überführt.
+Auf dieser Grundlage werden geeignete Test- und Nachweismethoden definiert, Fehlersituationen gezielt erzeugt und die
+resultierenden Systemzustände ausgewertet.
+
+Die Evaluationsmethodik umfasst damit die folgenden Schritte:
+\begin{enumerate}
+    \item{Operationalisierung}
+    \item{Definition von Tests und Nachweismethoden}
+    \item{Fehlerinjektion und Test}
+    \item{Auswertung}
+\end{enumerate}
+
+\subsection{Operationalisierung der Zusicherungen}
+\label{subsec:operationalisierung}
+Die in \cref{ch:anforderungen} formulierten Zusicherungen beschreiben zunächst abstrakte Eigenschaften des zu entwickelnden Systems.
+Damit diese im Rahmen der Evaluation überprüft werden können, werden sie in konkret beobachtbare Eigenschaften und daraus
+ableitbare Prüfkriterien überführt.
+Die Operationalisierung legt somit fest, anhand welcher beobachtbaren Systemzustände oder -ereignisse entschieden wird,
+ob eine Zusicherung unter einem definierten Fehlerszenario eingehalten wurde.
+Hierzu wird für jede Zusicherung zunächst der für den Test erwartete Systemzustand in Form eines Prüfkriteriums formuliert,
+das anhand von beobachtbaren Größen wie Zuständen im Job-Store, der Anzahl persistierter Ergebnisse, \gls{http}-Antworten, ausgeführten
+Operationen oder der Anzahl erreichter Verarbeitungsversuche überprüft werden kann.
+Die vollständige Zuordnung der Zusicherungen zu den jeweiligen Fehlerinjektionen und Prüfkriterien ist in \cref{tab:testmatrix}
+dokumentiert.
+
+\subsection{Test- und Nachweismethoden}
+\label{subsec:test_und_nachweismethoden}
+Die Auswahl der konkreten Testszenarien orientiert sich primär an der Abdeckung der zuvor definierten Zusicherungen.
+Entsprechend wird für jede der neun Zusicherungen systematisch mindestens ein Testszenario definiert.
+Die zugrunde liegenden Fehlerklassen werden in \cref{sec:abgrenzungFehlermodell} definiert und durch die Literatur fundiert begründet.
+Die vollständige Zuordnung von Systemzusicherung, simulierter Fehlerinjektion und dem dazugehörigen Prüfkriterium ist in
+\cref{tab:testmatrix} dokumentiert.
+Die Nachweisführung einer Zusicherung kann zusätzlich analytische Anteile umfassen.
+Eigenschaften, die sich aus strukturellen Merkmalen der Implementierung ableiten lassen, werden argumentativ anhand dieser
+Implementierungsmerkmale begründet.
+
+Komponententests werden im Rahmen der Entwicklung eingesetzt, um einzelne Mechanismen isoliert zu überprüfen und die allgemeine
+Funktionsfähigkeit des Systems sicherzustellen.
+Diese Tests sind jedoch nicht Bestandteil der Evaluation, deren Fokus auf der Fehlertoleranz liegt und daher
+ein unter normalen Bedingungen funktionierendes System voraussetzt.
+Stattdessen werden ausschließlich Integrationstests als Evaluationsevidenz herangezogen, die gezielt Fehler injizieren und
+dabei das Verhalten und Zusammenspiel der verschiedenen Komponenten überprüfen.
+Die konkrete technische Umsetzung der Testumgebung wird in \cref{sec:versuchsaufbau} beschrieben.
+
+\subsection{Fehlerinjektion und Testdurchführung}
+\label{subsec:fehlerinjektion_und_testdurchfuehrung}
+Die Überprüfung der Zusicherungen erfolgt durch gezielte Herbeiführung der für das jeweilige Testszenario relevanten Fehlerbedingungen.
+Ein Testlauf beginnt dabei mit einem definierten Ausgangszustand.
+Anschließend wird die zu untersuchende Bedingung erzeugt und das daraus resultierende Systemverhalten beobachtet.
+Dieses wird abschließend mit den definierten Prüfkriterien verglichen.
+
+Die Art der Fehlerinjektion wird dabei an das jeweils untersuchte Fehlerszenario angepasst.
+Fehler können beispielsweise durch die Unterbrechung von Infrastrukturverbindungen, durch das gezielte Herstellen eines
+für Recovery relevanten Systemzustands oder durch das Auslösen definierter Fehler innerhalb einer Verarbeitung erzeugt werden.
+Für die Untersuchung von Nebenläufigkeit werden konkurrierende Operationen synchronisiert und gleichzeitig ausgeführt.
+Die konkrete technische Umsetzung der jeweiligen Fehlerinjektion und Teststeuerung wird zusammen mit den einzelnen Testszenarien
+in \cref{ch:evaluation} beziehungsweise dem Versuchsaufbau in \cref{sec:versuchsaufbau} beschrieben.
+
+\subsection{Reproduzierbarkeit und Auswertung}
+\label{subsec:reproduzierbarkeit}
+Nebenläufigkeitsabhängige Fehler können ein nicht-deterministisches Verhalten bei Mehrfachausführung desselben Tests verursachen.
+Insbesondere Race Conditions hängen vom konkreten Scheduling der beteiligten Threads ab.
+Ein einmalig erfolgreicher Testlauf stellt daher für solche Szenarien keinen hinreichenden empirischen Nachweis dar.
+Die Tests bezüglich konkurrierender Verarbeitung werden deshalb wiederholt unter identischen Ausgangsbedingungen ausgeführt.
+Für jeden Lauf werden dabei dieselben Systemparameter und dieselben Fehlerinjektionsbedingungen verwendet.
+Die Anzahl der Wiederholungen wird dabei einheitlich auf 100 festgelegt.
+Diese Zahl stellt einen Kompromiss zwischen der Aussagekraft der Untersuchung und dem für die Testdurchführung erforderlichen
+Zeitaufwand dar.
+Eine höhere Wiederholungszahl erhöht die Wahrscheinlichkeit, selten auftretende Nebenläufigkeitseffekte zu beobachten,
+führt jedoch gleichzeitig zu einem höheren Zeitaufwand für die Testdurchführung.
+Ausgewertet wird, ob die für das jeweilige Szenario definierten Prüfkriterien über sämtliche Wiederholungen hinweg eingehalten werden.
+Bei Tests, bei denen unterschiedliche Ausgänge des Rennens möglich sind, wird zusätzlich überprüft, dass im Verlauf der Wiederholungen
+unterschiedliche Ausgänge auftreten.
+Dies soll sicherstellen, dass tatsächlich verschiedene Schedules entstehen.
+Ein erfolgreicher Durchlauf wird dabei nicht als Beweis für das generelle Ausbleiben eines Fehlers interpretiert.
+Die wiederholte Durchführung dient vielmehr dazu, die Robustheit der beobachteten Ergebnisse gegenüber unterschiedlichen
+Ausführungsreihenfolgen zu untersuchen.
+Bei den restlichen Tests ist eine Wiederholung nicht notwendig, da diese durchweg deterministisch konstruiert sind und
+eine mehrfache Ausführung daher keine unterschiedlichen Schedules abdeckt.
+Die konkrete Durchführung, die verwendeten Parameter und die Ergebnisse der Testfälle werden in \cref{ch:evaluation} dokumentiert.

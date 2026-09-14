@@ -2,10 +2,12 @@ package backend.repository;
 
 import backend.domain.Job;
 import backend.domain.JobStatus;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -14,10 +16,16 @@ import java.util.UUID;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@ActiveProfiles("test")
 public class RepositoryTest {
 
     @Autowired
     private JobRepository jobRepository;
+
+    @AfterEach
+    void tearDown() {
+        jobRepository.deleteAllInBatch();
+    }
 
     @Test
     void createJobs() {

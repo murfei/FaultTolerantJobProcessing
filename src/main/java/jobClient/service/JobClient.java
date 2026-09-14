@@ -33,8 +33,9 @@ public class JobClient {
 
     public ResponseEntity<CreateJobResponse> createJob(String payload) {
         try {
+            UUID idempotencyKey = UUID.randomUUID();
             return retryExecutor.execute(() ->
-                    client.createJob(new CreateJobRequest(UUID.randomUUID(), payload))
+                    client.createJob(new CreateJobRequest(idempotencyKey, payload))
             );
         } catch (Exception e) {
             System.out.println("Der Job konnte nicht erfolgreich zugestellt werden. Der letzte Fehler war: " + e.getMessage());

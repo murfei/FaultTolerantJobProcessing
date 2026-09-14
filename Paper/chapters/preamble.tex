@@ -1,11 +1,12 @@
 %! Author = murfe
-%! Date = 08.06.2026
+%! Date = 09.09.2026
 
 % Packages
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
 \usepackage{microtype}
+\usepackage{makecell}
 \usepackage[ngerman]{babel}
 \usepackage{tikz}
 \usepackage{graphicx}
@@ -14,8 +15,11 @@
 \usepackage[backend=biber,style=authoryear]{biblatex}
 \usepackage{enumitem}
 \usepackage{csquotes}
+\usepackage{caption}
+\usepackage{subcaption}
 \usepackage{booktabs}
-\usepackage{tabularx}
+\usepackage{xltabular}
+\usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{textcomp}
 \usepackage{pifont}
@@ -26,16 +30,34 @@
     pdfauthor={Max Urfei}
 ]{hyperref}
 \usepackage[nameinlink, noabbrev]{cleveref}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{parskip}
+
+\KOMAoptions{numbers=noendperiod}
+\DefineBibliographyStrings{ngerman}{
+    andothers = {\textit{{et\,al\adddot}}},
+}
+
 \crefname{chapter}{Kapitel}{Kapitel}
 \crefname{section}{Kapitel}{Kapitel}
 \crefname{subsection}{Kapitel}{Kapitel}
 \crefname{figure}{Abbildung}{Abbildungen}
+\crefname{table}{Tabelle}{Tabellen}
+\crefname{listing}{Quelltext}{Quelltexten}
+\hyphenation{Back-end Back-ends}
+\renewcommand{\lstlistingname}{Quelltext}
+\renewcommand{\lstlistlistingname}{Quelltextverzeichnis}
 
 \usetikzlibrary{calc}
 \makeglossaries
 \setcounter{tocdepth}{3} %Heading-depth which will be displayed in the table of content
 \setcounter{secnumdepth}{3}
+
 \setuptoc{lof}{totoc}
+\setuptoc{lot}{totoc}
+\setuptoc{lol}{totoc}
+
 \RedeclareSectionCommand[
     beforeskip= -1sp,
     afterskip= 2.3ex plus .2ex
@@ -56,6 +78,12 @@
     \textbf{Zusicherung \thezusicherung\ (#1):}%
     \label{#2}%
 }
+
+\definecolor{javapurple}{rgb}{0.5, 0, 0.35}       % Für Schlüsselwörter (keywords)
+\definecolor{javablue}{rgb}{0.16, 0.0, 0.85}      % Für Strings
+\definecolor{javaannotation}{rgb}{0.71, 0.39, 0}  % Für Annotationen (@PostMapping etc.)
+\definecolor{javaclass}{rgb}{0, 0.4, 0.6}         % Teal / Dunkelblau für Klassen & Interfaces
+
 \definecolor{codegray}{gray}{0.95}
 \definecolor{commentgray}{gray}{0.45}
 
@@ -73,8 +101,49 @@
     showtabs=false,
     tabsize=4,
     frame=single,
-    columns=fullflexible
+    columns=fullflexible,
+%   Syntax Highlighting
+    keywordstyle=\color{javapurple}\bfseries,
+    stringstyle=\color{javablue},
 }
 
-\lstset{style=code}
-%\includeonly{chapters/02-grundlagen}
+%   Spezifischer Stil für Java
+\lstdefinestyle{java}{
+    style=code,
+    language=Java,
+%   Annotationen
+    emph={@Value, @Transactional, @PostMapping, @Valid, @RequestBody, @GetMapping, @Autowired, @Override, @Service,
+    @Component, @Controller, @Repository, @PostConstruct, @Scheduled},
+    emphstyle=\color{javaannotation}\bfseries,
+%   Klassen & Typen
+    emph={[2]ResponseEntity, CreateJobResponse, CreateJobRequest, Job, HttpStatus, Exception, DataIntegrityViolationException,
+    IllegalStateException, String, WorkerManager, WorkerService, Worker, Processor, Executors, Thread, Optional, JobResult, UUID,
+    JobStatus, Instant, JobNotFoundException, Callable, DataAccessException, CannotCreateTransactionException, Math, TimeUnit, List},
+    emphstyle={[2]\color{javaclass}\bfseries}
+}
+
+%   Spezifischer Stil für SQL
+\lstdefinestyle{sql}{
+    style=code,
+    language=SQL,
+%   fehlende SQL-Schlüsselwörter
+    morekeywords={FOR, SKIP, LOCKED}
+}
+\lstdefinestyle{logs}{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    breakatwhitespace=false,
+    columns=fullflexible,
+    keepspaces=true,
+    frame=single,
+    numbers=none,
+    literate=
+        {ä}{{\"a}}1
+        {ö}{{\"o}}1
+        {ü}{{\"u}}1
+        {Ä}{{\"A}}1
+        {Ö}{{\"O}}1
+        {Ü}{{\"U}}1
+        {ß}{{\ss}}1
+        {�}{{\textbf{?}}}1
+}

@@ -5,6 +5,7 @@ import backend.Exception.LeaseExpiredException;
 import backend.domain.Job;
 import backend.domain.JobResult;
 import backend.domain.JobStatus;
+import backend.infrastructure.TestHook;
 import backend.repository.JobRepository;
 import backend.repository.JobResultRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,11 +24,14 @@ public class WorkerService {
 
     private final JobRepository jobRepository;
     private final JobResultRepository resultRepository;
+    private final TestHook testHook;
 
-    public WorkerService(JobRepository repository, JobResultRepository resultRepository, @Value( "${job.max-duration}") int maximumJobDuration) {
+    public WorkerService(JobRepository repository, JobResultRepository resultRepository, TestHook testHook,
+                         @Value( "${job.max-duration}") int maximumJobDuration) {
         this.jobRepository = repository;
         this.resultRepository = resultRepository;
         this.maximumJobDuration = maximumJobDuration;
+        this.testHook = testHook;
     }
 
     @Transactional
@@ -54,19 +58,25 @@ public class WorkerService {
 
         Job job = jobRepository.findByIdForUpdate(jobId).orElseThrow(JobNotFoundException::new);
 
-        if (job.getStatus() != JobStatus.RUNNING)
+        if (job.getStatus() != JobStatus.RUNNING) {
+            System.out.println("WorkerService: Job hat nicht den Status RUNNING sondern " + job.getStatus() + ", obwohl Worker Ergebnis speichern wollte");
             throw new IllegalStateException("Job hat nicht den Status RUNNING, obwohl Worker Ergebnis speichern wollte");
-
-        if (!workerId.equals(job.getClaimed_by()))
+        }
+        if (!workerId.equals(job.getClaimed_by())) {
+            System.out.println("Worker hat keine Berechtigung, diesen Job zu bearbeiten. Besitzer: " + job.getClaimed_by() + " Worker: " + workerId);
             throw new IllegalStateException("Worker hat keine Berechtigung, diesen Job zu bearbeiten");
-
-        if (job.getLease_until().isBefore(Instant.now()))
+        }
+        if (job.getLease_until().isBefore(Instant.now())) {
+            System.out.println("Lease abgelaufen! Worker hat keine Berechtigung mehr, diesen Job zu bearbeiten. Worker: " + workerId);
             throw new LeaseExpiredException();
+        }
 
         job.setStatus(JobStatus.SUCCEEDED);
+        testHook.afterStatusChange();
         resultRepository.save(jobResult);
         job.setResult(jobResult);
         job.setUpdatedAt(Instant.now());
+        System.out.println("Job " + job.getIdempotencyKey() + " erfolgreich beendet durch Worker " + workerId);
         return job;
     }
 }

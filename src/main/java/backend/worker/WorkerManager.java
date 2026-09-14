@@ -21,8 +21,12 @@ public class WorkerManager {
         this.workerService = workerService;
         this.jobProcessor = jobProcessor;
         this.workerCount = workerCount;
-
-        this.executorService = Executors.newFixedThreadPool(workerCount);
+        if(workerCount < 1){
+            this.executorService = Executors.newFixedThreadPool(1); //in diesem Service werden durch die unten
+                                                                             //stehende Methode trotzdem keine Worker gestartet
+        } else {
+            this.executorService = Executors.newFixedThreadPool(workerCount);
+        }
     }
 
     @PostConstruct

@@ -35,6 +35,10 @@ public class JobResult {
         this.createdAt = Instant.now();
     }
 
+    public UUID getJobId() {
+        return jobId;
+    }
+
     public String getResult() {
         return result;
     }

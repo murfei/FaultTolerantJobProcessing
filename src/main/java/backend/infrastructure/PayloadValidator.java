@@ -1,4 +1,4 @@
-package backend.service;
+package backend.infrastructure;
 
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
@@ -13,6 +13,7 @@ public class PayloadValidator {
             mapper.readTree(payload);
             return true;
         } catch (Exception e) {
+            System.out.println("PayloadValidator: Payload ist ungültig");
             return false;
         }
     }
