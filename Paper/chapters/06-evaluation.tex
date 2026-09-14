@@ -18,8 +18,8 @@ Vor den jeweiligen Testdurchläufen wird sichergestellt, dass die relevanten Dat
 die einzelnen Testläufe unabhängig voneinander sind und sich nicht gegenseitig beeinflussen.
 
 Die verwendeten Systemparameter sind für die getesteten Szenarien angepasst.
-Das Ziel dabei ist, die einzelnen Komponenten so aufeinander abzustimmen, dass die betrachteten Fehlerinjektionen reproduzierbar
-durchgeführt und die vorgesehenen Konkurrenzsituationen gezielt erzeugt werden können.
+Das Ziel dabei ist, die Parameter der unterschiedlichen Komponenten so zu wählen, dass praxisnahe Testbedingungen bei
+gleichzeitig vertretbarem zeitlichem Aufwand ermöglicht werden.
 Konkret wurde die Anzahl der Worker auf 1 gesetzt, die Anzahl der maximalen Verarbeitungsversuche für Jobs auf 5, die Lease-Dauer
 auf 10 Sekunden, die Verarbeitungszeit der Jobs auf 5 Sekunden und das Recovery-Intervall ebenfalls auf 5 Sekunden.
 Das Retry- und Backoff-Verhalten ist mit 200ms und einem Faktor von $2^n$ gewählt, um die Laufzeit der Tests zu begrenzen.

@@ -950,7 +950,7 @@ Die jeweilige Operation wird hierzu als Lambda-Ausdruck an den \texttt{RetryExec
     language=Java,
     style=java,
     caption={[Verwendung des RetryExecutors beim Datenbankzugriff]{Einbindung des generischen \texttt{RetryExecutors} zur automatischen
-    Wiederholung einer Operation bei einem als transient klassifizierten Fehler.}},
+    Wiederholung einer Operation bei einem transienten Fehler.}},
     label={lst:retryUsage}
 ]
 Job job = retryExecutor.execute(
